@@ -2,22 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import {
-  Home,
-  Rocket,
-  Compass,
-  Star,
-  HelpCircle,
-  BookOpen,
-  LayoutDashboard,
-  Coins,
-  Bookmark,
-  Users,
-  ArrowLeftRight,
-  Settings,
-  Menu,
-  X,
-} from "lucide-react";
+import { Menu, X } from "lucide-react";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { FansPumpBrand } from "@/components/brand/fans-pump-brand";
@@ -25,54 +10,13 @@ import { AdminNavLink } from "@/components/layout/admin-nav-link";
 import { SidebarWallet } from "@/components/layout/sidebar-wallet";
 import { SidebarToggle } from "@/components/layout/sidebar-toggle";
 import { useSidebar } from "@/components/layout/sidebar-context";
-
-const platformLinks = [
-  { href: "/", label: "Home", icon: Home },
-  { href: "/create", label: "Create Token", icon: Rocket },
-  { href: "/discover", label: "Explore", icon: Compass, match: "discover-explore" as const },
-  { href: "/discover?section=featured", label: "Featured", icon: Star, match: "discover-featured" as const },
-  { href: "/docs/how-it-works", label: "How It Works", icon: HelpCircle },
-  { href: "/docs", label: "Docs", icon: BookOpen },
-  { href: "/swap", label: "Swap", icon: ArrowLeftRight },
-];
-
-const userLinks = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/my-tokens", label: "My Tokens", icon: Coins },
-  { href: "/watchlist", label: "Watchlist", icon: Bookmark },
-  { href: "/following", label: "Following", icon: Users },
-];
-
-type NavLink = {
-  href: string;
-  label: string;
-  icon: React.ComponentType<{ className?: string }>;
-  match?: "discover-explore" | "discover-featured";
-};
-
-function isNavLinkActive(pathname: string, searchParams: URLSearchParams, link: NavLink) {
-  if (link.match === "discover-explore") {
-    return pathname === "/discover" && searchParams.get("section") !== "featured";
-  }
-  if (link.match === "discover-featured") {
-    return pathname === "/discover" && searchParams.get("section") === "featured";
-  }
-
-  const [path, query] = link.href.split("?");
-  if (query) {
-    if (pathname !== path) return false;
-    const expected = new URLSearchParams(query);
-    for (const [key, value] of expected.entries()) {
-      if (searchParams.get(key) !== value) return false;
-    }
-    return true;
-  }
-
-  if (path === "/") return pathname === "/";
-  if (path === "/docs") return pathname === "/docs";
-  if (path === "/docs/how-it-works") return pathname === "/docs/how-it-works";
-  return pathname === path || pathname.startsWith(`${path}/`);
-}
+import {
+  platformLinks,
+  userLinks,
+  settingsLink,
+  isSidebarNavActive,
+  type SidebarNavItem,
+} from "@/components/layout/sidebar-nav";
 
 function NavSection({
   title,
@@ -84,7 +28,7 @@ function NavSection({
   collapsed,
 }: {
   title?: string;
-  links: NavLink[];
+  links: SidebarNavItem[];
   pathname: string;
   searchParams: URLSearchParams;
   onNavigate?: () => void;
@@ -100,11 +44,11 @@ function NavSection({
       )}
       <nav className="space-y-0.5">
         {links.map((link) => {
-          const { href, label, icon: Icon } = link;
-          const active = isNavLinkActive(pathname, searchParams, link);
+          const { id, href, label, icon: Icon } = link;
+          const active = isSidebarNavActive(id, pathname, searchParams);
           return (
             <Link
-              key={href}
+              key={id}
               href={href}
               onClick={onNavigate}
               title={collapsed ? label : undefined}
@@ -144,7 +88,7 @@ function SidebarContent({
   collapsed?: boolean;
   onToggle?: () => void;
 }) {
-  const settingsActive = pathname === "/settings";
+  const settingsActive = isSidebarNavActive(settingsLink.id, pathname, searchParams);
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -172,16 +116,16 @@ function SidebarContent({
           onNavigate={onNavigate}
           collapsed={collapsed}
         />
-        <div className="mb-6">
+        <div className="mb-4">
           {!collapsed && (
             <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
               Account
             </p>
           )}
           <Link
-            href="/settings"
+            href={settingsLink.href}
             onClick={onNavigate}
-            title={collapsed ? "Settings" : undefined}
+            title={collapsed ? settingsLink.label : undefined}
             className={cn(
               "flex items-center rounded-lg py-2 text-sm font-medium transition-colors",
               collapsed ? "justify-center px-2" : "gap-3 px-3",
@@ -190,13 +134,18 @@ function SidebarContent({
                 : "text-muted-foreground hover:bg-muted hover:text-foreground"
             )}
           >
-            <Settings className="h-4 w-4 shrink-0" />
-            {!collapsed && "Settings"}
+            <settingsLink.icon className="h-4 w-4 shrink-0" />
+            {!collapsed && settingsLink.label}
           </Link>
         </div>
       </div>
 
       <div className={cn("shrink-0 border-t border-border pt-4", collapsed ? "px-1" : "px-2")}>
+        {!collapsed && (
+          <p className="mb-2 px-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            Wallet
+          </p>
+        )}
         <SidebarWallet collapsed={collapsed} />
       </div>
     </div>
@@ -259,7 +208,7 @@ export function Sidebar() {
                 <X className="h-6 w-6" />
               </button>
             </div>
-            <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain p-4">
+            <div className="flex min-h-0 flex-1 flex-col p-4">
               <SidebarContent
                 pathname={pathname}
                 searchParams={searchParams}
