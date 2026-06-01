@@ -17,13 +17,13 @@ import {
   Settings,
   Menu,
   X,
-  ChevronLeft,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { FansPumpBrand } from "@/components/brand/fans-pump-brand";
 import { AdminNavLink } from "@/components/layout/admin-nav-link";
 import { SidebarWallet } from "@/components/layout/sidebar-wallet";
+import { SidebarToggle } from "@/components/layout/sidebar-toggle";
 import { useSidebar } from "@/components/layout/sidebar-context";
 
 const platformLinks = [
@@ -148,30 +148,11 @@ function SidebarContent({
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div
-        className={cn(
-          "relative mb-4 shrink-0 px-2",
-          collapsed ? "flex h-[4.25rem] flex-col items-center justify-center" : "h-[4.75rem]"
-        )}
-      >
-        <div className={cn("min-w-0 overflow-hidden", collapsed ? "flex justify-center" : "pr-9")}>
+      <div className="mb-4 flex h-14 shrink-0 items-center gap-1 px-1">
+        <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
           <FansPumpBrand collapsed={collapsed} />
         </div>
-        {onToggle && (
-          <button
-            type="button"
-            onClick={onToggle}
-            className={cn(
-              "rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
-              collapsed ? "mt-1" : "absolute right-2 top-0"
-            )}
-            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-          >
-            <ChevronLeft
-              className={cn("h-4 w-4 transition-transform duration-300 ease-in-out", collapsed && "rotate-180")}
-            />
-          </button>
-        )}
+        {onToggle && <SidebarToggle collapsed={!!collapsed} onClick={onToggle} />}
       </div>
 
       <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -291,8 +272,9 @@ export function Sidebar() {
 
       <aside
         className={cn(
-          "hidden shrink-0 overflow-hidden border-r border-border bg-card/50 transition-[width] duration-300 ease-in-out lg:block",
-          collapsed ? "w-[72px]" : "w-64"
+          "hidden shrink-0 overflow-hidden border-r border-border bg-card/50 lg:block",
+          "transition-[width] duration-300 ease-in-out motion-reduce:transition-none",
+          collapsed ? "w-[4.5rem]" : "w-64"
         )}
       >
         <div className="sticky top-0 h-screen p-4">

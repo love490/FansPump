@@ -14,6 +14,10 @@ export function SidebarWallet({ collapsed }: { collapsed?: boolean }) {
   const rootRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    setOpen(false);
+  }, [collapsed]);
+
+  useEffect(() => {
     if (!open) return;
     function onPointerDown(e: MouseEvent) {
       if (rootRef.current && !rootRef.current.contains(e.target as Node)) {

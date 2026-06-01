@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useState } from "react";
+import { createContext, useCallback, useContext, useLayoutEffect, useState } from "react";
 
 const STORAGE_KEY = "fanspump-sidebar-collapsed";
 
@@ -19,7 +19,7 @@ function readCollapsedFromStorage(): boolean {
 export function SidebarProvider({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     setCollapsed(readCollapsedFromStorage());
   }, []);
 
