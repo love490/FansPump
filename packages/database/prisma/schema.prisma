@@ -1,0 +1,128 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum VoteType {
+  BULLISH
+  NEUTRAL
+  BEARISH
+}
+
+model User {
+  id            String   @id @default(cuid())
+  walletAddress String   @unique @map("wallet_address")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  watchlist     WatchlistItem[]
+  votes         TokenVote[]
+  verification  CreatorVerification?
+  tokenProjects TokenProject[]
+
+  @@map("users")
+}
+
+model TokenProject {
+  id              String   @id @default(cuid())
+  contractAddress String   @unique @map("contract_address")
+  chainId         Int      @map("chain_id")
+  name            String
+  symbol          String
+  decimals        Int      @default(18)
+  initialSupply   String   @map("initial_supply")
+  featureFlags    BigInt   @map("feature_flags")
+  creatorAddress  String   @map("creator_address")
+  factoryAddress  String   @map("factory_address")
+  txHash          String?  @map("tx_hash")
+
+  logoUrl         String?  @map("logo_url")
+  bannerUrl       String?  @map("banner_url")
+  description     String?  @db.Text
+  website         String?
+  telegram        String?
+  twitter         String?
+  discord         String?
+  github          String?
+
+  buyTaxBps       Int?     @map("buy_tax_bps")
+  sellTaxBps      Int?     @map("sell_tax_bps")
+  maxWallet       String?  @map("max_wallet")
+  maxTx           String?  @map("max_tx")
+
+  viewCount       Int      @default(0) @map("view_count")
+  holderCount     Int      @default(0) @map("holder_count")
+  isFeatured      Boolean  @default(false) @map("is_featured")
+  trendingScore   Float    @default(0) @map("trending_score")
+
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  creator         User?    @relation(fields: [creatorAddress], references: [walletAddress])
+  votes           TokenVote[]
+  watchlist       WatchlistItem[]
+  metadataHistory MetadataUpdate[]
+
+  @@index([createdAt])
+  @@index([trendingScore])
+  @@index([viewCount])
+  @@index([holderCount])
+  @@index([updatedAt])
+  @@index([isFeatured])
+  @@map("token_projects")
+}
+
+model CreatorVerification {
+  id              String   @id @default(cuid())
+  walletAddress   String   @unique @map("wallet_address")
+  signature       String
+  message         String
+  verifiedAt      DateTime @default(now()) @map("verified_at")
+
+  user            User     @relation(fields: [walletAddress], references: [walletAddress])
+
+  @@map("creator_verifications")
+}
+
+model WatchlistItem {
+  id            String   @id @default(cuid())
+  userId        String   @map("user_id")
+  tokenId       String   @map("token_id")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  user          User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token         TokenProject @relation(fields: [tokenId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, tokenId])
+  @@map("watchlist_items")
+}
+
+model TokenVote {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  tokenId   String   @map("token_id")
+  voteType  VoteType @map("vote_type")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     TokenProject @relation(fields: [tokenId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, tokenId])
+  @@map("token_votes")
+}
+
+model MetadataUpdate {
+  id        String   @id @default(cuid())
+  tokenId   String   @map("token_id")
+  field     String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  token     TokenProject @relation(fields: [tokenId], references: [id], onDelete: Cascade)
+
+  @@map("metadata_updates")
+}

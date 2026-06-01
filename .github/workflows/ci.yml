@@ -1,0 +1,69 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  contracts:
+    name: Foundry Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: packages/contracts
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+
+      - name: Install dependencies
+        run: |
+          forge install foundry-rs/forge-std OpenZeppelin/openzeppelin-contracts --no-commit
+
+      - name: Build
+        run: forge build
+
+      - name: Test
+        run: forge test -vv
+
+  web:
+    name: Web Lint & Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install
+
+      - name: Generate Prisma Client
+        run: pnpm db:generate
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/iopn_launch
+
+      - name: Lint
+        run: pnpm --filter @iopn/web lint
+
+      - name: Build
+        run: pnpm --filter @iopn/web build
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/iopn_launch
+          NEXT_PUBLIC_CHAIN_ID: "984"
+          NEXT_PUBLIC_RPC_URL: "https://testnet-rpc2.iopn.tech/"
+          NEXT_PUBLIC_BLOCK_EXPLORER_URL: "https://testnet.iopn.tech/"
+          NEXT_PUBLIC_FACTORY_ADDRESS: "0x0000000000000000000000000000000000000001"
+          NEXT_PUBLIC_LIQUIDITY_ROUTER_ADDRESS: "0x0000000000000000000000000000000000000002"
+          NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID: "ci-placeholder"

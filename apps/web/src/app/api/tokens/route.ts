@@ -1,0 +1,147 @@
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@iopn/database";
+import { z } from "zod";
+
+const emptyToNull = (v: unknown) => (v === "" ? null : v);
+
+const optionalImageUrl = z.preprocess(
+  emptyToNull,
+  z
+    .union([
+      z.string().url(),
+      z.string().regex(/^\/uploads\/projects\/[a-zA-Z0-9._-]+$/),
+      z.null(),
+    ])
+    .optional()
+);
+
+const optionalUrl = z.preprocess(emptyToNull, z.string().url().nullable().optional());
+const optionalText = z.preprocess(emptyToNull, z.string().nullable().optional());
+
+const createSchema = z.object({
+  contractAddress: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
+  chainId: z.number().int(),
+  name: z.string().min(1).max(64),
+  symbol: z.string().min(1).max(16),
+  initialSupply: z.string(),
+  featureFlags: z.string(),
+  creatorAddress: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
+  factoryAddress: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
+  txHash: z.string().optional(),
+  logoUrl: optionalImageUrl,
+  bannerUrl: optionalImageUrl,
+  description: z.string().max(5000).optional().nullable(),
+  website: optionalUrl,
+  telegram: optionalText,
+  twitter: optionalText,
+  discord: optionalText,
+  github: optionalUrl,
+  buyTaxBps: z.number().int().optional().nullable(),
+  sellTaxBps: z.number().int().optional().nullable(),
+  maxWallet: z.string().optional().nullable(),
+  maxTx: z.string().optional().nullable(),
+});
+
+export async function GET(request: NextRequest) {
+  const { searchParams } = new URL(request.url);
+  const section = searchParams.get("section") ?? "new";
+  const q = searchParams.get("q")?.trim() ?? "";
+  const limit = Math.min(Number(searchParams.get("limit") ?? 24), 100);
+
+  const orderBy =
+    section === "trending"
+      ? { trendingScore: "desc" as const }
+      : section === "views"
+        ? { viewCount: "desc" as const }
+        : section === "holders"
+          ? { holderCount: "desc" as const }
+          : section === "updated"
+            ? { updatedAt: "desc" as const }
+            : section === "featured"
+              ? undefined
+              : { createdAt: "desc" as const };
+
+  const searchFilter = q
+    ? {
+        OR: [
+          { name: { contains: q, mode: "insensitive" as const } },
+          { symbol: { contains: q, mode: "insensitive" as const } },
+          { contractAddress: { contains: q.toLowerCase() } },
+        ],
+      }
+    : null;
+
+  const sectionFilter =
+    section === "featured" ? { isFeatured: true } : q ? null : undefined;
+
+  const where =
+    searchFilter && sectionFilter
+      ? { AND: [sectionFilter, searchFilter] }
+      : searchFilter
+        ? searchFilter
+        : sectionFilter;
+
+  const tokens = await prisma.tokenProject.findMany({
+    where,
+    orderBy: q ? { createdAt: "desc" as const } : (orderBy ?? { createdAt: "desc" }),
+    take: q ? Math.min(limit, 20) : limit,
+    include: {
+      creator: { include: { verification: true } },
+    },
+  });
+
+  const enriched = tokens.map((t) => ({
+    ...t,
+    featureFlags: t.featureFlags.toString(),
+    creatorVerified: !!t.creator?.verification,
+  }));
+
+  return NextResponse.json({ tokens: enriched });
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = createSchema.parse(await request.json());
+
+    await prisma.user.upsert({
+      where: { walletAddress: body.creatorAddress.toLowerCase() },
+      create: { walletAddress: body.creatorAddress.toLowerCase() },
+      update: {},
+    });
+
+    const token = await prisma.tokenProject.create({
+      data: {
+        contractAddress: body.contractAddress.toLowerCase(),
+        chainId: body.chainId,
+        name: body.name,
+        symbol: body.symbol,
+        initialSupply: body.initialSupply,
+        featureFlags: BigInt(body.featureFlags),
+        creatorAddress: body.creatorAddress.toLowerCase(),
+        factoryAddress: body.factoryAddress.toLowerCase(),
+        txHash: body.txHash,
+        logoUrl: body.logoUrl,
+        bannerUrl: body.bannerUrl,
+        description: body.description,
+        website: body.website,
+        telegram: body.telegram,
+        twitter: body.twitter,
+        discord: body.discord,
+        github: body.github,
+        buyTaxBps: body.buyTaxBps,
+        sellTaxBps: body.sellTaxBps,
+        maxWallet: body.maxWallet,
+        maxTx: body.maxTx,
+      },
+    });
+
+    return NextResponse.json({
+      token: { ...token, featureFlags: token.featureFlags.toString() },
+    });
+  } catch (e) {
+    if (e instanceof z.ZodError) {
+      return NextResponse.json({ error: e.flatten() }, { status: 400 });
+    }
+    return NextResponse.json({ error: "Failed to register token" }, { status: 500 });
+  }
+}

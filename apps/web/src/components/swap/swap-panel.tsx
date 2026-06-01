@@ -1,0 +1,254 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import { useConnectModal } from "@rainbow-me/rainbowkit";
+import { useAccount } from "wagmi";
+import type { Address } from "viem";
+import { ArrowDownUp, Settings2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { SwapTransactionStatus } from "@/components/swap/swap-transaction-status";
+import { SwapTokenPicker } from "@/components/swap/swap-token-picker";
+import { SwapPayTokenSelect, OPN_PAY_TOKEN } from "@/components/swap/swap-pay-token-select";
+import { useSwapQuote } from "@/hooks/swap/useSwapQuote";
+import { useSwapApproval } from "@/hooks/swap/useSwapApproval";
+import { useSwapExecute } from "@/hooks/swap/useSwapExecute";
+import {
+  applySlippage,
+  formatSwapAmount,
+  isValidTokenAddress,
+} from "@/lib/swap/routerAdapter";
+import {
+  DEFAULT_SLIPPAGE,
+  SLIPPAGE_OPTIONS,
+  type PayToken,
+  type SwapMode,
+  isPayTokenConfigured,
+} from "@/lib/swap/constants";
+import { cn } from "@/lib/utils";
+
+interface SwapPanelProps {
+  initialToken?: string;
+  initialMode?: SwapMode;
+}
+
+export function SwapPanel({ initialToken = "", initialMode = "buy" }: SwapPanelProps) {
+  const { address, isConnected } = useAccount();
+  const { openConnectModal } = useConnectModal();
+  const [tokenAddress, setTokenAddress] = useState(initialToken);
+  const [mode, setMode] = useState<SwapMode>(initialMode);
+  const [payToken, setPayToken] = useState<PayToken>(OPN_PAY_TOKEN);
+  const [amountIn, setAmountIn] = useState("");
+  const [slippage, setSlippage] = useState(DEFAULT_SLIPPAGE);
+  const [gasEstimate, setGasEstimate] = useState<bigint | null>(null);
+
+  const validToken = isValidTokenAddress(tokenAddress);
+  const { quote, loading, error: quoteError } = useSwapQuote(
+    tokenAddress,
+    amountIn,
+    mode,
+    payToken,
+    slippage,
+    validToken
+  );
+
+  const approvalToken = quote?.approvalToken as Address | undefined;
+  const { allowance, approve, isPending: approving, isSuccess: approved, refetch } = useSwapApproval(
+    approvalToken,
+    address
+  );
+
+  const { executeSwap, estimateGas, status, error: txError, hash, reset, isBusy } = useSwapExecute();
+
+  const needsApproval = !!quote?.approvalToken && allowance < (quote?.amountIn ?? 0n);
+
+  const minReceived = quote ? applySlippage(quote.amountOut, slippage) : 0n;
+
+  const receiveLabel = mode === "buy" ? "Token" : payToken.symbol;
+  const receiveDecimals = mode === "buy" ? 18 : quote?.paymentDecimals ?? payToken.decimals;
+
+  const amountOutDisplay = useMemo(() => {
+    if (!quote) return "0";
+    return formatSwapAmount(quote.amountOut, receiveDecimals);
+  }, [quote, receiveDecimals]);
+
+  const minReceivedDisplay = useMemo(() => {
+    if (!quote) return "—";
+    return `${formatSwapAmount(minReceived, receiveDecimals)} ${receiveLabel}`;
+  }, [quote, minReceived, receiveDecimals, receiveLabel]);
+
+  useEffect(() => {
+    if (!quote || !address) {
+      setGasEstimate(null);
+      return;
+    }
+    estimateGas(quote, mode, slippage).then(setGasEstimate);
+  }, [quote, address, mode, slippage, estimateGas]);
+
+  useEffect(() => {
+    if (approved) refetch();
+  }, [approved, refetch]);
+
+  async function handleSwap() {
+    if (!quote) return;
+    if (needsApproval && !approved) {
+      approve();
+      return;
+    }
+    await executeSwap(quote, mode, slippage);
+  }
+
+  const approveLabel =
+    mode === "buy" && !payToken.isNative ? `Approve ${payToken.symbol}` : "Approve Token";
+
+  return (
+    <div className="mx-auto w-full max-w-lg space-y-4">
+      <Card className="border-border shadow-sm">
+        <CardHeader className="pb-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <ArrowDownUp className="h-5 w-5 text-primary" /> Swap
+              </CardTitle>
+              <CardDescription>Buy and sell tokens on OPNChain</CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-2 gap-2 rounded-lg bg-muted p-1">
+            {(["buy", "sell"] as SwapMode[]).map((m) => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => setMode(m)}
+                className={cn(
+                  "rounded-md py-2 text-sm font-medium capitalize transition-colors",
+                  mode === m
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {m === "buy" ? "Buy Token" : "Sell Token"}
+              </button>
+            ))}
+          </div>
+
+          <SwapTokenPicker value={tokenAddress} onChange={setTokenAddress} />
+
+          <div>
+            {mode === "buy" ? (
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <Label className="mb-0">You pay</Label>
+                <SwapPayTokenSelect
+                  value={payToken}
+                  onChange={setPayToken}
+                  excludeAddress={validToken ? tokenAddress : undefined}
+                />
+              </div>
+            ) : (
+              <Label>You sell (tokens)</Label>
+            )}
+            <Input
+              type="number"
+              min="0"
+              step="any"
+              placeholder="0.0"
+              value={amountIn}
+              onChange={(e) => setAmountIn(e.target.value)}
+              className={mode === "sell" ? "mt-2" : undefined}
+            />
+          </div>
+
+          <div className="rounded-lg border border-dashed bg-muted/30 p-4">
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <p className="text-xs text-muted-foreground">You receive</p>
+              {mode === "sell" && (
+                <SwapPayTokenSelect
+                  value={payToken}
+                  onChange={setPayToken}
+                  excludeAddress={validToken ? tokenAddress : undefined}
+                />
+              )}
+            </div>
+            <p className="text-2xl font-semibold tabular-nums">
+              {loading ? "…" : amountOutDisplay}{" "}
+              <span className="text-sm font-normal text-muted-foreground">{receiveLabel}</span>
+            </p>
+          </div>
+
+          <div className="space-y-2 rounded-lg border p-3 text-sm">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Route</span>
+              <span>{quote?.routeLabel ?? "—"}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Router</span>
+              <span className="text-right text-xs sm:text-sm">{quote?.routerLabel ?? "—"}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Price impact</span>
+              <span className={quote && quote.priceImpactBps > 300 ? "text-amber-600" : ""}>
+                {quote ? `${(quote.priceImpactBps / 100).toFixed(2)}%` : "—"}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Minimum received</span>
+              <span>{quote ? minReceivedDisplay : "—"}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Est. gas</span>
+              <span>{gasEstimate != null ? gasEstimate.toString() : "—"}</span>
+            </div>
+          </div>
+
+          <div>
+            <Label className="flex items-center gap-1">
+              <Settings2 className="h-3.5 w-3.5" /> Slippage tolerance
+            </Label>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {SLIPPAGE_OPTIONS.map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => setSlippage(s)}
+                  className={cn(
+                    "rounded-full border px-3 py-1 text-xs font-medium",
+                    slippage === s ? "border-primary bg-primary/10 text-primary" : "text-muted-foreground"
+                  )}
+                >
+                  {s}%
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {quoteError && <p className="text-sm text-red-600">{quoteError}</p>}
+
+          {!isConnected ? (
+            <Button className="w-full" onClick={() => openConnectModal?.()}>
+              Connect Wallet
+            </Button>
+          ) : needsApproval && !approved ? (
+            <Button className="w-full" disabled={!quote || approving || isBusy} onClick={approve}>
+              {approving ? "Approving…" : approveLabel}
+            </Button>
+          ) : (
+            <Button
+              className="w-full"
+              disabled={
+                !quote || loading || isBusy || !validToken || !amountIn || !isPayTokenConfigured(payToken)
+              }
+              onClick={handleSwap}
+            >
+              {isBusy ? "Processing…" : mode === "buy" ? "Buy Token" : "Sell Token"}
+            </Button>
+          )}
+        </CardContent>
+      </Card>
+
+      <SwapTransactionStatus status={status} hash={hash} error={txError} onReset={reset} />
+    </div>
+  );
+}
