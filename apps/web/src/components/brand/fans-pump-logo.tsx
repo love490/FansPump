@@ -24,7 +24,7 @@ export function FansPumpLogo({
     <Link
       href={href}
       className={cn(
-        "flex items-center gap-2.5 font-bold tracking-tight",
+        "flex min-w-0 items-center gap-2 font-bold tracking-tight",
         vertical && "flex-col gap-2 text-center",
         className
       )}
@@ -38,7 +38,7 @@ export function FansPumpLogo({
         priority
       />
       {showText && (
-        <span className={cn("text-xl", size === "lg" && "text-2xl")}>
+        <span className={cn("text-xl", size === "lg" && "text-2xl", size === "md" && "text-lg")}>
           <span className={light ? "text-white" : "text-foreground"}>Fans</span>
           <span className={light ? "text-iopn-300" : "text-primary"}>Pump</span>
         </span>

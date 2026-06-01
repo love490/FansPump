@@ -5,7 +5,8 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { Menu, X } from "lucide-react";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
-import { FansPumpBrand } from "@/components/brand/fans-pump-brand";
+import { FansPumpBrand, FansPumpTagline } from "@/components/brand/fans-pump-brand";
+import { FansPumpLogo } from "@/components/brand/fans-pump-logo";
 import { AdminNavLink } from "@/components/layout/admin-nav-link";
 import { SidebarWallet } from "@/components/layout/sidebar-wallet";
 import { SidebarToggle } from "@/components/layout/sidebar-toggle";
@@ -89,14 +90,32 @@ function SidebarContent({
   onToggle?: () => void;
 }) {
   const settingsActive = isSidebarNavActive(settingsLink.id, pathname, searchParams);
+  const isExpanded = collapsed !== true;
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="mb-4 flex h-14 shrink-0 items-center gap-1 px-1">
-        <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
-          <FansPumpBrand collapsed={collapsed} />
-        </div>
-        {onToggle && <SidebarToggle collapsed={!!collapsed} onClick={onToggle} />}
+      <div
+        className={cn(
+          "mb-3 shrink-0 overflow-visible border-b border-border/50 pb-3",
+          isExpanded ? "px-0.5" : "px-1"
+        )}
+      >
+        {isExpanded ? (
+          <>
+            <div className="flex items-center justify-between gap-1">
+              <FansPumpLogo showText size="md" className="min-w-0 shrink" />
+              {onToggle && <SidebarToggle collapsed={false} onClick={onToggle} />}
+            </div>
+            <FansPumpTagline className="mt-2" />
+          </>
+        ) : (
+          <div className="flex h-14 items-center gap-1">
+            <div className="flex min-w-0 flex-1 justify-center">
+              <FansPumpBrand collapsed />
+            </div>
+            {onToggle && <SidebarToggle collapsed onClick={onToggle} />}
+          </div>
+        )}
       </div>
 
       <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -212,6 +231,7 @@ export function Sidebar() {
               <SidebarContent
                 pathname={pathname}
                 searchParams={searchParams}
+                collapsed={false}
                 onNavigate={() => setMobileOpen(false)}
               />
             </div>
@@ -221,9 +241,9 @@ export function Sidebar() {
 
       <aside
         className={cn(
-          "hidden shrink-0 overflow-hidden border-r border-border bg-card/50 lg:block",
+          "hidden shrink-0 border-r border-border bg-card/50 lg:block",
           "transition-[width] duration-300 ease-in-out motion-reduce:transition-none",
-          collapsed ? "w-[4.5rem]" : "w-64"
+          collapsed ? "w-[4.5rem] overflow-hidden" : "w-72 overflow-visible"
         )}
       >
         <div className="sticky top-0 h-screen p-4">

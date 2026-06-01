@@ -16,7 +16,7 @@ function MainColumn({ children }: { children: React.ReactNode }) {
         <div
           className={cn(
             "mx-auto w-full transition-[max-width] duration-300 ease-in-out motion-reduce:transition-none",
-            collapsed ? "lg:max-w-[calc(100vw-4.5rem-3rem)]" : "lg:max-w-[calc(100vw-16rem-3rem)]"
+            collapsed ? "lg:max-w-[calc(100vw-4.5rem-3rem)]" : "lg:max-w-[calc(100vw-18rem-3rem)]"
           )}
         >
           {children}
