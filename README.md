@@ -1,4 +1,5 @@
 # FansPump
+<<<<<<< HEAD
 
 Production-grade token launch, discovery, swap, and liquidity onboarding on **OPNChain**.
 
