@@ -1,5 +1,4 @@
 # FansPump
-<<<<<<< HEAD
 
 Production-grade token launch, discovery, swap, and liquidity onboarding on **OPNChain**.
 
@@ -82,6 +81,10 @@ Configure platform admins — see [docs/ADMIN.md](docs/ADMIN.md).
 - Hard-coded 5% max buy/sell tax
 
 See [docs/SECURITY.md](docs/SECURITY.md).
+
+## Deploy to Vercel
+
+See [docs/VERCEL.md](docs/VERCEL.md) for Root Directory, env vars, and monorepo settings.
 
 ## License
 

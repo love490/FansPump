@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@iopn/database";
+import { prisma, type Prisma } from "@iopn/database";
 import { z } from "zod";
 
 const emptyToNull = (v: unknown) => (v === "" ? null : v);
@@ -61,7 +61,7 @@ export async function GET(request: NextRequest) {
               ? undefined
               : { createdAt: "desc" as const };
 
-  const searchFilter = q
+  const searchFilter: Prisma.TokenProjectWhereInput | undefined = q
     ? {
         OR: [
           { name: { contains: q, mode: "insensitive" as const } },
@@ -69,17 +69,15 @@ export async function GET(request: NextRequest) {
           { contractAddress: { contains: q.toLowerCase() } },
         ],
       }
-    : null;
+    : undefined;
 
-  const sectionFilter =
-    section === "featured" ? { isFeatured: true } : q ? null : undefined;
+  const sectionFilter: Prisma.TokenProjectWhereInput | undefined =
+    section === "featured" ? { isFeatured: true } : undefined;
 
-  const where =
+  const where: Prisma.TokenProjectWhereInput | undefined =
     searchFilter && sectionFilter
       ? { AND: [sectionFilter, searchFilter] }
-      : searchFilter
-        ? searchFilter
-        : sectionFilter;
+      : (searchFilter ?? sectionFilter);
 
   const tokens = await prisma.tokenProject.findMany({
     where,
