@@ -19,7 +19,7 @@ export function FansPumpBrand({
   return (
     <div className={cn("min-w-0", className)}>
       <FansPumpLogo size="md" />
-      <p className="mt-2.5 whitespace-nowrap text-sm font-medium text-muted-foreground">
+      <p className="mt-2 line-clamp-1 text-sm font-medium text-muted-foreground">
         Create <span className="text-primary">•</span> Discover <span className="text-primary">•</span> Verify{" "}
         <span className="text-primary">•</span> Grow
       </p>

@@ -18,33 +18,47 @@ import {
   Menu,
   X,
   ChevronLeft,
-  ChevronRight,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { FansPumpBrand } from "@/components/brand/fans-pump-brand";
 import { AdminNavLink } from "@/components/layout/admin-nav-link";
+import { SidebarWallet } from "@/components/layout/sidebar-wallet";
 import { useSidebar } from "@/components/layout/sidebar-context";
 
 const platformLinks = [
   { href: "/", label: "Home", icon: Home },
   { href: "/create", label: "Create Token", icon: Rocket },
-  { href: "/discover", label: "Explore", icon: Compass },
-  { href: "/discover?section=featured", label: "Featured", icon: Star },
+  { href: "/discover", label: "Explore", icon: Compass, match: "discover-explore" as const },
+  { href: "/discover?section=featured", label: "Featured", icon: Star, match: "discover-featured" as const },
   { href: "/docs/how-it-works", label: "How It Works", icon: HelpCircle },
   { href: "/docs", label: "Docs", icon: BookOpen },
   { href: "/swap", label: "Swap", icon: ArrowLeftRight },
 ];
 
 const userLinks = [
-  { href: "/watchlist", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/discover", label: "My Tokens", icon: Coins },
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/my-tokens", label: "My Tokens", icon: Coins },
   { href: "/watchlist", label: "Watchlist", icon: Bookmark },
-  { href: "/verify", label: "Following", icon: Users },
+  { href: "/following", label: "Following", icon: Users },
 ];
 
-function isNavLinkActive(pathname: string, searchParams: URLSearchParams, href: string) {
-  const [path, query] = href.split("?");
+type NavLink = {
+  href: string;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  match?: "discover-explore" | "discover-featured";
+};
+
+function isNavLinkActive(pathname: string, searchParams: URLSearchParams, link: NavLink) {
+  if (link.match === "discover-explore") {
+    return pathname === "/discover" && searchParams.get("section") !== "featured";
+  }
+  if (link.match === "discover-featured") {
+    return pathname === "/discover" && searchParams.get("section") === "featured";
+  }
+
+  const [path, query] = link.href.split("?");
   if (query) {
     if (pathname !== path) return false;
     const expected = new URLSearchParams(query);
@@ -53,7 +67,11 @@ function isNavLinkActive(pathname: string, searchParams: URLSearchParams, href: 
     }
     return true;
   }
-  return pathname === path;
+
+  if (path === "/") return pathname === "/";
+  if (path === "/docs") return pathname === "/docs";
+  if (path === "/docs/how-it-works") return pathname === "/docs/how-it-works";
+  return pathname === path || pathname.startsWith(`${path}/`);
 }
 
 function NavSection({
@@ -66,7 +84,7 @@ function NavSection({
   collapsed,
 }: {
   title?: string;
-  links: { href: string; label: string; icon: React.ComponentType<{ className?: string }> }[];
+  links: NavLink[];
   pathname: string;
   searchParams: URLSearchParams;
   onNavigate?: () => void;
@@ -81,14 +99,12 @@ function NavSection({
         </p>
       )}
       <nav className="space-y-0.5">
-        {links.map(({ href, label, icon: Icon }) => {
-          const active =
-            href === "/"
-              ? pathname === "/"
-              : isNavLinkActive(pathname, searchParams, href);
+        {links.map((link) => {
+          const { href, label, icon: Icon } = link;
+          const active = isNavLinkActive(pathname, searchParams, link);
           return (
             <Link
-              key={href + label}
+              key={href}
               href={href}
               onClick={onNavigate}
               title={collapsed ? label : undefined}
@@ -128,62 +144,81 @@ function SidebarContent({
   collapsed?: boolean;
   onToggle?: () => void;
 }) {
+  const settingsActive = pathname === "/settings";
+
   return (
-    <>
+    <div className="flex h-full min-h-0 flex-col">
       <div
         className={cn(
-          "mb-6",
-          collapsed ? "flex flex-col items-center gap-2 px-1" : "flex items-start justify-between gap-2 px-2"
+          "relative mb-4 shrink-0 px-2",
+          collapsed ? "flex h-[4.25rem] flex-col items-center justify-center" : "h-[4.75rem]"
         )}
       >
-        <FansPumpBrand collapsed={collapsed} className={collapsed ? undefined : "min-w-0 flex-1"} />
+        <div className={cn("min-w-0 overflow-hidden", collapsed ? "flex justify-center" : "pr-9")}>
+          <FansPumpBrand collapsed={collapsed} />
+        </div>
         {onToggle && (
           <button
             type="button"
             onClick={onToggle}
             className={cn(
-              "shrink-0 rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
-              collapsed && "mt-0"
+              "rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
+              collapsed ? "mt-1" : "absolute right-2 top-0"
             )}
             aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
-            {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+            <ChevronLeft
+              className={cn("h-4 w-4 transition-transform duration-300 ease-in-out", collapsed && "rotate-180")}
+            />
           </button>
         )}
       </div>
-      <NavSection
-        links={platformLinks}
-        pathname={pathname}
-        searchParams={searchParams}
-        onNavigate={onNavigate}
-        showAdmin
-        collapsed={collapsed}
-      />
-      <NavSection
-        title="User"
-        links={userLinks}
-        pathname={pathname}
-        searchParams={searchParams}
-        onNavigate={onNavigate}
-        collapsed={collapsed}
-      />
-      <div className="mb-6">
-        {!collapsed && (
-          <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Account</p>
-        )}
-        <Link
-          href="/verify"
-          onClick={onNavigate}
-          title={collapsed ? "Settings" : undefined}
-          className={cn(
-            "flex items-center rounded-lg py-2 text-sm text-muted-foreground hover:bg-muted",
-            collapsed ? "justify-center px-2" : "gap-3 px-3"
+
+      <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <NavSection
+          links={platformLinks}
+          pathname={pathname}
+          searchParams={searchParams}
+          onNavigate={onNavigate}
+          showAdmin
+          collapsed={collapsed}
+        />
+        <NavSection
+          title="User"
+          links={userLinks}
+          pathname={pathname}
+          searchParams={searchParams}
+          onNavigate={onNavigate}
+          collapsed={collapsed}
+        />
+        <div className="mb-6">
+          {!collapsed && (
+            <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Account
+            </p>
           )}
-        >
-          <Settings className="h-4 w-4" /> {!collapsed && "Settings"}
-        </Link>
+          <Link
+            href="/settings"
+            onClick={onNavigate}
+            title={collapsed ? "Settings" : undefined}
+            className={cn(
+              "flex items-center rounded-lg py-2 text-sm font-medium transition-colors",
+              collapsed ? "justify-center px-2" : "gap-3 px-3",
+              settingsActive
+                ? "bg-primary/10 text-primary"
+                : "text-muted-foreground hover:bg-muted hover:text-foreground"
+            )}
+          >
+            <Settings className="h-4 w-4 shrink-0" />
+            {!collapsed && "Settings"}
+          </Link>
+        </div>
       </div>
-    </>
+
+      <div className={cn("shrink-0 border-t border-border pt-4", collapsed ? "px-1" : "px-2")}>
+        <SidebarWallet collapsed={collapsed} />
+      </div>
+    </div>
   );
 }
 
@@ -243,7 +278,7 @@ export function Sidebar() {
                 <X className="h-6 w-6" />
               </button>
             </div>
-            <div className="flex-1 overflow-y-auto overscroll-contain p-4">
+            <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain p-4">
               <SidebarContent
                 pathname={pathname}
                 searchParams={searchParams}
@@ -256,11 +291,11 @@ export function Sidebar() {
 
       <aside
         className={cn(
-          "hidden shrink-0 border-r border-border bg-card/50 transition-[width] duration-300 ease-in-out lg:block",
+          "hidden shrink-0 overflow-hidden border-r border-border bg-card/50 transition-[width] duration-300 ease-in-out lg:block",
           collapsed ? "w-[72px]" : "w-64"
         )}
       >
-        <div className="sticky top-0 h-screen overflow-y-auto p-4">
+        <div className="sticky top-0 h-screen p-4">
           <SidebarContent
             pathname={pathname}
             searchParams={searchParams}

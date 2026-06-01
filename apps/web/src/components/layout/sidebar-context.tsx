@@ -11,13 +11,16 @@ type SidebarContextValue = {
 
 const SidebarContext = createContext<SidebarContextValue | null>(null);
 
+function readCollapsedFromStorage(): boolean {
+  if (typeof window === "undefined") return false;
+  return localStorage.getItem(STORAGE_KEY) === "true";
+}
+
 export function SidebarProvider({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
-  const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
-    if (localStorage.getItem(STORAGE_KEY) === "true") setCollapsed(true);
-    setHydrated(true);
+    setCollapsed(readCollapsedFromStorage());
   }, []);
 
   const toggleSidebar = useCallback(() => {
@@ -28,11 +31,7 @@ export function SidebarProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
-  return (
-    <SidebarContext.Provider value={{ collapsed: hydrated ? collapsed : false, toggleSidebar }}>
-      {children}
-    </SidebarContext.Provider>
-  );
+  return <SidebarContext.Provider value={{ collapsed, toggleSidebar }}>{children}</SidebarContext.Provider>;
 }
 
 export function useSidebar() {

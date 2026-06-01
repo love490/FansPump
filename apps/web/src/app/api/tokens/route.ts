@@ -46,6 +46,7 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const section = searchParams.get("section") ?? "new";
   const q = searchParams.get("q")?.trim() ?? "";
+  const creator = searchParams.get("creator")?.trim().toLowerCase() ?? "";
   const limit = Math.min(Number(searchParams.get("limit") ?? 24), 100);
 
   const orderBy =
@@ -72,12 +73,17 @@ export async function GET(request: NextRequest) {
     : undefined;
 
   const sectionFilter: Prisma.TokenProjectWhereInput | undefined =
-    section === "featured" ? { isFeatured: true } : undefined;
+    creator || q ? undefined : section === "featured" ? { isFeatured: true } : undefined;
+
+  const creatorFilter: Prisma.TokenProjectWhereInput | undefined =
+    creator && /^0x[a-f0-9]{40}$/.test(creator) ? { creatorAddress: creator } : undefined;
+
+  const filters = [sectionFilter, searchFilter, creatorFilter].filter(
+    (f): f is Prisma.TokenProjectWhereInput => !!f
+  );
 
   const where: Prisma.TokenProjectWhereInput | undefined =
-    searchFilter && sectionFilter
-      ? { AND: [sectionFilter, searchFilter] }
-      : (searchFilter ?? sectionFilter);
+    filters.length === 0 ? undefined : filters.length === 1 ? filters[0] : { AND: filters };
 
   const tokens = await prisma.tokenProject.findMany({
     where,
