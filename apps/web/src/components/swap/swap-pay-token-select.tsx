@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown, Search } from "lucide-react";
+import { usePublicClient } from "wagmi";
+import type { Address } from "viem";
 import { cn } from "@/lib/utils";
 import {
   OPN_PAY_TOKEN,
@@ -9,6 +11,8 @@ import {
   payTokenFromListedToken,
   type PayToken,
 } from "@/lib/swap/payment-tokens";
+import { erc20Abi } from "@/lib/swap/abis";
+import { isValidTokenAddress } from "@/lib/swap/routerAdapter";
 
 type ListedToken = {
   contractAddress: string;
@@ -26,7 +30,10 @@ export function SwapPayTokenSelect({ value, onChange, excludeAddress }: SwapPayT
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [listed, setListed] = useState<ListedToken[]>([]);
+  const [resolvedAddressOption, setResolvedAddressOption] = useState<PayToken | null>(null);
+  const [resolvingAddress, setResolvingAddress] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const client = usePublicClient();
 
   useEffect(() => {
     fetch("/api/tokens?section=new&limit=100")
@@ -34,6 +41,76 @@ export function SwapPayTokenSelect({ value, onChange, excludeAddress }: SwapPayT
       .then((d) => setListed(d.tokens ?? []))
       .catch(() => setListed([]));
   }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    const trimmed = query.trim();
+    if (!trimmed || !isValidTokenAddress(trimmed) || !client) {
+      setResolvedAddressOption(null);
+      setResolvingAddress(false);
+      return;
+    }
+
+    const addr = trimmed.toLowerCase() as Address;
+    if (excludeAddress && addr === excludeAddress.toLowerCase()) {
+      setResolvedAddressOption(null);
+      setResolvingAddress(false);
+      return;
+    }
+
+    let cancelled = false;
+    setResolvingAddress(true);
+
+    async function resolve() {
+      // 1) Try the platform registry (DB)
+      try {
+        const r = await fetch(`/api/tokens/${addr}`);
+        if (r.ok) {
+          const d = await r.json();
+          if (!cancelled && d?.token?.contractAddress) {
+            setResolvedAddressOption({
+              id: addr,
+              symbol: d.token.symbol,
+              address: addr,
+              isNative: false,
+              decimals: d.token.decimals ?? 18,
+            });
+            setResolvingAddress(false);
+            return;
+          }
+        }
+      } catch {
+        // ignore and fall through
+      }
+
+      // 2) Fallback: read metadata from chain so any ERC20 works
+      try {
+        const [symbol, decimals] = await Promise.all([
+          client.readContract({ address: addr, abi: erc20Abi, functionName: "symbol" }),
+          client.readContract({ address: addr, abi: erc20Abi, functionName: "decimals" }),
+        ]);
+
+        if (cancelled) return;
+        setResolvedAddressOption({
+          id: addr,
+          symbol: String(symbol),
+          address: addr,
+          isNative: false,
+          decimals: Number(decimals),
+        });
+      } catch {
+        if (!cancelled) setResolvedAddressOption(null);
+      } finally {
+        if (!cancelled) setResolvingAddress(false);
+      }
+    }
+
+    resolve();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [query, open, client, excludeAddress]);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -69,6 +146,9 @@ export function SwapPayTokenSelect({ value, onChange, excludeAddress }: SwapPayT
     );
   }, [options, query]);
 
+  const addressQuery = query.trim();
+  const isAddressQuery = isValidTokenAddress(addressQuery);
+
   return (
     <div ref={containerRef} className="relative">
       <button
@@ -97,7 +177,39 @@ export function SwapPayTokenSelect({ value, onChange, excludeAddress }: SwapPayT
             </div>
           </div>
           <ul className="max-h-56 overflow-y-auto py-1" role="listbox">
-            {filtered.length === 0 ? (
+            {isAddressQuery && (
+              <>
+                {resolvingAddress && (
+                  <li className="px-3 py-2 text-sm text-muted-foreground">Searching…</li>
+                )}
+                {!resolvingAddress && resolvedAddressOption && (
+                  <li key={`resolved-${resolvedAddressOption.id}`}>
+                    <button
+                      type="button"
+                      role="option"
+                      aria-selected={value.id === resolvedAddressOption.id}
+                      onClick={() => {
+                        onChange(resolvedAddressOption);
+                        setOpen(false);
+                        setQuery("");
+                      }}
+                      className={cn(
+                        "flex w-full flex-col items-start px-3 py-2 text-left text-sm hover:bg-muted",
+                        value.id === resolvedAddressOption.id && "bg-primary/10 text-primary"
+                      )}
+                    >
+                      <span className="font-medium">{resolvedAddressOption.symbol}</span>
+                      <span className="font-mono text-xs text-muted-foreground">
+                        {resolvedAddressOption.address?.slice(0, 6)}…{resolvedAddressOption.address?.slice(-4)}
+                      </span>
+                      <span className="text-xs text-muted-foreground">ERC20 token</span>
+                    </button>
+                  </li>
+                )}
+              </>
+            )}
+
+            {filtered.length === 0 && (!isAddressQuery || (!resolvedAddressOption && !resolvingAddress)) ? (
               <li className="px-3 py-2 text-sm text-muted-foreground">No tokens found</li>
             ) : (
               filtered.map((token) => (

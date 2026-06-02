@@ -66,6 +66,28 @@ export function SwapTokenPicker({ value, onChange }: SwapTokenPickerProps) {
 
     const timer = setTimeout(() => {
       setLoading(true);
+      if (isValidTokenAddress(q)) {
+        fetch(`/api/tokens/${q}`)
+          .then((r) => (r.ok ? r.json() : null))
+          .then((d) => {
+            if (d?.token) {
+              setResults([
+                {
+                  contractAddress: d.token.contractAddress,
+                  name: d.token.name,
+                  symbol: d.token.symbol,
+                  logoUrl: d.token.logoUrl,
+                },
+              ]);
+            } else {
+              setResults([]);
+            }
+          })
+          .catch(() => setResults([]))
+          .finally(() => setLoading(false));
+        return;
+      }
+
       fetch(`/api/tokens?q=${encodeURIComponent(q)}&limit=20`)
         .then((r) => r.json())
         .then((d) => setResults(d.tokens ?? []))
@@ -104,17 +126,6 @@ export function SwapTokenPicker({ value, onChange }: SwapTokenPickerProps) {
     setSelected(null);
     setQuery("");
   }
-
-  function applyManualAddress() {
-    const trimmed = query.trim();
-    if (isValidTokenAddress(trimmed)) {
-      onChange(trimmed);
-      setSelected(null);
-      setOpen(false);
-    }
-  }
-
-  const showManualHint = query.trim().length > 0 && isValidTokenAddress(query.trim()) && results.length === 0 && !loading;
 
   return (
     <div ref={containerRef} className="space-y-2">
@@ -161,18 +172,8 @@ export function SwapTokenPicker({ value, onChange }: SwapTokenPickerProps) {
           {open && (query.trim().length > 0 || loading) && (
             <div className="absolute z-50 mt-1 max-h-64 w-full overflow-auto rounded-lg border bg-popover shadow-lg">
               {loading && <p className="px-3 py-2 text-sm text-muted-foreground">Searching…</p>}
-              {!loading && results.length === 0 && !showManualHint && (
+              {!loading && results.length === 0 && (
                 <p className="px-3 py-2 text-sm text-muted-foreground">No tokens found</p>
-              )}
-              {showManualHint && (
-                <button
-                  type="button"
-                  onClick={applyManualAddress}
-                  className="flex w-full flex-col items-start px-3 py-2 text-left text-sm hover:bg-muted"
-                >
-                  <span className="font-medium">Use contract address</span>
-                  <span className="font-mono text-xs text-muted-foreground">{query.trim()}</span>
-                </button>
               )}
               {results.map((token) => (
                 <button
