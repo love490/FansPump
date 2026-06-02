@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { useAccount, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
-import { isAddress, parseEther, zeroAddress } from "viem";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useAccount, usePublicClient, useWaitForTransactionReceipt, useWriteContract } from "wagmi";
+import { decodeEventLog, isAddress, parseEther, zeroAddress } from "viem";
 import {
   TOKEN_FEATURES,
   TAX_WALLETS,
@@ -37,6 +37,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { MetadataImageField } from "@/components/create/metadata-image-field";
 import { factoryAbi } from "@/lib/abis/factory";
 import { FACTORY_ADDRESS, opnChain } from "@/lib/wagmi";
+import Link from "next/link";
 import { AlertTriangle, Lock } from "lucide-react";
 
 const FEATURE_ENTRIES = Object.entries(TOKEN_FEATURES) as [keyof typeof TOKEN_FEATURES, number][];
@@ -51,6 +52,7 @@ const SOCIAL_LINK_FIELDS = [
 
 export function TokenCreateForm() {
   const { address, isConnected } = useAccount();
+  const publicClient = usePublicClient();
   const [step, setStep] = useState(1);
   const [name, setName] = useState("");
   const [symbol, setSymbol] = useState("");
@@ -102,7 +104,13 @@ export function TokenCreateForm() {
   });
 
   const { writeContract, data: txHash, isPending } = useWriteContract();
-  const { isLoading: confirming, isSuccess } = useWaitForTransactionReceipt({ hash: txHash });
+  const { data: receipt, isLoading: confirming, isSuccess } = useWaitForTransactionReceipt({
+    hash: txHash,
+  });
+  const [deployedToken, setDeployedToken] = useState<string | null>(null);
+  const [registering, setRegistering] = useState(false);
+  const [registerError, setRegisterError] = useState<string | null>(null);
+  const [registered, setRegistered] = useState(false);
 
   function toggleFeature(bit: number) {
     setSelectedFeatures((prev) =>
@@ -239,7 +247,7 @@ export function TokenCreateForm() {
     });
   }
 
-  async function registerMetadata(contractAddress: string) {
+  const registerMetadata = useCallback(async (contractAddress: string) => {
     await fetch("/api/tokens", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -260,7 +268,43 @@ export function TokenCreateForm() {
         maxTx: maxTx || null,
       }),
     });
-  }
+  }, [address, buyTax, hasTax, maxTx, maxWallet, metadata, name, selectedFeatures, sellTax, supply, symbol, txHash]);
+
+  useEffect(() => {
+    if (!receipt || !txHash || deployedToken) return;
+    if (!publicClient) return;
+
+    // Extract token address from factory TokenCreated event.
+    for (const log of receipt.logs ?? []) {
+      if (!log?.address) continue;
+      if (log.address.toLowerCase() !== FACTORY_ADDRESS.toLowerCase()) continue;
+      try {
+        const decoded = decodeEventLog({
+          abi: factoryAbi,
+          data: log.data,
+          topics: log.topics,
+        });
+        if (decoded.eventName !== "TokenCreated") continue;
+        const token = (decoded.args as { token?: string }).token;
+        if (token && isAddress(token)) {
+          setDeployedToken(token);
+          return;
+        }
+      } catch {
+        // ignore non-matching logs
+      }
+    }
+  }, [receipt, txHash, deployedToken, publicClient]);
+
+  useEffect(() => {
+    if (!deployedToken || registered || registering) return;
+    setRegistering(true);
+    setRegisterError(null);
+    registerMetadata(deployedToken)
+      .then(() => setRegistered(true))
+      .catch((e) => setRegisterError(e instanceof Error ? e.message : "Failed to save token metadata"))
+      .finally(() => setRegistering(false));
+  }, [deployedToken, registered, registering, registerMetadata]);
 
   if (isSuccess && txHash) {
     return (
@@ -268,9 +312,43 @@ export function TokenCreateForm() {
         <CardHeader>
           <CardTitle>Token deployed</CardTitle>
           <CardDescription>
-            Transaction: {txHash}. Register project metadata from your dashboard or token page.
+            Transaction: {txHash}
           </CardDescription>
         </CardHeader>
+        <CardContent className="space-y-3">
+          {!deployedToken ? (
+            <p className="text-sm text-muted-foreground">
+              Finalizing… extracting contract address from the transaction logs.
+            </p>
+          ) : (
+            <>
+              <div className="rounded-lg border bg-white/60 p-3">
+                <p className="text-sm text-muted-foreground">Contract address</p>
+                <p className="break-all font-mono text-sm">{deployedToken}</p>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                <Button asChild>
+                  <Link href={`/token/${deployedToken}`}>View token</Link>
+                </Button>
+                <Button asChild variant="outline">
+                  <Link href={`/token/${deployedToken}/liquidity`}>Add liquidity</Link>
+                </Button>
+                <Button asChild variant="outline">
+                  <Link href={`/token/${deployedToken}/ownership`}>Ownership</Link>
+                </Button>
+              </div>
+
+              {registering ? (
+                <p className="text-sm text-muted-foreground">Saving token to your “My Tokens”…</p>
+              ) : registered ? (
+                <p className="text-sm text-green-700">Saved. You’ll now see it in “My Tokens”.</p>
+              ) : registerError ? (
+                <p className="text-sm text-red-600">Couldn’t save to My Tokens: {registerError}</p>
+              ) : null}
+            </>
+          )}
+        </CardContent>
       </Card>
     );
   }
