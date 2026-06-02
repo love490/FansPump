@@ -102,18 +102,18 @@ function SidebarContent({
       >
         {isExpanded ? (
           <>
-            <div className="flex items-center justify-between gap-1">
-              <FansPumpLogo showText size="md" className="min-w-0 shrink" />
-              {onToggle && <SidebarToggle collapsed={false} onClick={onToggle} />}
+            <div className="flex items-start justify-between gap-4">
+              <FansPumpLogo showText size="md" className="min-w-0 flex-1 pr-1" />
+              {onToggle && <SidebarToggle collapsed={false} onClick={onToggle} className="mt-0.5 shrink-0" />}
             </div>
             <FansPumpTagline className="mt-2" />
           </>
         ) : (
-          <div className="flex h-14 items-center gap-1">
+          <div className="flex h-14 items-center gap-3 px-0.5">
             <div className="flex min-w-0 flex-1 justify-center">
               <FansPumpBrand collapsed />
             </div>
-            {onToggle && <SidebarToggle collapsed onClick={onToggle} />}
+            {onToggle && <SidebarToggle collapsed onClick={onToggle} className="shrink-0" />}
           </div>
         )}
       </div>

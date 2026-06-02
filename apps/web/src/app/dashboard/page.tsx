@@ -38,7 +38,7 @@ export default function DashboardPage() {
         <Card>
           <CardHeader>
             <CardTitle>Connect your wallet</CardTitle>
-            <CardDescription>Use the wallet control in the sidebar or top bar to get started.</CardDescription>
+            <CardDescription>Connect wallet to have access to your dashboard.</CardDescription>
           </CardHeader>
         </Card>
       ) : (

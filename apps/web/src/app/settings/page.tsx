@@ -24,7 +24,7 @@ export default function SettingsPage() {
           <CardDescription>
             {isConnected && address
               ? `Connected: ${shortenAddress(address, 6)}`
-              : "No wallet connected. Use the sidebar wallet control to connect."}
+              : "Connect wallet to have access to your dashboard."}
           </CardDescription>
         </CardHeader>
       </Card>

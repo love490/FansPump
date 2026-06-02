@@ -7,6 +7,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { shortenAddress, cn } from "@/lib/utils";
 import { isValidTokenAddress } from "@/lib/swap/routerAdapter";
+import { usePublicClient } from "wagmi";
+import { erc20Abi } from "@/lib/swap/abis";
+import type { Address } from "viem";
 
 type SwapToken = {
   contractAddress: string;
@@ -26,20 +29,33 @@ export function SwapTokenPicker({ value, onChange }: SwapTokenPickerProps) {
   const [results, setResults] = useState<SwapToken[]>([]);
   const [loading, setLoading] = useState(false);
   const [selected, setSelected] = useState<SwapToken | null>(null);
+  const [resolutionDone, setResolutionDone] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const validAddress = isValidTokenAddress(value);
+  const client = usePublicClient();
 
   useEffect(() => {
     if (!value || !validAddress) {
       setSelected(null);
+      setResolutionDone(false);
       return;
     }
     if (selected?.contractAddress.toLowerCase() === value.toLowerCase()) return;
 
+    setResolutionDone(false);
+    let cancelled = false;
+
+    if (!client) {
+      setSelected(null);
+      setResolutionDone(true);
+      return;
+    }
+
     fetch(`/api/tokens/${value}`)
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
+        if (cancelled) return;
         if (d?.token) {
           setSelected({
             contractAddress: d.token.contractAddress,
@@ -47,12 +63,48 @@ export function SwapTokenPicker({ value, onChange }: SwapTokenPickerProps) {
             symbol: d.token.symbol,
             logoUrl: d.token.logoUrl,
           });
-        } else {
-          setSelected(null);
+          setResolutionDone(true);
+          return;
         }
+
+        // Fallback: if token isn't in our DB, still resolve symbol from the chain.
+        // This makes OPN/OPN V2 work even if they haven't been indexed yet.
+        (async () => {
+          try {
+            const addr = value.toLowerCase() as Address;
+            const [symbol] = await Promise.all([
+              client.readContract({
+                address: addr,
+                abi: erc20Abi,
+                functionName: "symbol",
+              }),
+            ]);
+            if (cancelled) return;
+            const sym = String(symbol);
+            setSelected({
+              contractAddress: addr,
+              name: sym,
+              symbol: sym,
+              logoUrl: null,
+            });
+          } catch {
+            if (cancelled) return;
+            setSelected(null);
+          } finally {
+            if (!cancelled) setResolutionDone(true);
+          }
+        })();
       })
-      .catch(() => setSelected(null));
-  }, [value, validAddress, selected?.contractAddress]);
+      .catch(() => {
+        if (cancelled) return;
+        setSelected(null);
+        setResolutionDone(true);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [value, validAddress, selected?.contractAddress, client]);
 
   useEffect(() => {
     if (!open) return;
@@ -110,9 +162,12 @@ export function SwapTokenPicker({ value, onChange }: SwapTokenPickerProps) {
 
   const displayLabel = useMemo(() => {
     if (selected) return `${selected.name} (${selected.symbol})`;
-    if (validAddress) return shortenAddress(value, 6);
+    if (validAddress) {
+      if (resolutionDone) return "No token found";
+      return shortenAddress(value, 6);
+    }
     return "";
-  }, [selected, validAddress, value]);
+  }, [selected, validAddress, value, resolutionDone]);
 
   function pickToken(token: SwapToken) {
     onChange(token.contractAddress);
@@ -126,6 +181,19 @@ export function SwapTokenPicker({ value, onChange }: SwapTokenPickerProps) {
     setSelected(null);
     setQuery("");
   }
+
+  function applyManualAddress() {
+    const trimmed = query.trim();
+    if (!isValidTokenAddress(trimmed)) return;
+    onChange(trimmed);
+    setSelected(null);
+    setResolutionDone(false);
+    setQuery("");
+    setOpen(false);
+  }
+
+  const showManualHint =
+    query.trim().length > 0 && isValidTokenAddress(query.trim()) && results.length === 0 && !loading;
 
   return (
     <div ref={containerRef} className="space-y-2">
@@ -144,7 +212,9 @@ export function SwapTokenPicker({ value, onChange }: SwapTokenPickerProps) {
           )}
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-medium">{displayLabel}</p>
-            <p className="truncate font-mono text-xs text-muted-foreground">{value}</p>
+            {resolutionDone && !selected ? null : (
+              <p className="truncate font-mono text-xs text-muted-foreground">{value}</p>
+            )}
           </div>
           <button
             type="button"
@@ -172,9 +242,20 @@ export function SwapTokenPicker({ value, onChange }: SwapTokenPickerProps) {
           {open && (query.trim().length > 0 || loading) && (
             <div className="absolute z-50 mt-1 max-h-64 w-full overflow-auto rounded-lg border bg-popover shadow-lg">
               {loading && <p className="px-3 py-2 text-sm text-muted-foreground">Searching…</p>}
-              {!loading && results.length === 0 && (
+              {!loading && results.length === 0 && !showManualHint && (
                 <p className="px-3 py-2 text-sm text-muted-foreground">No tokens found</p>
               )}
+              {showManualHint && (
+                <button
+                  type="button"
+                  onClick={applyManualAddress}
+                  className="flex w-full flex-col items-start px-3 py-2 text-left text-sm hover:bg-muted"
+                >
+                  <span className="font-medium">Use contract address</span>
+                  <span className="font-mono text-xs text-muted-foreground">{query.trim()}</span>
+                </button>
+              )}
+
               {results.map((token) => (
                 <button
                   key={token.contractAddress}
