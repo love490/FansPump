@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Search, X, Loader2 } from "lucide-react";
+import { Search, X, Loader2, ChevronDown } from "lucide-react";
 import { shortenAddress } from "@/lib/utils";
 import { isValidTokenAddress } from "@/lib/swap/routerAdapter";
 
@@ -22,11 +22,26 @@ export function TokenSearch() {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchToken[]>([]);
   const [loading, setLoading] = useState(false);
+  const [quickOpen, setQuickOpen] = useState(false);
+  const [quickTokens, setQuickTokens] = useState<SearchToken[]>([]);
+  const [quickLoading, setQuickLoading] = useState(false);
+  const quickRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!open) return;
     const t = setTimeout(() => inputRef.current?.focus(), 50);
     return () => clearTimeout(t);
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    function onDown(e: MouseEvent) {
+      if (quickRef.current && !quickRef.current.contains(e.target as Node)) {
+        setQuickOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
   }, [open]);
 
   useEffect(() => {
@@ -66,10 +81,23 @@ export function TokenSearch() {
     return () => clearTimeout(timer);
   }, [query, open]);
 
+  useEffect(() => {
+    if (!open) return;
+    if (!quickOpen) return;
+    if (quickTokens.length > 0) return;
+    setQuickLoading(true);
+    fetch(`/api/tokens?section=trending&limit=12`)
+      .then((r) => r.json())
+      .then((d) => setQuickTokens(d.tokens ?? []))
+      .catch(() => setQuickTokens([]))
+      .finally(() => setQuickLoading(false));
+  }, [open, quickOpen, quickTokens.length]);
+
   function close() {
     setOpen(false);
     setQuery("");
     setResults([]);
+    setQuickOpen(false);
   }
 
   function goToToken(address: string) {
@@ -81,6 +109,17 @@ export function TokenSearch() {
   const showAddressOption = isValidTokenAddress(trimmed) && !results.some(
     (t) => t.contractAddress.toLowerCase() === trimmed.toLowerCase()
   );
+
+  const filteredQuick = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return quickTokens;
+    return quickTokens.filter(
+      (t) =>
+        t.name.toLowerCase().includes(q) ||
+        t.symbol.toLowerCase().includes(q) ||
+        t.contractAddress.toLowerCase() === q
+    );
+  }, [quickTokens, query]);
 
   return (
     <>
@@ -112,6 +151,58 @@ export function TokenSearch() {
                 placeholder="Search by name, symbol, or contract address…"
                 className="flex-1 bg-transparent py-2 text-sm outline-none placeholder:text-muted-foreground"
               />
+
+              <div ref={quickRef} className="relative">
+                <button
+                  type="button"
+                  onClick={() => setQuickOpen((v) => !v)}
+                  className="rounded-lg p-2 text-muted-foreground hover:bg-muted"
+                  aria-label="Quick pick token"
+                  aria-expanded={quickOpen}
+                >
+                  <ChevronDown className="h-4 w-4" />
+                </button>
+                {quickOpen && (
+                  <div className="absolute right-0 top-full z-50 mt-1 w-64 overflow-hidden rounded-lg border bg-popover shadow-lg">
+                    <div className="border-b px-3 py-2 text-xs font-medium text-muted-foreground">
+                      Quick pick
+                    </div>
+                    <div className="max-h-60 overflow-y-auto p-1">
+                      {quickLoading ? (
+                        <div className="flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Loading…
+                        </div>
+                      ) : filteredQuick.length === 0 ? (
+                        <div className="px-3 py-2 text-sm text-muted-foreground">No tokens found</div>
+                      ) : (
+                        filteredQuick.map((token) => (
+                          <button
+                            key={`quick-${token.contractAddress}`}
+                            type="button"
+                            onClick={() => goToToken(token.contractAddress)}
+                            className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-left hover:bg-muted"
+                          >
+                            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary/10 text-[10px] font-bold text-primary">
+                              {token.symbol.slice(0, 2).toUpperCase()}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="truncate text-sm font-medium">
+                                {token.symbol}{" "}
+                                <span className="text-xs font-normal text-muted-foreground">{token.name}</span>
+                              </div>
+                              <div className="truncate font-mono text-[11px] text-muted-foreground">
+                                {shortenAddress(token.contractAddress, 6)}
+                              </div>
+                            </div>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
               <button
                 type="button"
                 onClick={close}
