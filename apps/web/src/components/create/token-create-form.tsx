@@ -1,12 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useAccount, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
-import { parseEther, zeroAddress } from "viem";
+import { isAddress, parseEther, zeroAddress } from "viem";
 import {
   TOKEN_FEATURES,
-  BUY_TAX_OPTIONS,
-  SELL_TAX_OPTIONS,
   TAX_WALLETS,
   TAX_WALLET_LABELS,
   encodeFeatureFlags,
@@ -20,7 +18,18 @@ import {
 import { Button } from "@/components/ui/button";
 import { FeatureInfo } from "@/components/ui/feature-info";
 import { CreationFee } from "@/components/create/creation-fee";
-import { percentOfTokenSupply } from "@/lib/token-supply";
+import { SupplyAmountInput } from "@/components/create/supply-amount-input";
+import { TaxRateInput } from "@/components/create/tax-rate-input";
+import { AmountUnitToggle } from "@/components/create/amount-unit-toggle";
+import {
+  bpsToPercentString,
+  bpsToTokenAmountString,
+  bpsToTaxPerToken,
+  percentToAllocationBps,
+  toSupplyWei,
+  tokenAmountToBps,
+  type SupplyInputUnit,
+} from "@/lib/token-supply";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,7 +37,6 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { MetadataImageField } from "@/components/create/metadata-image-field";
 import { factoryAbi } from "@/lib/abis/factory";
 import { FACTORY_ADDRESS, opnChain } from "@/lib/wagmi";
-import { formatTaxBps } from "@/lib/utils";
 import { AlertTriangle, Lock } from "lucide-react";
 
 const FEATURE_ENTRIES = Object.entries(TOKEN_FEATURES) as [keyof typeof TOKEN_FEATURES, number][];
@@ -52,6 +60,19 @@ export function TokenCreateForm() {
   const [maxTx, setMaxTx] = useState("");
   const [buyTax, setBuyTax] = useState(250);
   const [sellTax, setSellTax] = useState(250);
+  const [buyTaxUnit, setBuyTaxUnit] = useState<SupplyInputUnit>("percent");
+  const [sellTaxUnit, setSellTaxUnit] = useState<SupplyInputUnit>("percent");
+  const [buyTaxPercent, setBuyTaxPercent] = useState("2.5");
+  const [sellTaxPercent, setSellTaxPercent] = useState("2.5");
+  const [buyTaxTokensPerTransfer, setBuyTaxTokensPerTransfer] = useState(() => bpsToTaxPerToken(250));
+  const [sellTaxTokensPerTransfer, setSellTaxTokensPerTransfer] = useState(() => bpsToTaxPerToken(250));
+  const [taxAllocUnit, setTaxAllocUnit] = useState<SupplyInputUnit>("percent");
+  const [taxAllocTokens, setTaxAllocTokens] = useState<Record<string, string>>({});
+  const [enabledTaxWallets, setEnabledTaxWallets] = useState<Record<string, boolean>>(() => {
+    const init: Record<string, boolean> = {};
+    for (const w of TAX_WALLETS) init[w] = true;
+    return init;
+  });
   const [taxWallets, setTaxWallets] = useState<Record<string, string>>({});
   const [taxBps, setTaxBps] = useState<Record<string, number>>({
     marketingBps: 2000,
@@ -63,8 +84,10 @@ export function TokenCreateForm() {
   });
   const [antiBot, setAntiBot] = useState({
     launchGuardEnabled: true,
-    maxLaunchBuyPercent: "1",
-    maxLaunchWallet: "50000",
+    maxLaunchBuyUnit: "percent" as SupplyInputUnit,
+    maxLaunchBuyValue: "1",
+    maxLaunchWalletUnit: "tokens" as SupplyInputUnit,
+    maxLaunchWalletValue: "50000",
     protectionDuration: "3600",
   });
   const [metadata, setMetadata] = useState({
@@ -89,20 +112,93 @@ export function TokenCreateForm() {
 
   const taxTotal = Object.values(taxBps).reduce((a, b) => a + b, 0);
   const hasTax = selectedFeatures.includes(TOKEN_FEATURES.TAXABLE);
+  const hasAntiBot = selectedFeatures.includes(TOKEN_FEATURES.ANTI_BOT);
   const totalCreationFee = calculateCreationFeeOpn(selectedFeatures);
-  const maxLaunchBuyAmount = percentOfTokenSupply(supply, antiBot.maxLaunchBuyPercent);
+  const maxLaunchBuyAmount = toSupplyWei(supply, antiBot.maxLaunchBuyUnit, antiBot.maxLaunchBuyValue);
+  const maxLaunchWalletAmount = toSupplyWei(
+    supply,
+    antiBot.maxLaunchWalletUnit,
+    antiBot.maxLaunchWalletValue
+  );
+  const taxRatesValid = buyTax <= MAX_TAX_BPS && sellTax <= MAX_TAX_BPS;
+
+  const enabledTaxWalletCount = useMemo(
+    () => TAX_WALLETS.filter((w) => enabledTaxWallets[w]).length,
+    [enabledTaxWallets]
+  );
+
+  const taxWalletsValid = useMemo(() => {
+    for (const w of TAX_WALLETS) {
+      if (!enabledTaxWallets[w]) continue;
+      const addr = (taxWallets[w] ?? "").trim();
+      if (!addr) return false;
+      if (!isAddress(addr)) return false;
+      if (addr.toLowerCase() === zeroAddress.toLowerCase()) return false;
+    }
+    return true;
+  }, [enabledTaxWallets, taxWallets]);
+
+  function toggleTaxWallet(w: (typeof TAX_WALLETS)[number]) {
+    const nextEnabled = !enabledTaxWallets[w];
+    setEnabledTaxWallets({ ...enabledTaxWallets, [w]: nextEnabled });
+    if (!nextEnabled) {
+      const bpsKey = `${w.replace("Wallet", "Bps")}` as keyof typeof taxBps;
+      setTaxBps({ ...taxBps, [bpsKey]: 0 });
+      const nextTokens = { ...taxAllocTokens };
+      delete nextTokens[bpsKey];
+      setTaxAllocTokens(nextTokens);
+      setTaxWallets({ ...taxWallets, [w]: "" });
+    } else {
+      // If user enables a wallet and some allocation is still unassigned, give it the remainder by default.
+      const bpsKey = `${w.replace("Wallet", "Bps")}` as keyof typeof taxBps;
+      const remainder = Math.max(0, 10000 - taxTotal);
+      if (remainder > 0) setTaxBps({ ...taxBps, [bpsKey]: remainder });
+    }
+  }
+
+  function switchTaxAllocUnit(next: SupplyInputUnit) {
+    if (next === taxAllocUnit) return;
+    if (next === "tokens") {
+      const nextTokens: Record<string, string> = {};
+      for (const w of TAX_WALLETS) {
+        const bpsKey = `${w.replace("Wallet", "Bps")}` as keyof typeof taxBps;
+        nextTokens[bpsKey] = bpsToTokenAmountString(supply, taxBps[bpsKey] ?? 0);
+      }
+      setTaxAllocTokens(nextTokens);
+    } else {
+      const nextBps = { ...taxBps };
+      for (const w of TAX_WALLETS) {
+        const bpsKey = `${w.replace("Wallet", "Bps")}` as keyof typeof taxBps;
+        const tokens = taxAllocTokens[bpsKey];
+        if (tokens?.trim()) {
+          nextBps[bpsKey] = tokenAmountToBps(supply, tokens);
+        }
+      }
+      setTaxBps(nextBps);
+    }
+    setTaxAllocUnit(next);
+  }
+
+  function setTaxAllocPercent(bpsKey: string, percentRaw: string) {
+    setTaxBps({ ...taxBps, [bpsKey]: percentToAllocationBps(percentRaw) });
+  }
+
+  function setTaxAllocTokenAmount(bpsKey: string, tokenRaw: string) {
+    setTaxAllocTokens({ ...taxAllocTokens, [bpsKey]: tokenRaw });
+    setTaxBps({ ...taxBps, [bpsKey]: tokenAmountToBps(supply, tokenRaw) });
+  }
 
   async function deploy() {
     if (!address) return;
 
     const flags = encodeFeatureFlags(selectedFeatures);
     const taxDist = {
-      marketingWallet: (taxWallets.marketingWallet ?? zeroAddress) as `0x${string}`,
-      developmentWallet: (taxWallets.developmentWallet ?? zeroAddress) as `0x${string}`,
-      treasuryWallet: (taxWallets.treasuryWallet ?? zeroAddress) as `0x${string}`,
-      communityWallet: (taxWallets.communityWallet ?? zeroAddress) as `0x${string}`,
-      operationsWallet: (taxWallets.operationsWallet ?? zeroAddress) as `0x${string}`,
-      liquidityWallet: (taxWallets.liquidityWallet ?? zeroAddress) as `0x${string}`,
+      marketingWallet: (enabledTaxWallets.marketingWallet ? (taxWallets.marketingWallet ?? zeroAddress) : zeroAddress) as `0x${string}`,
+      developmentWallet: (enabledTaxWallets.developmentWallet ? (taxWallets.developmentWallet ?? zeroAddress) : zeroAddress) as `0x${string}`,
+      treasuryWallet: (enabledTaxWallets.treasuryWallet ? (taxWallets.treasuryWallet ?? zeroAddress) : zeroAddress) as `0x${string}`,
+      communityWallet: (enabledTaxWallets.communityWallet ? (taxWallets.communityWallet ?? zeroAddress) : zeroAddress) as `0x${string}`,
+      operationsWallet: (enabledTaxWallets.operationsWallet ? (taxWallets.operationsWallet ?? zeroAddress) : zeroAddress) as `0x${string}`,
+      liquidityWallet: (enabledTaxWallets.liquidityWallet ? (taxWallets.liquidityWallet ?? zeroAddress) : zeroAddress) as `0x${string}`,
       marketingBps: taxBps.marketingBps,
       developmentBps: taxBps.developmentBps,
       treasuryBps: taxBps.treasuryBps,
@@ -133,8 +229,8 @@ export function TokenCreateForm() {
             launchGuardEnabled: selectedFeatures.includes(TOKEN_FEATURES.ANTI_BOT)
               ? antiBot.launchGuardEnabled
               : false,
-            maxLaunchBuy: selectedFeatures.includes(TOKEN_FEATURES.ANTI_BOT) ? maxLaunchBuyAmount : 0n,
-            maxLaunchWallet: parseEther(antiBot.maxLaunchWallet),
+            maxLaunchBuy: hasAntiBot ? maxLaunchBuyAmount : 0n,
+            maxLaunchWallet: hasAntiBot ? maxLaunchWalletAmount : 0n,
             protectionDuration: BigInt(antiBot.protectionDuration),
           },
           owner: address,
@@ -276,92 +372,152 @@ export function TokenCreateForm() {
           <CardContent className="space-y-4">
             {hasTax && (
               <>
+                <p className="text-sm text-muted-foreground">
+                  Enter buy/sell tax and wallet splits as a percentage or as token amounts. On-chain values are
+                  converted automatically.
+                </p>
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <div>
-                    <Label>Buy tax (max 5%)</Label>
-                    <select
-                      className="flex h-10 w-full rounded-md border px-3 text-sm"
-                      value={buyTax}
-                      onChange={(e) => setBuyTax(Number(e.target.value))}
-                    >
-                      {BUY_TAX_OPTIONS.map((b) => (
-                        <option key={b} value={b} disabled={b > MAX_TAX_BPS}>
-                          {formatTaxBps(b)}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <Label>Sell tax (max 5%)</Label>
-                    <select
-                      className="flex h-10 w-full rounded-md border px-3 text-sm"
-                      value={sellTax}
-                      onChange={(e) => setSellTax(Number(e.target.value))}
-                    >
-                      {SELL_TAX_OPTIONS.map((b) => (
-                        <option key={b} value={b}>
-                          {formatTaxBps(b)}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                  <TaxRateInput
+                    label="Buy tax (max 5%)"
+                    kind="buy"
+                    unit={buyTaxUnit}
+                    onUnitChange={setBuyTaxUnit}
+                    bps={buyTax}
+                    onBpsChange={setBuyTax}
+                    percentValue={buyTaxPercent}
+                    onPercentValueChange={setBuyTaxPercent}
+                    tokensPerTransferValue={buyTaxTokensPerTransfer}
+                    onTokensPerTransferValueChange={setBuyTaxTokensPerTransfer}
+                  />
+                  <TaxRateInput
+                    label="Sell tax (max 5%)"
+                    kind="sell"
+                    unit={sellTaxUnit}
+                    onUnitChange={setSellTaxUnit}
+                    bps={sellTax}
+                    onBpsChange={setSellTax}
+                    percentValue={sellTaxPercent}
+                    onPercentValueChange={setSellTaxPercent}
+                    tokensPerTransferValue={sellTaxTokensPerTransfer}
+                    onTokensPerTransferValueChange={setSellTaxTokensPerTransfer}
+                  />
                 </div>
-                {TAX_WALLETS.map((w) => (
-                  <div key={w} className="grid gap-2 sm:grid-cols-2">
-                    <div>
-                      <Label>{TAX_WALLET_LABELS[w]} address</Label>
-                      <Input
-                        placeholder="0x..."
-                        value={taxWallets[w] ?? ""}
-                        onChange={(e) => setTaxWallets({ ...taxWallets, [w]: e.target.value })}
-                      />
+                <div className="flex flex-wrap items-center justify-between gap-2 border-t pt-4">
+                  <Label className="mb-0">Tax wallet allocation</Label>
+                  <AmountUnitToggle unit={taxAllocUnit} onUnitChange={switchTaxAllocUnit} />
+                </div>
+                {TAX_WALLETS.map((w) => {
+                  const bpsKey = `${w.replace("Wallet", "Bps")}` as keyof typeof taxBps;
+                  const bps = taxBps[bpsKey] ?? 0;
+                  const enabled = enabledTaxWallets[w];
+                  return (
+                    <div key={w} className="rounded-lg border p-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <Label className="mb-0">{TAX_WALLET_LABELS[w]}</Label>
+                        <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={enabled}
+                            onChange={() => toggleTaxWallet(w)}
+                            className="h-4 w-4"
+                          />
+                          Enable
+                        </label>
+                      </div>
+
+                      {enabled ? (
+                        <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                          <div>
+                            <Label>{TAX_WALLET_LABELS[w]} address</Label>
+                            <Input
+                              placeholder="0x..."
+                              value={taxWallets[w] ?? ""}
+                              onChange={(e) => setTaxWallets({ ...taxWallets, [w]: e.target.value })}
+                            />
+                          </div>
+                          <div>
+                            <Label>Allocation (% of tax)</Label>
+                            {taxAllocUnit === "percent" ? (
+                              <Input
+                                value={bpsToPercentString(bps)}
+                                onChange={(e) => setTaxAllocPercent(bpsKey, e.target.value)}
+                                placeholder="e.g. 100"
+                                inputMode="decimal"
+                              />
+                            ) : (
+                              <Input
+                                value={taxAllocTokens[bpsKey] ?? bpsToTokenAmountString(supply, bps)}
+                                onChange={(e) => setTaxAllocTokenAmount(bpsKey, e.target.value)}
+                                placeholder="e.g. 200000"
+                                inputMode="decimal"
+                              />
+                            )}
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              {`${(bps / 100).toFixed(2)}%`} · {bps} bps
+                            </p>
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="mt-2 text-xs text-muted-foreground">Disabled (0%).</p>
+                      )}
                     </div>
-                    <div>
-                      <Label>Allocation (bps)</Label>
-                      <Input
-                        type="number"
-                        value={taxBps[`${w.replace("Wallet", "Bps")}` as keyof typeof taxBps] ?? 0}
-                        onChange={(e) =>
-                          setTaxBps({ ...taxBps, [`${w.replace("Wallet", "Bps")}`]: Number(e.target.value) })
-                        }
-                      />
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
                 <p className={taxTotal === 10000 ? "text-green-700 text-sm" : "text-red-600 text-sm"}>
                   Tax allocation total: {taxTotal / 100}% (must equal 100%)
                 </p>
+                {enabledTaxWalletCount === 0 && (
+                  <p className="text-sm text-red-600">Enable at least one wallet for tax allocation.</p>
+                )}
+                {!taxWalletsValid && enabledTaxWalletCount > 0 && (
+                  <p className="text-sm text-red-600">
+                    Enter a valid wallet address for every enabled allocation.
+                  </p>
+                )}
               </>
             )}
-            {selectedFeatures.includes(TOKEN_FEATURES.ANTI_BOT) && (
+            {hasAntiBot && (
               <div className="grid gap-4 sm:grid-cols-2 border-t pt-4">
-                <div>
-                  <Label>Max buy at create (% of total supply)</Label>
-                  <Input
-                    value={antiBot.maxLaunchBuyPercent}
-                    onChange={(e) => setAntiBot({ ...antiBot, maxLaunchBuyPercent: e.target.value })}
-                    placeholder="e.g. 1%"
-                    inputMode="decimal"
-                  />
-                  {maxLaunchBuyAmount > 0n && (
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      ≈ {(Number(maxLaunchBuyAmount) / 1e18).toLocaleString()} tokens at {antiBot.maxLaunchBuyPercent.replace("%", "")}% of supply
-                    </p>
-                  )}
-                </div>
-                <div>
-                  <Label>Max wallet at create</Label>
-                  <Input value={antiBot.maxLaunchWallet} onChange={(e) => setAntiBot({ ...antiBot, maxLaunchWallet: e.target.value })} />
-                </div>
+                <SupplyAmountInput
+                  label="Max buy at create"
+                  description="Limit per purchase during the launch guard period."
+                  supply={supply}
+                  unit={antiBot.maxLaunchBuyUnit}
+                  onUnitChange={(maxLaunchBuyUnit) => setAntiBot({ ...antiBot, maxLaunchBuyUnit })}
+                  value={antiBot.maxLaunchBuyValue}
+                  onChange={(maxLaunchBuyValue) => setAntiBot({ ...antiBot, maxLaunchBuyValue })}
+                />
+                <SupplyAmountInput
+                  label="Max wallet at create"
+                  description="Maximum tokens any wallet can hold during protection."
+                  supply={supply}
+                  unit={antiBot.maxLaunchWalletUnit}
+                  onUnitChange={(maxLaunchWalletUnit) => setAntiBot({ ...antiBot, maxLaunchWalletUnit })}
+                  value={antiBot.maxLaunchWalletValue}
+                  onChange={(maxLaunchWalletValue) => setAntiBot({ ...antiBot, maxLaunchWalletValue })}
+                />
                 <div>
                   <Label>Protection duration (seconds)</Label>
-                  <Input value={antiBot.protectionDuration} onChange={(e) => setAntiBot({ ...antiBot, protectionDuration: e.target.value })} />
+                  <Input
+                    value={antiBot.protectionDuration}
+                    onChange={(e) => setAntiBot({ ...antiBot, protectionDuration: e.target.value })}
+                  />
                 </div>
               </div>
             )}
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => setStep(2)}>Back</Button>
-              <Button onClick={() => setStep(4)} disabled={hasTax && taxTotal !== 10000}>Continue</Button>
+              <Button
+                onClick={() => setStep(4)}
+                disabled={
+                  (hasTax && !taxRatesValid) ||
+                  (hasTax && enabledTaxWalletCount === 0) ||
+                  (hasTax && taxTotal !== 10000) ||
+                  (hasTax && !taxWalletsValid)
+                }
+              >
+                Continue
+              </Button>
             </div>
           </CardContent>
         </Card>
@@ -417,7 +573,13 @@ export function TokenCreateForm() {
               <Button variant="outline" onClick={() => setStep(3)}>Back</Button>
               <Button
                 onClick={deploy}
-                disabled={!isConnected || isPending || confirming || (hasTax && taxTotal !== 10000)}
+                disabled={
+                  !isConnected ||
+                  isPending ||
+                  confirming ||
+                  (hasTax && taxTotal !== 10000) ||
+                  (hasTax && !taxRatesValid)
+                }
               >
                 {isPending || confirming
                   ? "Deploying..."

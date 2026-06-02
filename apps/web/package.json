@@ -23,6 +23,7 @@
     "@radix-ui/react-tooltip": "^1.1.6",
     "@rainbow-me/rainbowkit": "^2.2.2",
     "@tanstack/react-query": "^5.62.8",
+    "@vercel/blob": "^2.4.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "framer-motion": "^11.15.0",

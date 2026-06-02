@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { mkdir, writeFile } from "fs/promises";
 import path from "path";
 import { randomUUID } from "crypto";
+import { put } from "@vercel/blob";
 
 const MAX_SIZE = 5 * 1024 * 1024;
 const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
@@ -29,8 +30,22 @@ export async function POST(request: NextRequest) {
 
     const ext = EXT_BY_TYPE[file.type] ?? "png";
     const filename = `${randomUUID()}.${ext}`;
-    const uploadDir = path.join(process.cwd(), "public", "uploads", "projects");
 
+    // Prefer a durable object store on Vercel (Blob). Serverless filesystem writes are not reliable.
+    // Enable by setting BLOB_READ_WRITE_TOKEN in the deployment environment.
+    if (process.env.BLOB_READ_WRITE_TOKEN) {
+      const key = `projects/${filename}`;
+      const blob = await put(key, file, {
+        access: "public",
+        contentType: file.type,
+        addRandomSuffix: false,
+        token: process.env.BLOB_READ_WRITE_TOKEN,
+      });
+      return NextResponse.json({ url: blob.url, path: key });
+    }
+
+    // Local/dev fallback: write into /public/uploads/projects
+    const uploadDir = path.join(process.cwd(), "public", "uploads", "projects");
     await mkdir(uploadDir, { recursive: true });
     await writeFile(path.join(uploadDir, filename), Buffer.from(await file.arrayBuffer()));
 
@@ -40,7 +55,8 @@ export async function POST(request: NextRequest) {
     const origin = host ? `${proto}://${host}` : request.nextUrl.origin;
 
     return NextResponse.json({ url: `${origin}${publicPath}`, path: publicPath });
-  } catch {
-    return NextResponse.json({ error: "Upload failed" }, { status: 500 });
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "Upload failed";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
