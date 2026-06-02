@@ -6,6 +6,7 @@ import { useAccount } from "wagmi";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Bookmark, Coins, Compass, Shield } from "lucide-react";
+import { fetchMyTokens } from "@/lib/token-register";
 
 export default function DashboardPage() {
   const { address, isConnected } = useAccount();
@@ -18,13 +19,16 @@ export default function DashboardPage() {
     fetch(`/api/watchlist?wallet=${address}`)
       .then((r) => r.json())
       .then((d) => setWatchlistCount(d.tokens?.length ?? 0));
-    fetch(`/api/tokens?creator=${address}&limit=100`)
-      .then((r) => r.json())
-      .then((d) => setMyTokensCount(d.tokens?.length ?? 0));
+    fetchMyTokens(address)
+      .then((tokens) => setMyTokensCount(tokens.length))
+      .catch((e) => console.error("[dashboard] Failed to load token count:", e));
     fetch(`/api/verify?wallet=${address}`)
       .then((r) => r.json())
       .then((d) => setVerified(!!d.verified))
-      .catch(() => setVerified(false));
+      .catch((e) => {
+        console.error("[dashboard] Failed to load verification status:", e);
+        setVerified(false);
+      });
   }, [address]);
 
   return (

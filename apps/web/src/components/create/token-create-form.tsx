@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAccount, useChainId, usePublicClient, useWaitForTransactionReceipt, useWriteContract } from "wagmi";
-import { decodeEventLog, getEventSelector, isAddress, parseAbiItem, parseEther, zeroAddress } from "viem";
+import { isAddress, parseEther, zeroAddress } from "viem";
 import {
   TOKEN_FEATURES,
   TAX_WALLETS,
@@ -44,6 +44,8 @@ import {
   isFactoryConfigured,
   opnChain,
 } from "@/lib/wagmi";
+import { isReceiptSuccess, resolveDeployedTokenAddress } from "@/lib/token-deploy";
+import { registerTokenMetadata } from "@/lib/token-register";
 import Link from "next/link";
 import { AlertTriangle, Lock } from "lucide-react";
 
@@ -126,15 +128,7 @@ export function TokenCreateForm() {
   const [registerError, setRegisterError] = useState<string | null>(null);
   const [registered, setRegistered] = useState(false);
   const [manualToken, setManualToken] = useState("");
-
-  const tokenCreatedEvent = useMemo(
-    () =>
-      parseAbiItem(
-        "event TokenCreated(address indexed token, address indexed creator, string name, string symbol, uint256 featureFlags, uint256 initialSupply)"
-      ),
-    []
-  );
-  const tokenCreatedSelector = useMemo(() => getEventSelector(tokenCreatedEvent), [tokenCreatedEvent]);
+  const [resolvingAddress, setResolvingAddress] = useState(false);
 
   function toggleFeature(bit: number) {
     setSelectedFeatures((prev) =>
@@ -258,6 +252,7 @@ export function TokenCreateForm() {
       return;
     }
 
+    console.log("[deploy] Deploying token…");
     console.log("[deploy] Factory Address:", FACTORY_ADDRESS);
     console.log("[deploy] Chain:", chainId);
     console.log("[deploy] Deployment Fee:", totalCreationFee, TOKEN_CREATION_FEE_SYMBOL);
@@ -327,68 +322,64 @@ export function TokenCreateForm() {
     );
   }
 
-  const registerMetadata = useCallback(async (contractAddress: string) => {
-    const res = await fetch("/api/tokens", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contractAddress,
+  const registerMetadata = useCallback(
+    async (contractAddress: string) => {
+      if (!address) throw new Error("Wallet not connected");
+
+      return registerTokenMetadata({
+        contractAddress: contractAddress.toLowerCase(),
         chainId: opnChain.id,
         name,
         symbol,
         initialSupply: parseEther(supply).toString(),
         featureFlags: encodeFeatureFlags(selectedFeatures).toString(),
-        creatorAddress: address,
-        factoryAddress: FACTORY_ADDRESS,
+        creatorAddress: address.toLowerCase(),
+        factoryAddress: FACTORY_ADDRESS.toLowerCase(),
         txHash,
         ...metadata,
         buyTaxBps: hasTax ? buyTax : null,
         sellTaxBps: hasTax ? sellTax : null,
         maxWallet: maxWallet || null,
         maxTx: maxTx || null,
-      }),
-    });
-    if (!res.ok) {
-      const data = await res.json().catch(() => null);
-      throw new Error(
-        typeof data?.error === "string" ? data.error : "Failed to register token (API error)"
-      );
-    }
-  }, [address, buyTax, hasTax, maxTx, maxWallet, metadata, name, selectedFeatures, sellTax, supply, symbol, txHash]);
+      });
+    },
+    [address, buyTax, hasTax, maxTx, maxWallet, metadata, name, selectedFeatures, sellTax, supply, symbol, txHash]
+  );
 
   useEffect(() => {
-    if (!receipt || !txHash || deployedToken) return;
-
-    console.log("[deploy] Receipt:", receipt);
-
-    // Extract token address from factory TokenCreated event.
-    let found = false;
-    for (const log of receipt.logs ?? []) {
-      if (!log?.topics?.length) continue;
-      if (log.topics[0]?.toLowerCase?.() !== tokenCreatedSelector.toLowerCase()) continue;
-      try {
-        const decoded = decodeEventLog({
-          abi: [tokenCreatedEvent],
-          data: log.data,
-          topics: log.topics,
-        });
-        if (decoded.eventName !== "TokenCreated") continue;
-        const token = (decoded.args as { token?: string }).token;
-        if (token && isAddress(token)) {
-          console.log("[deploy] Token Address:", token);
-          setDeployedToken(token);
-          found = true;
-          return;
-        }
-      } catch {
-        // ignore non-matching logs
-      }
-    }
-    if (!found) {
-      console.warn("[deploy] TokenCreated event not found in receipt logs");
+    if (!receipt || !txHash || deployedToken || !publicClient || !address) return;
+    if (!isReceiptSuccess(receipt)) {
+      console.error("[deploy] Transaction reverted:", txHash);
       setExtractFailed(true);
+      return;
     }
-  }, [receipt, txHash, deployedToken, tokenCreatedEvent, tokenCreatedSelector]);
+
+    let cancelled = false;
+    setResolvingAddress(true);
+    setExtractFailed(false);
+
+    console.log("[deploy] Waiting for confirmation… receipt received for:", txHash);
+
+    resolveDeployedTokenAddress(publicClient, receipt, FACTORY_ADDRESS, address)
+      .then((token) => {
+        if (cancelled) return;
+        console.log("[deploy] Contract address:", token);
+        setDeployedToken(token);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        const msg = err instanceof Error ? err.message : "Could not extract contract address";
+        console.error("[deploy] Address extraction failed:", msg);
+        setExtractFailed(true);
+      })
+      .finally(() => {
+        if (!cancelled) setResolvingAddress(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [receipt, txHash, deployedToken, publicClient, address]);
 
   useEffect(() => {
     if (txHash) console.log("[deploy] Transaction Hash:", txHash);
@@ -399,9 +390,9 @@ export function TokenCreateForm() {
     setRegistering(true);
     setRegisterError(null);
     registerMetadata(deployedToken)
-      .then(() => {
+      .then((result) => {
         setRegistered(true);
-        console.log("[deploy] Token saved to database:", deployedToken);
+        console.log("[deploy] Registered token id:", result.token.id);
       })
       .catch((e) => {
         const msg = e instanceof Error ? e.message : "Failed to save token metadata";
@@ -417,14 +408,8 @@ export function TokenCreateForm() {
     }
   }, [registered, deployedToken, router]);
 
-  const receiptStatus =
-    receipt && "status" in receipt
-      ? (receipt.status as string | number | bigint | undefined)
-      : undefined;
-  const txSucceeded =
-    receiptStatus === "success" || receiptStatus === 1 || receiptStatus === 1n || receiptStatus === "0x1";
-  const txReverted =
-    receiptStatus === "reverted" || receiptStatus === 0 || receiptStatus === 0n || receiptStatus === "0x0";
+  const txSucceeded = receipt ? isReceiptSuccess(receipt) : false;
+  const txReverted = receipt ? !isReceiptSuccess(receipt) : false;
 
   if (isSuccess && txHash && txReverted) {
     return (
@@ -446,7 +431,7 @@ export function TokenCreateForm() {
     );
   }
 
-  if (isSuccess && txHash && (txSucceeded || receiptStatus == null)) {
+  if (isSuccess && txHash && txSucceeded) {
     return (
       <Card className="border-green-200 bg-green-50">
         <CardHeader>
@@ -467,7 +452,11 @@ export function TokenCreateForm() {
           {!deployedToken ? (
             <div className="space-y-2">
               <p className="text-sm text-muted-foreground">
-                Finalizing… extracting contract address from the transaction logs.
+                {resolvingAddress
+                  ? "Finalizing… extracting contract address from the transaction logs."
+                  : extractFailed
+                    ? "Could not automatically detect the contract address."
+                    : "Waiting for contract address…"}
               </p>
               {extractFailed && (
                 <div className="rounded-lg border bg-white/60 p-3">
@@ -489,7 +478,7 @@ export function TokenCreateForm() {
                       type="button"
                       onClick={() => {
                         const v = manualToken.trim();
-                        if (isAddress(v)) setDeployedToken(v);
+                        if (isAddress(v)) setDeployedToken(v.toLowerCase());
                       }}
                       disabled={!isAddress(manualToken.trim())}
                     >

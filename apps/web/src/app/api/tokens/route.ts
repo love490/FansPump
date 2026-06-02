@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma, type Prisma } from "@iopn/database";
 import { z } from "zod";
+import { isAddress } from "viem";
 import { getActiveChainId } from "@/lib/chain-config/opn";
 import {
   getPopularRegistryTokens,
@@ -52,9 +53,19 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const section = searchParams.get("section") ?? "new";
   const q = searchParams.get("q")?.trim() ?? "";
-  const creator = searchParams.get("creator")?.trim().toLowerCase() ?? "";
+  const creator = searchParams.get("creator")?.trim() ?? "";
+  const creatorNormalized = creator ? creator.toLowerCase() : "";
   const limit = Math.min(Number(searchParams.get("limit") ?? 24), 100);
   const chainId = Number(searchParams.get("chainId") ?? getActiveChainId());
+
+  if (creatorNormalized && !isAddress(creatorNormalized)) {
+    console.warn("[GET /api/tokens] Invalid creator address:", creator);
+    return NextResponse.json({ error: "Invalid creator wallet address" }, { status: 400 });
+  }
+
+  if (creatorNormalized) {
+    console.log("[GET /api/tokens] Creator query:", creatorNormalized, "chainId:", chainId);
+  }
 
   if (section === "registry") {
     const registry = getPopularRegistryTokens()
@@ -89,10 +100,11 @@ export async function GET(request: NextRequest) {
     : undefined;
 
   const sectionFilter: Prisma.TokenProjectWhereInput | undefined =
-    creator || q ? undefined : section === "featured" ? { isFeatured: true } : undefined;
+    creatorNormalized || q ? undefined : section === "featured" ? { isFeatured: true } : undefined;
 
-  const creatorFilter: Prisma.TokenProjectWhereInput | undefined =
-    creator && /^0x[a-f0-9]{40}$/.test(creator) ? { creatorAddress: creator } : undefined;
+  const creatorFilter: Prisma.TokenProjectWhereInput | undefined = creatorNormalized
+    ? { creatorAddress: creatorNormalized }
+    : undefined;
 
   const filters = [chainFilter, sectionFilter, searchFilter, creatorFilter].filter(
     (f): f is Prisma.TokenProjectWhereInput => !!f
@@ -141,11 +153,19 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const body = createSchema.parse(await request.json());
+    const raw = await request.json();
+    console.log("[POST /api/tokens] Registering token:", raw?.contractAddress, "creator:", raw?.creatorAddress);
+
+    const body = createSchema.parse({
+      ...raw,
+      contractAddress: typeof raw?.contractAddress === "string" ? raw.contractAddress.toLowerCase() : raw?.contractAddress,
+      creatorAddress: typeof raw?.creatorAddress === "string" ? raw.creatorAddress.toLowerCase() : raw?.creatorAddress,
+      factoryAddress: typeof raw?.factoryAddress === "string" ? raw.factoryAddress.toLowerCase() : raw?.factoryAddress,
+    });
 
     await prisma.user.upsert({
-      where: { walletAddress: body.creatorAddress.toLowerCase() },
-      create: { walletAddress: body.creatorAddress.toLowerCase() },
+      where: { walletAddress: body.creatorAddress },
+      create: { walletAddress: body.creatorAddress },
       update: {},
     });
 
@@ -155,8 +175,8 @@ export async function POST(request: NextRequest) {
       symbol: body.symbol,
       initialSupply: body.initialSupply,
       featureFlags: BigInt(body.featureFlags),
-      creatorAddress: body.creatorAddress.toLowerCase(),
-      factoryAddress: body.factoryAddress.toLowerCase(),
+      creatorAddress: body.creatorAddress,
+      factoryAddress: body.factoryAddress,
       txHash: body.txHash,
       logoUrl: body.logoUrl,
       bannerUrl: body.bannerUrl,
@@ -173,23 +193,31 @@ export async function POST(request: NextRequest) {
     };
 
     const token = await prisma.tokenProject.upsert({
-      where: { contractAddress: body.contractAddress.toLowerCase() },
+      where: { contractAddress: body.contractAddress },
       create: {
-        contractAddress: body.contractAddress.toLowerCase(),
+        contractAddress: body.contractAddress,
         ...data,
       },
       update: data,
     });
 
+    console.log("[POST /api/tokens] Saved token:", token.contractAddress, "id:", token.id);
+
     return NextResponse.json({
-      token: { ...token, featureFlags: token.featureFlags.toString() },
+      success: true,
+      contractAddress: token.contractAddress,
+      token: {
+        ...token,
+        featureFlags: token.featureFlags.toString(),
+      },
     });
   } catch (e) {
     if (e instanceof z.ZodError) {
       const msg = e.errors.map((err) => `${err.path.join(".")}: ${err.message}`).join("; ");
+      console.error("[POST /api/tokens] Validation error:", msg);
       return NextResponse.json({ error: msg || "Invalid token data" }, { status: 400 });
     }
-    console.error("[POST /api/tokens]", e);
+    console.error("[POST /api/tokens] Failed to register token:", e);
     return NextResponse.json({ error: "Failed to register token" }, { status: 500 });
   }
 }

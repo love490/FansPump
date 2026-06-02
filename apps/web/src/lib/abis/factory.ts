@@ -121,6 +121,27 @@ export const factoryAbi = [
     stateMutability: "view",
   },
   {
+    type: "function",
+    name: "allTokens",
+    inputs: [{ name: "index", type: "uint256" }],
+    outputs: [{ type: "address" }],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "tokenCreator",
+    inputs: [{ name: "token", type: "address" }],
+    outputs: [{ type: "address" }],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "isIOPnToken",
+    inputs: [{ name: "token", type: "address" }],
+    outputs: [{ type: "bool" }],
+    stateMutability: "view",
+  },
+  {
     type: "event",
     name: "TokenCreated",
     inputs: [
