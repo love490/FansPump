@@ -13,8 +13,25 @@ export type PayToken = {
 };
 
 const ZERO = "0x0000000000000000000000000000000000000000" as Address;
-const USDT_ADDRESS = (process.env.NEXT_PUBLIC_USDT_ADDRESS ?? "") as Address;
-const USDC_ADDRESS = (process.env.NEXT_PUBLIC_USDC_ADDRESS ?? "") as Address;
+
+// OPNChain testnet defaults (used when env vars are unset/zero).
+// These are safe fallbacks to make the swap UI usable out-of-the-box.
+const OPN_TESTNET_CHAIN_ID = 984;
+const DEFAULT_TESTNET_USDT = "0x3e01b4d892E0D0A219eF8BBe7e260a6bc8d9B31b" as Address; // tUSDT
+
+const CHAIN_ID = Number(process.env.NEXT_PUBLIC_CHAIN_ID ?? OPN_TESTNET_CHAIN_ID);
+
+const USDT_ADDRESS_RAW = (process.env.NEXT_PUBLIC_USDT_ADDRESS ?? "") as Address;
+const USDC_ADDRESS_RAW = (process.env.NEXT_PUBLIC_USDC_ADDRESS ?? "") as Address;
+
+const USDT_ADDRESS =
+  USDT_ADDRESS_RAW && USDT_ADDRESS_RAW !== ZERO
+    ? USDT_ADDRESS_RAW
+    : CHAIN_ID === OPN_TESTNET_CHAIN_ID
+      ? DEFAULT_TESTNET_USDT
+      : ("" as Address);
+
+const USDC_ADDRESS = USDC_ADDRESS_RAW && USDC_ADDRESS_RAW !== ZERO ? USDC_ADDRESS_RAW : ("" as Address);
 
 export const OPN_PAY_TOKEN: PayToken = {
   id: "native",
