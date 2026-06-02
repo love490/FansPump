@@ -62,6 +62,13 @@ export function SwapPayTokenSelect({ value, onChange, excludeAddress }: SwapPayT
     setResolvingAddress(true);
 
     async function resolve() {
+      const c = client;
+      if (!c) {
+        setResolvedAddressOption(null);
+        setResolvingAddress(false);
+        return;
+      }
+
       // 1) Try the platform registry (DB)
       try {
         const r = await fetch(`/api/tokens/${addr}`);
@@ -86,8 +93,8 @@ export function SwapPayTokenSelect({ value, onChange, excludeAddress }: SwapPayT
       // 2) Fallback: read metadata from chain so any ERC20 works
       try {
         const [symbol, decimals] = await Promise.all([
-          client.readContract({ address: addr, abi: erc20Abi, functionName: "symbol" }),
-          client.readContract({ address: addr, abi: erc20Abi, functionName: "decimals" }),
+          c.readContract({ address: addr, abi: erc20Abi, functionName: "symbol" }),
+          c.readContract({ address: addr, abi: erc20Abi, functionName: "decimals" }),
         ]);
 
         if (cancelled) return;
