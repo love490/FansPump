@@ -13,17 +13,17 @@ export default function DocsPage() {
       </p>
       <ul className="mt-8 space-y-2 list-disc pl-6">
         <li>
-          <Link href="https://github.com/iopn/iopn-launch/blob/main/docs/ARCHITECTURE.md" className="text-iopn-600 hover:underline">
+          <Link href="https://github.com/love490/FansPump/blob/main/docs/ARCHITECTURE.md" className="text-iopn-600 hover:underline">
             Architecture overview
           </Link>
         </li>
         <li>
-          <Link href="https://github.com/iopn/iopn-launch/blob/main/docs/DEPLOYMENT.md" className="text-iopn-600 hover:underline">
+          <Link href="https://github.com/love490/FansPump/blob/main/docs/DEPLOYMENT.md" className="text-iopn-600 hover:underline">
             Deployment guide
           </Link>
         </li>
         <li>
-          <Link href="https://github.com/iopn/iopn-launch/blob/main/docs/SECURITY.md" className="text-iopn-600 hover:underline">
+          <Link href="https://github.com/love490/FansPump/blob/main/docs/SECURITY.md" className="text-iopn-600 hover:underline">
             Security model
           </Link>
         </li>
