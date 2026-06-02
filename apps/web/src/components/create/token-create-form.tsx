@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useAccount, usePublicClient, useWaitForTransactionReceipt, useWriteContract } from "wagmi";
+import { useRouter } from "next/navigation";
+import { useAccount, useChainId, usePublicClient, useWaitForTransactionReceipt, useWriteContract } from "wagmi";
 import { decodeEventLog, getEventSelector, isAddress, parseAbiItem, parseEther, zeroAddress } from "viem";
 import {
   TOKEN_FEATURES,
@@ -36,7 +37,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Checkbox } from "@/components/ui/checkbox";
 import { MetadataImageField } from "@/components/create/metadata-image-field";
 import { factoryAbi } from "@/lib/abis/factory";
-import { FACTORY_ADDRESS, opnChain } from "@/lib/wagmi";
+import {
+  FACTORY_ADDRESS,
+  OPN_EXPLORER_BASE,
+  getFactoryConfigError,
+  isFactoryConfigured,
+  opnChain,
+} from "@/lib/wagmi";
 import Link from "next/link";
 import { AlertTriangle, Lock } from "lucide-react";
 
@@ -51,8 +58,13 @@ const SOCIAL_LINK_FIELDS = [
 ];
 
 export function TokenCreateForm() {
-  const { address, isConnected } = useAccount();
+  const router = useRouter();
+  const { address, isConnected, chain } = useAccount();
+  const chainId = useChainId();
   const publicClient = usePublicClient();
+  const factoryConfigError = getFactoryConfigError();
+  const factoryReady = isFactoryConfigured(FACTORY_ADDRESS);
+  const wrongNetwork = isConnected && chainId !== opnChain.id;
   const [step, setStep] = useState(1);
   const [name, setName] = useState("");
   const [symbol, setSymbol] = useState("");
@@ -103,10 +115,11 @@ export function TokenCreateForm() {
     github: "",
   });
 
-  const { writeContract, data: txHash, isPending } = useWriteContract();
+  const { writeContract, data: txHash, isPending, error: writeError, reset: resetWrite } = useWriteContract();
   const { data: receipt, isLoading: confirming, isSuccess } = useWaitForTransactionReceipt({
     hash: txHash,
   });
+  const [deployError, setDeployError] = useState<string | null>(null);
   const [deployedToken, setDeployedToken] = useState<string | null>(null);
   const [extractFailed, setExtractFailed] = useState(false);
   const [registering, setRegistering] = useState(false);
@@ -209,6 +222,45 @@ export function TokenCreateForm() {
 
   async function deploy() {
     if (!address) return;
+    setDeployError(null);
+    resetWrite();
+
+    const configError = getFactoryConfigError();
+    if (configError) {
+      setDeployError(configError);
+      console.error("[deploy] Factory config:", configError);
+      return;
+    }
+
+    if (chainId !== opnChain.id) {
+      const msg = `Wrong network. Switch to ${opnChain.name} (chain ID ${opnChain.id}). Currently on chain ${chainId}.`;
+      setDeployError(msg);
+      console.error("[deploy] Wrong chain:", chainId, "expected", opnChain.id);
+      return;
+    }
+
+    if (!publicClient) {
+      setDeployError("Wallet RPC not available. Refresh and try again.");
+      return;
+    }
+
+    try {
+      const bytecode = await publicClient.getBytecode({ address: FACTORY_ADDRESS });
+      if (!bytecode || bytecode === "0x") {
+        const msg = `Factory contract not found at ${FACTORY_ADDRESS} on ${opnChain.name}. Verify NEXT_PUBLIC_FACTORY_ADDRESS.`;
+        setDeployError(msg);
+        console.error("[deploy] No bytecode at factory:", FACTORY_ADDRESS);
+        return;
+      }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Could not verify factory contract on-chain.";
+      setDeployError(msg);
+      return;
+    }
+
+    console.log("[deploy] Factory Address:", FACTORY_ADDRESS);
+    console.log("[deploy] Chain:", chainId);
+    console.log("[deploy] Deployment Fee:", totalCreationFee, TOKEN_CREATION_FEE_SYMBOL);
 
     const flags = encodeFeatureFlags(selectedFeatures);
     const taxDist = {
@@ -226,36 +278,53 @@ export function TokenCreateForm() {
       liquidityBps: taxBps.liquidityBps,
     };
 
-    writeContract({
-      address: FACTORY_ADDRESS,
-      abi: factoryAbi,
-      functionName: "createToken",
-      value: parseEther(String(totalCreationFee)),
-      args: [
-        {
-          name,
-          symbol,
-          initialSupply: parseEther(supply),
-          featureFlags: BigInt(flags),
-          maxWalletAmount: selectedFeatures.includes(TOKEN_FEATURES.MAX_WALLET)
-            ? parseEther(maxWallet || "0")
-            : 0n,
-          maxTxAmount: selectedFeatures.includes(TOKEN_FEATURES.MAX_TX) ? parseEther(maxTx || "0") : 0n,
-          buyTaxBps: hasTax ? buyTax : 0,
-          sellTaxBps: hasTax ? sellTax : 0,
-          taxDistribution: taxDist,
-          antiBot: {
-            launchGuardEnabled: selectedFeatures.includes(TOKEN_FEATURES.ANTI_BOT)
-              ? antiBot.launchGuardEnabled
-              : false,
-            maxLaunchBuy: hasAntiBot ? maxLaunchBuyAmount : 0n,
-            maxLaunchWallet: hasAntiBot ? maxLaunchWalletAmount : 0n,
-            protectionDuration: BigInt(antiBot.protectionDuration),
+    writeContract(
+      {
+        address: FACTORY_ADDRESS,
+        abi: factoryAbi,
+        functionName: "createToken",
+        value: parseEther(String(totalCreationFee)),
+        args: [
+          {
+            name,
+            symbol,
+            initialSupply: parseEther(supply),
+            featureFlags: BigInt(flags),
+            maxWalletAmount: selectedFeatures.includes(TOKEN_FEATURES.MAX_WALLET)
+              ? parseEther(maxWallet || "0")
+              : 0n,
+            maxTxAmount: selectedFeatures.includes(TOKEN_FEATURES.MAX_TX) ? parseEther(maxTx || "0") : 0n,
+            buyTaxBps: hasTax ? buyTax : 0,
+            sellTaxBps: hasTax ? sellTax : 0,
+            taxDistribution: taxDist,
+            antiBot: {
+              launchGuardEnabled: selectedFeatures.includes(TOKEN_FEATURES.ANTI_BOT)
+                ? antiBot.launchGuardEnabled
+                : false,
+              maxLaunchBuy: hasAntiBot ? maxLaunchBuyAmount : 0n,
+              maxLaunchWallet: hasAntiBot ? maxLaunchWalletAmount : 0n,
+              protectionDuration: BigInt(antiBot.protectionDuration),
+            },
+            owner: address,
           },
-          owner: address,
+        ],
+      },
+      {
+        onSuccess: (hash) => {
+          console.log("[deploy] Transaction Hash:", hash);
         },
-      ],
-    });
+        onError: (err) => {
+          const msg =
+            err instanceof Error
+              ? err.message
+              : "shortMessage" in err && typeof err.shortMessage === "string"
+                ? err.shortMessage
+                : "Token deployment failed";
+          setDeployError(msg);
+          console.error("[deploy] writeContract error:", err);
+        },
+      }
+    );
   }
 
   const registerMetadata = useCallback(async (contractAddress: string) => {
@@ -289,13 +358,13 @@ export function TokenCreateForm() {
 
   useEffect(() => {
     if (!receipt || !txHash || deployedToken) return;
-    if (!publicClient) return;
+
+    console.log("[deploy] Receipt:", receipt);
 
     // Extract token address from factory TokenCreated event.
     let found = false;
     for (const log of receipt.logs ?? []) {
       if (!log?.topics?.length) continue;
-      // Don't rely on log.address matching exactly (proxies / tooling can differ).
       if (log.topics[0]?.toLowerCase?.() !== tokenCreatedSelector.toLowerCase()) continue;
       try {
         const decoded = decodeEventLog({
@@ -306,6 +375,7 @@ export function TokenCreateForm() {
         if (decoded.eventName !== "TokenCreated") continue;
         const token = (decoded.args as { token?: string }).token;
         if (token && isAddress(token)) {
+          console.log("[deploy] Token Address:", token);
           setDeployedToken(token);
           found = true;
           return;
@@ -314,27 +384,47 @@ export function TokenCreateForm() {
         // ignore non-matching logs
       }
     }
-    if (!found) setExtractFailed(true);
-  }, [receipt, txHash, deployedToken, publicClient, tokenCreatedEvent, tokenCreatedSelector]);
+    if (!found) {
+      console.warn("[deploy] TokenCreated event not found in receipt logs");
+      setExtractFailed(true);
+    }
+  }, [receipt, txHash, deployedToken, tokenCreatedEvent, tokenCreatedSelector]);
+
+  useEffect(() => {
+    if (txHash) console.log("[deploy] Transaction Hash:", txHash);
+  }, [txHash]);
 
   useEffect(() => {
     if (!deployedToken || registered || registering) return;
     setRegistering(true);
     setRegisterError(null);
     registerMetadata(deployedToken)
-      .then(() => setRegistered(true))
-      .catch((e) => setRegisterError(e instanceof Error ? e.message : "Failed to save token metadata"))
+      .then(() => {
+        setRegistered(true);
+        console.log("[deploy] Token saved to database:", deployedToken);
+      })
+      .catch((e) => {
+        const msg = e instanceof Error ? e.message : "Failed to save token metadata";
+        setRegisterError(msg);
+        console.error("[deploy] Database save failed:", e);
+      })
       .finally(() => setRegistering(false));
   }, [deployedToken, registered, registering, registerMetadata]);
 
+  useEffect(() => {
+    if (registered && deployedToken) {
+      router.push(`/token/${deployedToken}`);
+    }
+  }, [registered, deployedToken, router]);
+
   const receiptStatus =
     receipt && "status" in receipt
-      ? // viem returns 'success' | 'reverted' on some chains, or 1/0 on others
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (receipt as any).status
+      ? (receipt.status as string | number | bigint | undefined)
       : undefined;
-  const txSucceeded = receiptStatus === "success" || receiptStatus === 1 || receiptStatus === "0x1";
-  const txReverted = receiptStatus === "reverted" || receiptStatus === 0 || receiptStatus === "0x0";
+  const txSucceeded =
+    receiptStatus === "success" || receiptStatus === 1 || receiptStatus === 1n || receiptStatus === "0x1";
+  const txReverted =
+    receiptStatus === "reverted" || receiptStatus === 0 || receiptStatus === 0n || receiptStatus === "0x0";
 
   if (isSuccess && txHash && txReverted) {
     return (
@@ -360,9 +450,17 @@ export function TokenCreateForm() {
     return (
       <Card className="border-green-200 bg-green-50">
         <CardHeader>
-          <CardTitle>Token deployed</CardTitle>
+          <CardTitle>Token created successfully</CardTitle>
           <CardDescription>
-            Transaction: {txHash}
+            Transaction:{" "}
+            <a
+              href={`${OPN_EXPLORER_BASE.replace(/\/$/, "")}/tx/${txHash}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-mono text-xs underline"
+            >
+              {txHash.slice(0, 10)}…{txHash.slice(-8)}
+            </a>
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -371,17 +469,14 @@ export function TokenCreateForm() {
               <p className="text-sm text-muted-foreground">
                 Finalizing… extracting contract address from the transaction logs.
               </p>
-              <p className="text-xs text-muted-foreground">
-                If this stays stuck, it usually means the transaction didn’t emit the `TokenCreated` event (wrong
-                factory address / wrong network) or the explorer is needed to copy the contract address.
-              </p>
               {extractFailed && (
                 <div className="rounded-lg border bg-white/60 p-3">
                   <p className="text-sm text-red-600">
-                    We couldn’t auto-detect the token address from the logs.
+                    TokenCreated event not found. The factory address may be wrong or the transaction did not
+                    deploy a token.
                   </p>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Paste the token contract address from the block explorer, and we’ll save it to “My Tokens”.
+                    Paste the token contract address from the block explorer.
                   </p>
                   <div className="mt-3 flex flex-wrap gap-2">
                     <Input
@@ -416,19 +511,28 @@ export function TokenCreateForm() {
                   <Link href={`/token/${deployedToken}`}>View token</Link>
                 </Button>
                 <Button asChild variant="outline">
+                  <a
+                    href={`${OPN_EXPLORER_BASE.replace(/\/$/, "")}/address/${deployedToken}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    View explorer
+                  </a>
+                </Button>
+                <Button asChild variant="outline">
                   <Link href={`/token/${deployedToken}/liquidity`}>Add liquidity</Link>
                 </Button>
                 <Button asChild variant="outline">
-                  <Link href={`/token/${deployedToken}/ownership`}>Ownership</Link>
+                  <Link href={`/token/${deployedToken}/ownership`}>Manage ownership</Link>
                 </Button>
               </div>
 
               {registering ? (
-                <p className="text-sm text-muted-foreground">Saving token to your “My Tokens”…</p>
+                <p className="text-sm text-muted-foreground">Saving token and redirecting…</p>
               ) : registered ? (
-                <p className="text-sm text-green-700">Saved. You’ll now see it in “My Tokens”.</p>
+                <p className="text-sm text-green-700">Saved. Redirecting to your token page…</p>
               ) : registerError ? (
-                <p className="text-sm text-red-600">Couldn’t save to My Tokens: {registerError}</p>
+                <p className="text-sm text-red-600">Couldn&apos;t save to My Tokens: {registerError}</p>
               ) : null}
             </>
           )}
@@ -437,8 +541,49 @@ export function TokenCreateForm() {
     );
   }
 
+  const activeDeployError = deployError ?? writeError?.message ?? null;
+
   return (
     <div className="space-y-6">
+      {!factoryReady && (
+        <Card className="border-red-200 bg-red-50">
+          <CardContent className="flex gap-3 pt-6">
+            <AlertTriangle className="h-5 w-5 shrink-0 text-red-700" />
+            <div>
+              <p className="text-sm font-medium text-red-900">Factory contract not configured</p>
+              <p className="mt-1 text-sm text-red-800">
+                {factoryConfigError ??
+                  "Set NEXT_PUBLIC_FACTORY_ADDRESS to your deployed TokenFactory on OPN Testnet before users can create tokens."}
+              </p>
+              {FACTORY_ADDRESS && (
+                <p className="mt-2 font-mono text-xs text-red-700">Current value: {FACTORY_ADDRESS}</p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {wrongNetwork && (
+        <Card className="border-amber-200 bg-amber-50">
+          <CardContent className="flex gap-3 pt-6">
+            <AlertTriangle className="h-5 w-5 shrink-0 text-amber-700" />
+            <p className="text-sm text-amber-900">
+              Wrong network. Switch your wallet to <strong>{opnChain.name}</strong> (chain ID {opnChain.id}
+              ). Currently connected to chain {chainId}
+              {chain?.name ? ` (${chain.name})` : ""}.
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
+      {activeDeployError && (
+        <Card className="border-red-200 bg-red-50">
+          <CardContent className="pt-6">
+            <p className="text-sm font-medium text-red-900">Deployment error</p>
+            <p className="mt-1 text-sm text-red-800">{activeDeployError}</p>
+          </CardContent>
+        </Card>
+      )}
       <Card className="border-amber-200 bg-amber-50">
         <CardContent className="flex gap-3 pt-6">
           <Lock className="h-5 w-5 shrink-0 text-amber-700" />
@@ -737,6 +882,8 @@ export function TokenCreateForm() {
                 onClick={deploy}
                 disabled={
                   !isConnected ||
+                  !factoryReady ||
+                  wrongNetwork ||
                   isPending ||
                   confirming ||
                   (hasTax && taxTotal !== 10000) ||

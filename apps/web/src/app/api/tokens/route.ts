@@ -113,30 +113,36 @@ export async function POST(request: NextRequest) {
       update: {},
     });
 
-    const token = await prisma.tokenProject.create({
-      data: {
+    const data = {
+      chainId: body.chainId,
+      name: body.name,
+      symbol: body.symbol,
+      initialSupply: body.initialSupply,
+      featureFlags: BigInt(body.featureFlags),
+      creatorAddress: body.creatorAddress.toLowerCase(),
+      factoryAddress: body.factoryAddress.toLowerCase(),
+      txHash: body.txHash,
+      logoUrl: body.logoUrl,
+      bannerUrl: body.bannerUrl,
+      description: body.description,
+      website: body.website,
+      telegram: body.telegram,
+      twitter: body.twitter,
+      discord: body.discord,
+      github: body.github,
+      buyTaxBps: body.buyTaxBps,
+      sellTaxBps: body.sellTaxBps,
+      maxWallet: body.maxWallet,
+      maxTx: body.maxTx,
+    };
+
+    const token = await prisma.tokenProject.upsert({
+      where: { contractAddress: body.contractAddress.toLowerCase() },
+      create: {
         contractAddress: body.contractAddress.toLowerCase(),
-        chainId: body.chainId,
-        name: body.name,
-        symbol: body.symbol,
-        initialSupply: body.initialSupply,
-        featureFlags: BigInt(body.featureFlags),
-        creatorAddress: body.creatorAddress.toLowerCase(),
-        factoryAddress: body.factoryAddress.toLowerCase(),
-        txHash: body.txHash,
-        logoUrl: body.logoUrl,
-        bannerUrl: body.bannerUrl,
-        description: body.description,
-        website: body.website,
-        telegram: body.telegram,
-        twitter: body.twitter,
-        discord: body.discord,
-        github: body.github,
-        buyTaxBps: body.buyTaxBps,
-        sellTaxBps: body.sellTaxBps,
-        maxWallet: body.maxWallet,
-        maxTx: body.maxTx,
+        ...data,
       },
+      update: data,
     });
 
     return NextResponse.json({
@@ -144,8 +150,10 @@ export async function POST(request: NextRequest) {
     });
   } catch (e) {
     if (e instanceof z.ZodError) {
-      return NextResponse.json({ error: e.flatten() }, { status: 400 });
+      const msg = e.errors.map((err) => `${err.path.join(".")}: ${err.message}`).join("; ");
+      return NextResponse.json({ error: msg || "Invalid token data" }, { status: 400 });
     }
+    console.error("[POST /api/tokens]", e);
     return NextResponse.json({ error: "Failed to register token" }, { status: 500 });
   }
 }

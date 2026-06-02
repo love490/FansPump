@@ -35,6 +35,9 @@ export const wagmiConfig = getDefaultConfig({
   ssr: true,
 });
 
+export { getFactoryAddress, isFactoryConfigured, getFactoryConfigError } from "./factory-config";
+
+/** Deployed IOPnTokenFactory on OPNChain. Must be set via NEXT_PUBLIC_FACTORY_ADDRESS. */
 export const FACTORY_ADDRESS = (process.env.NEXT_PUBLIC_FACTORY_ADDRESS ??
   "0x0000000000000000000000000000000000000000") as `0x${string}`;
 
