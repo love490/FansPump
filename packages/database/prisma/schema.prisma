@@ -66,6 +66,8 @@ model TokenProject {
   votes           TokenVote[]
   watchlist       WatchlistItem[]
   metadataHistory MetadataUpdate[]
+  liquidityLocks  LiquidityLock[]
+  lpBurns         LpBurn[]
 
   @@index([createdAt])
   @@index([trendingScore])
@@ -74,6 +76,48 @@ model TokenProject {
   @@index([updatedAt])
   @@index([isFeatured])
   @@map("token_projects")
+}
+
+model LiquidityLock {
+  id            String   @id @default(cuid())
+  tokenId       String   @map("token_id")
+  tokenAddress  String   @map("token_address")
+  lpToken       String   @map("lp_token")
+  lockerAddress String   @map("locker_address")
+  creatorWallet String   @map("creator_wallet")
+  amount        String   @map("amount") // raw LP amount (uint256) as string
+  unlockAt      DateTime @map("unlock_at")
+  txHash        String?  @map("tx_hash")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  token         TokenProject @relation(fields: [tokenId], references: [id], onDelete: Cascade)
+
+  @@index([tokenId])
+  @@index([tokenAddress])
+  @@index([lpToken])
+  @@index([creatorWallet])
+  @@index([unlockAt])
+  @@map("liquidity_locks")
+}
+
+model LpBurn {
+  id            String   @id @default(cuid())
+  tokenId       String   @map("token_id")
+  tokenAddress  String   @map("token_address")
+  lpToken       String   @map("lp_token")
+  creatorWallet String   @map("creator_wallet")
+  amount        String   @map("amount") // raw LP amount (uint256) as string
+  burnAddress   String   @default("0x000000000000000000000000000000000000dEaD") @map("burn_address")
+  txHash        String?  @map("tx_hash")
+  burnedAt      DateTime @default(now()) @map("burned_at")
+
+  token         TokenProject @relation(fields: [tokenId], references: [id], onDelete: Cascade)
+
+  @@index([tokenId])
+  @@index([tokenAddress])
+  @@index([lpToken])
+  @@index([creatorWallet])
+  @@map("lp_burns")
 }
 
 model CreatorVerification {
