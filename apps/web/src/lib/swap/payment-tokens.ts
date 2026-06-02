@@ -23,6 +23,7 @@ const CHAIN_ID = Number(process.env.NEXT_PUBLIC_CHAIN_ID ?? OPN_TESTNET_CHAIN_ID
 
 const USDT_ADDRESS_RAW = (process.env.NEXT_PUBLIC_USDT_ADDRESS ?? "") as Address;
 const USDC_ADDRESS_RAW = (process.env.NEXT_PUBLIC_USDC_ADDRESS ?? "") as Address;
+const OPNV2_ADDRESS_RAW = (process.env.NEXT_PUBLIC_OPNV2_ADDRESS ?? "") as Address;
 
 const USDT_ADDRESS =
   USDT_ADDRESS_RAW && USDT_ADDRESS_RAW !== ZERO
@@ -32,12 +33,22 @@ const USDT_ADDRESS =
       : ("" as Address);
 
 const USDC_ADDRESS = USDC_ADDRESS_RAW && USDC_ADDRESS_RAW !== ZERO ? USDC_ADDRESS_RAW : ("" as Address);
+const OPNV2_ADDRESS =
+  OPNV2_ADDRESS_RAW && OPNV2_ADDRESS_RAW !== ZERO ? OPNV2_ADDRESS_RAW : ("" as Address);
 
 export const OPN_PAY_TOKEN: PayToken = {
   id: "native",
   symbol: "OPN",
   address: null,
   isNative: true,
+  decimals: 18,
+};
+
+export const OPNV2_PAY_TOKEN: PayToken = {
+  id: OPNV2_ADDRESS ? OPNV2_ADDRESS.toLowerCase() : "opnv2",
+  symbol: "OPN V2",
+  address: OPNV2_ADDRESS && OPNV2_ADDRESS !== ZERO ? OPNV2_ADDRESS : null,
+  isNative: false,
   decimals: 18,
 };
 
@@ -71,6 +82,9 @@ export function isPaymentCurrencyConfigured(currency: PaymentCurrency): boolean 
 
 export function getBuiltinPayTokens(): PayToken[] {
   const tokens: PayToken[] = [OPN_PAY_TOKEN];
+  if (OPNV2_PAY_TOKEN.address) {
+    tokens.push(OPNV2_PAY_TOKEN);
+  }
   for (const c of ["USDT", "USDC"] as const) {
     const cfg = getPaymentTokenConfig(c);
     if (cfg.address) {
