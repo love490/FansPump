@@ -44,6 +44,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ url: blob.url, path: key });
     }
 
+    // On Vercel/serverless, filesystem is read-only (EROFS). Don't attempt local writes.
+    if (process.env.VERCEL) {
+      return NextResponse.json(
+        {
+          error:
+            "Image uploads are not configured. Set BLOB_READ_WRITE_TOKEN in Vercel (Storage → Blob) and redeploy.",
+        },
+        { status: 500 }
+      );
+    }
+
     // Local/dev fallback: write into /public/uploads/projects
     const uploadDir = path.join(process.cwd(), "public", "uploads", "projects");
     await mkdir(uploadDir, { recursive: true });
