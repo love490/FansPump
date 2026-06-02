@@ -12,6 +12,7 @@ import {
   Users,
   ArrowLeftRight,
   Settings,
+  Droplets,
 } from "lucide-react";
 
 export type SidebarNavId =
@@ -24,6 +25,7 @@ export type SidebarNavId =
   | "swap"
   | "dashboard"
   | "my-tokens"
+  | "my-liquidity"
   | "watchlist"
   | "following"
   | "settings";
@@ -48,6 +50,7 @@ export const platformLinks: SidebarNavItem[] = [
 export const userLinks: SidebarNavItem[] = [
   { id: "dashboard", href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { id: "my-tokens", href: "/my-tokens", label: "My Tokens", icon: Coins },
+  { id: "my-liquidity", href: "/my-liquidity", label: "My Liquidity", icon: Droplets },
   { id: "watchlist", href: "/watchlist", label: "Watchlist", icon: Bookmark },
   { id: "following", href: "/following", label: "Following", icon: Users },
 ];
@@ -85,6 +88,8 @@ export function isSidebarNavActive(
       return pathname === "/dashboard";
     case "my-tokens":
       return pathname === "/my-tokens";
+    case "my-liquidity":
+      return pathname === "/my-liquidity";
     case "watchlist":
       return pathname === "/watchlist";
     case "following":

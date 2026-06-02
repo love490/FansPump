@@ -11,6 +11,7 @@ import {
   payTokenFromListedToken,
   type PayToken,
 } from "@/lib/swap/payment-tokens";
+import { searchRegistryTokens, registryToPayToken } from "@/lib/token-registry";
 import { erc20Abi } from "@/lib/swap/abis";
 import { isValidTokenAddress } from "@/lib/swap/routerAdapter";
 
@@ -145,12 +146,20 @@ export function SwapPayTokenSelect({ value, onChange, excludeAddress }: SwapPayT
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return options;
-    return options.filter(
+    const registryPay = searchRegistryTokens(q).map(registryToPayToken);
+    const fromOptions = options.filter(
       (t) =>
         t.symbol.toLowerCase().includes(q) ||
         t.id.includes(q) ||
         (t.address?.toLowerCase().includes(q) ?? false)
     );
+    const seen = new Set<string>();
+    return [...registryPay, ...fromOptions].filter((t) => {
+      const key = t.id;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
   }, [options, query]);
 
   const addressQuery = query.trim();
@@ -184,6 +193,9 @@ export function SwapPayTokenSelect({ value, onChange, excludeAddress }: SwapPayT
             </div>
           </div>
           <ul className="max-h-56 overflow-y-auto py-1" role="listbox">
+            {!query.trim() && (
+              <li className="px-3 py-1.5 text-xs font-medium text-muted-foreground">Popular · OPN ecosystem</li>
+            )}
             {isAddressQuery && (
               <>
                 {resolvingAddress && (
@@ -217,7 +229,7 @@ export function SwapPayTokenSelect({ value, onChange, excludeAddress }: SwapPayT
             )}
 
             {filtered.length === 0 && (!isAddressQuery || (!resolvedAddressOption && !resolvingAddress)) ? (
-              <li className="px-3 py-2 text-sm text-muted-foreground">No tokens found</li>
+              <li className="px-3 py-2 text-sm text-muted-foreground">No matching token found.</li>
             ) : (
               filtered.map((token) => (
                 <li key={token.id}>

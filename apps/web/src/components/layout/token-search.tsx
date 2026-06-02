@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { Search, X, Loader2, ChevronDown } from "lucide-react";
 import { shortenAddress } from "@/lib/utils";
 import { isValidTokenAddress } from "@/lib/swap/routerAdapter";
+import { getActiveChainId } from "@/lib/chain-config/opn";
 
 type SearchToken = {
   contractAddress: string;
@@ -71,7 +72,7 @@ export function TokenSearch() {
 
     const timer = setTimeout(() => {
       setLoading(true);
-      fetch(`/api/tokens?q=${encodeURIComponent(q)}&limit=12`)
+      fetch(`/api/tokens?q=${encodeURIComponent(q)}&limit=12&chainId=${getActiveChainId()}`)
         .then((r) => r.json())
         .then((d) => setResults(d.tokens ?? []))
         .catch(() => setResults([]))
@@ -86,9 +87,18 @@ export function TokenSearch() {
     if (!quickOpen) return;
     if (quickTokens.length > 0) return;
     setQuickLoading(true);
-    fetch(`/api/tokens?section=trending&limit=12`)
+    fetch(`/api/tokens?section=registry&limit=12&chainId=${getActiveChainId()}`)
       .then((r) => r.json())
-      .then((d) => setQuickTokens(d.tokens ?? []))
+      .then((d) => {
+        const registry = d.tokens ?? [];
+        if (registry.length > 0) {
+          setQuickTokens(registry);
+          return;
+        }
+        return fetch(`/api/tokens?section=trending&limit=12&chainId=${getActiveChainId()}`)
+          .then((r) => r.json())
+          .then((trending) => setQuickTokens(trending.tokens ?? []));
+      })
       .catch(() => setQuickTokens([]))
       .finally(() => setQuickLoading(false));
   }, [open, quickOpen, quickTokens.length]);
@@ -165,7 +175,7 @@ export function TokenSearch() {
                 {quickOpen && (
                   <div className="absolute right-0 top-full z-50 mt-1 w-64 overflow-hidden rounded-lg border bg-popover shadow-lg">
                     <div className="border-b px-3 py-2 text-xs font-medium text-muted-foreground">
-                      Quick pick
+                      Popular · OPN ecosystem
                     </div>
                     <div className="max-h-60 overflow-y-auto p-1">
                       {quickLoading ? (
@@ -174,7 +184,7 @@ export function TokenSearch() {
                           Loading…
                         </div>
                       ) : filteredQuick.length === 0 ? (
-                        <div className="px-3 py-2 text-sm text-muted-foreground">No tokens found</div>
+                        <div className="px-3 py-2 text-sm text-muted-foreground">No matching token found.</div>
                       ) : (
                         filteredQuick.map((token) => (
                           <button
@@ -228,7 +238,7 @@ export function TokenSearch() {
               )}
 
               {!loading && trimmed.length > 0 && results.length === 0 && !showAddressOption && (
-                <p className="px-3 py-8 text-center text-sm text-muted-foreground">No tokens found</p>
+                <p className="px-3 py-8 text-center text-sm text-muted-foreground">No matching token found.</p>
               )}
 
               {showAddressOption && (

@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma, type Prisma } from "@iopn/database";
 import { z } from "zod";
+import { getActiveChainId } from "@/lib/chain-config/opn";
+import {
+  getPopularRegistryTokens,
+  registryToSwapToken,
+  searchRegistryTokens,
+} from "@/lib/token-registry";
 
 const emptyToNull = (v: unknown) => (v === "" ? null : v);
 
@@ -48,6 +54,16 @@ export async function GET(request: NextRequest) {
   const q = searchParams.get("q")?.trim() ?? "";
   const creator = searchParams.get("creator")?.trim().toLowerCase() ?? "";
   const limit = Math.min(Number(searchParams.get("limit") ?? 24), 100);
+  const chainId = Number(searchParams.get("chainId") ?? getActiveChainId());
+
+  if (section === "registry") {
+    const registry = getPopularRegistryTokens()
+      .map(registryToSwapToken)
+      .filter((t): t is NonNullable<typeof t> => t !== null);
+    return NextResponse.json({ tokens: registry, source: "registry" });
+  }
+
+  const chainFilter: Prisma.TokenProjectWhereInput = { chainId };
 
   const orderBy =
     section === "trending"
@@ -78,12 +94,12 @@ export async function GET(request: NextRequest) {
   const creatorFilter: Prisma.TokenProjectWhereInput | undefined =
     creator && /^0x[a-f0-9]{40}$/.test(creator) ? { creatorAddress: creator } : undefined;
 
-  const filters = [sectionFilter, searchFilter, creatorFilter].filter(
+  const filters = [chainFilter, sectionFilter, searchFilter, creatorFilter].filter(
     (f): f is Prisma.TokenProjectWhereInput => !!f
   );
 
-  const where: Prisma.TokenProjectWhereInput | undefined =
-    filters.length === 0 ? undefined : filters.length === 1 ? filters[0] : { AND: filters };
+  const where: Prisma.TokenProjectWhereInput =
+    filters.length === 0 ? chainFilter : filters.length === 1 ? filters[0] : { AND: filters };
 
   const tokens = await prisma.tokenProject.findMany({
     where,
@@ -99,6 +115,26 @@ export async function GET(request: NextRequest) {
     featureFlags: t.featureFlags.toString(),
     creatorVerified: !!t.creator?.verification,
   }));
+
+  if (q) {
+    const registryHits = searchRegistryTokens(q)
+      .map(registryToSwapToken)
+      .filter((t): t is NonNullable<typeof t> => t !== null)
+      .map((t) => ({
+        ...t,
+        id: t.contractAddress,
+        chainId,
+        creatorVerified: false,
+        isFeatured: false,
+        featureFlags: "0",
+      }));
+    const seen = new Set(enriched.map((t) => t.contractAddress.toLowerCase()));
+    const merged = [
+      ...registryHits.filter((t) => !seen.has(t.contractAddress.toLowerCase())),
+      ...enriched,
+    ];
+    return NextResponse.json({ tokens: merged.slice(0, limit) });
+  }
 
   return NextResponse.json({ tokens: enriched });
 }

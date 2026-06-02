@@ -16,7 +16,7 @@ export default function LiquidityPage() {
   const tokenAddress = params.address as `0x${string}`;
   const { address, isConnected } = useAccount();
   const [tokenAmount, setTokenAmount] = useState("1000");
-  const [ethAmount, setEthAmount] = useState("1");
+  const [opnAmount, setOpnAmount] = useState("1");
   const [router, setRouter] = useState<"primary" | "uniswap">("primary");
 
   const { writeContract, data: hash, isPending } = useWriteContract();
@@ -45,7 +45,7 @@ export default function LiquidityPage() {
       abi: liquidityRouterAbi,
       functionName: fn,
       args: [tokenAddress, parseEther(tokenAmount), 0n, 0n],
-      value: parseEther(ethAmount),
+      value: parseEther(opnAmount),
     });
   }
 
@@ -86,8 +86,8 @@ export default function LiquidityPage() {
             <Input value={tokenAmount} onChange={(e) => setTokenAmount(e.target.value)} />
           </div>
           <div>
-            <Label>ETH amount</Label>
-            <Input value={ethAmount} onChange={(e) => setEthAmount(e.target.value)} />
+            <Label>OPN amount</Label>
+            <Input value={opnAmount} onChange={(e) => setOpnAmount(e.target.value)} />
           </div>
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" onClick={approve} disabled={!isConnected || isPending || isLoading}>

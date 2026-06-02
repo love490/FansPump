@@ -5,7 +5,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { Menu, X } from "lucide-react";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
-import { FansPumpBrand, FansPumpTagline } from "@/components/brand/fans-pump-brand";
+import { FansPumpTagline } from "@/components/brand/fans-pump-brand";
 import { FansPumpLogo } from "@/components/brand/fans-pump-logo";
 import { AdminNavLink } from "@/components/layout/admin-nav-link";
 import { SidebarWallet } from "@/components/layout/sidebar-wallet";
@@ -109,11 +109,8 @@ function SidebarContent({
             <FansPumpTagline className="mt-2" />
           </>
         ) : (
-          <div className="flex h-14 items-center gap-3 px-0.5">
-            <div className="flex min-w-0 flex-1 justify-center">
-              <FansPumpBrand collapsed />
-            </div>
-            {onToggle && <SidebarToggle collapsed onClick={onToggle} className="shrink-0" />}
+          <div className="flex h-10 items-center justify-center">
+            {onToggle && <SidebarToggle collapsed onClick={onToggle} />}
           </div>
         )}
       </div>
@@ -246,7 +243,7 @@ export function Sidebar() {
           collapsed ? "w-[4.5rem] overflow-hidden" : "w-72 overflow-visible"
         )}
       >
-        <div className="sticky top-0 h-screen p-4">
+        <div className={cn("sticky top-0 h-screen", collapsed ? "px-2 py-3" : "p-4")}>
           <SidebarContent
             pathname={pathname}
             searchParams={searchParams}

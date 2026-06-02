@@ -7,6 +7,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { shortenAddress, cn } from "@/lib/utils";
 import { isValidTokenAddress } from "@/lib/swap/routerAdapter";
+import { resolveTokenByAddress } from "@/lib/token-resolve";
+import {
+  getPopularRegistryTokens,
+  mergeSwapTokenLists,
+  registryToSwapToken,
+  searchRegistryTokens,
+} from "@/lib/token-registry";
 import { usePublicClient } from "wagmi";
 import { erc20Abi } from "@/lib/swap/abis";
 import type { Address } from "viem";
@@ -152,10 +159,19 @@ export function SwapTokenPicker({ value, onChange, label = "Token" }: SwapTokenP
     if (!quickOpen) return;
     if (quickTokens.length > 0) return;
     setQuickLoading(true);
-    fetch(`/api/tokens?section=trending&limit=20`)
-      .then((r) => r.json())
-      .then((d) => setQuickTokens(d.tokens ?? []))
-      .catch(() => setQuickTokens([]))
+
+    const popular = getPopularRegistryTokens()
+      .map(registryToSwapToken)
+      .filter((t): t is SwapToken => t !== null);
+
+    Promise.all([
+      fetch(`/api/tokens?section=new&limit=20&chainId=984`).then((r) => r.json()),
+    ])
+      .then(([d]) => {
+        const fromDb = (d.tokens ?? []) as SwapToken[];
+        setQuickTokens(mergeSwapTokenLists(popular, fromDb));
+      })
+      .catch(() => setQuickTokens(popular))
       .finally(() => setQuickLoading(false));
   }, [quickOpen, quickTokens.length]);
 
@@ -167,39 +183,31 @@ export function SwapTokenPicker({ value, onChange, label = "Token" }: SwapTokenP
     }
 
     const q = query.trim();
-    const timer = setTimeout(() => {
+    const timer = setTimeout(async () => {
       setLoading(true);
       if (isValidTokenAddress(q)) {
-        fetch(`/api/tokens/${q}`)
-          .then((r) => (r.ok ? r.json() : null))
-          .then((d) => {
-            if (d?.token) {
-              setResults([
-                {
-                  contractAddress: d.token.contractAddress,
-                  name: d.token.name,
-                  symbol: d.token.symbol,
-                  logoUrl: d.token.logoUrl,
-                },
-              ]);
-            } else {
-              setResults([]);
-            }
-          })
-          .catch(() => setResults([]))
-          .finally(() => setLoading(false));
+        const resolved = await resolveTokenByAddress(q, client ?? undefined);
+        setResults(resolved ? [resolved] : []);
+        setLoading(false);
         return;
       }
 
-      fetch(`/api/tokens?q=${encodeURIComponent(q)}&limit=20`)
+      const registryHits = searchRegistryTokens(q)
+        .map(registryToSwapToken)
+        .filter((t): t is SwapToken => t !== null);
+
+      fetch(`/api/tokens?q=${encodeURIComponent(q)}&limit=20&chainId=984`)
         .then((r) => r.json())
-        .then((d) => setResults(d.tokens ?? []))
-        .catch(() => setResults([]))
+        .then((d) => {
+          const fromApi = (d.tokens ?? []) as SwapToken[];
+          setResults(mergeSwapTokenLists(registryHits, fromApi));
+        })
+        .catch(() => setResults(registryHits))
         .finally(() => setLoading(false));
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [query, searchOpen, quickOpen]);
+  }, [query, searchOpen, quickOpen, client]);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -335,7 +343,9 @@ export function SwapTokenPicker({ value, onChange, label = "Token" }: SwapTokenP
           <div className="absolute left-0 right-0 top-full z-50 mt-1 overflow-hidden rounded-lg border bg-popover shadow-lg">
           {quickOpen && (
             <>
-              <div className="border-b px-3 py-2 text-xs font-medium text-muted-foreground">Quick pick</div>
+              <div className="border-b px-3 py-2 text-xs font-medium text-muted-foreground">
+                Popular · Recently created
+              </div>
               <div className="max-h-52 overflow-y-auto">
                 {quickLoading ? (
                   <div className="flex items-center gap-2 px-3 py-3 text-sm text-muted-foreground">
@@ -343,7 +353,7 @@ export function SwapTokenPicker({ value, onChange, label = "Token" }: SwapTokenP
                     Loading tokens…
                   </div>
                 ) : filteredQuick.length === 0 ? (
-                  <p className="px-3 py-3 text-sm text-muted-foreground">No tokens found</p>
+                  <p className="px-3 py-3 text-sm text-muted-foreground">No matching token found.</p>
                 ) : (
                   filteredQuick.map((token) => (
                     <TokenRow
@@ -369,7 +379,7 @@ export function SwapTokenPicker({ value, onChange, label = "Token" }: SwapTokenP
                   </div>
                 )}
                 {!loading && results.length === 0 && !showManualHint && (
-                  <p className="px-3 py-3 text-sm text-muted-foreground">No tokens found</p>
+                  <p className="px-3 py-3 text-sm text-muted-foreground">No matching token found.</p>
                 )}
                 {showManualHint && (
                   <button

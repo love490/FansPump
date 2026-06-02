@@ -2,16 +2,16 @@ import { getDefaultConfig } from "@rainbow-me/rainbowkit";
 import { http } from "wagmi";
 import { defineChain } from "viem";
 
-/** OPNChain Testnet — https://testnet-rpc2.iopn.tech/ */
-export const OPN_CHAIN_ID = 984;
-export const OPN_RPC_URL = "https://testnet-rpc2.iopn.tech/";
-export const OPN_EXPLORER_URL = "https://testnet.iopn.tech/";
+import { getWopnAddress, opnChainConfig, OPN_CHAIN_ID, OPN_EXPLORER_URL, OPN_RPC_URL } from "./chain-config/opn";
 
-const rpcUrl = process.env.NEXT_PUBLIC_RPC_URL ?? OPN_RPC_URL;
-const explorerUrl = process.env.NEXT_PUBLIC_BLOCK_EXPLORER_URL ?? OPN_EXPLORER_URL;
+/** OPNChain Testnet — https://testnet-rpc2.iopn.tech/ */
+export { OPN_CHAIN_ID, OPN_RPC_URL, OPN_EXPLORER_URL };
+
+const rpcUrl = opnChainConfig.rpcUrl;
+const explorerUrl = opnChainConfig.explorerUrl;
 
 export const opnChain = defineChain({
-  id: Number(process.env.NEXT_PUBLIC_CHAIN_ID ?? OPN_CHAIN_ID),
+  id: opnChainConfig.id,
   name: "OPNChain Testnet",
   nativeCurrency: { name: "OPN", symbol: "OPN", decimals: 18 },
   rpcUrls: {
@@ -38,13 +38,13 @@ export const wagmiConfig = getDefaultConfig({
 export { getFactoryAddress, isFactoryConfigured, getFactoryConfigError } from "./factory-config";
 
 /** Deployed IOPnTokenFactory on OPNChain. Must be set via NEXT_PUBLIC_FACTORY_ADDRESS. */
-export const FACTORY_ADDRESS = (process.env.NEXT_PUBLIC_FACTORY_ADDRESS ??
-  "0x0000000000000000000000000000000000000000") as `0x${string}`;
+export const FACTORY_ADDRESS = opnChainConfig.contracts.factory;
 
-export const LIQUIDITY_ROUTER_ADDRESS = (process.env.NEXT_PUBLIC_LIQUIDITY_ROUTER_ADDRESS ??
-  "0x0000000000000000000000000000000000000000") as `0x${string}`;
+export const LIQUIDITY_ROUTER_ADDRESS = opnChainConfig.contracts.liquidityRouter;
 
-export const DEX_ROUTER_ADDRESS = (process.env.NEXT_PUBLIC_DEX_ROUTER_ADDRESS ??
-  "0x0000000000000000000000000000000000000000") as `0x${string}`;
+export const DEX_ROUTER_ADDRESS = opnChainConfig.contracts.dexRouter;
+
+/** Wrapped OPN (WOPN) — DEX native pair token. */
+export const WOPN_ADDRESS = getWopnAddress();
 
 export const OPN_EXPLORER_BASE = explorerUrl;

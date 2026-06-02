@@ -9,6 +9,7 @@ import {
 } from "viem";
 import { uniswapV2RouterAbi, erc20Abi } from "./abis";
 import { SWAP_DEADLINE_SECONDS, type RouterType, type SwapMode } from "./constants";
+import { getWopnAddress } from "@/lib/chain-config/opn";
 import { type PayToken, isPayTokenConfigured } from "./payment-tokens";
 
 const PRIMARY_ROUTER = (process.env.NEXT_PUBLIC_DEX_ROUTER_ADDRESS ??
@@ -18,7 +19,9 @@ const PRIMARY_ROUTER = (process.env.NEXT_PUBLIC_DEX_ROUTER_ADDRESS ??
 const UNISWAP_ROUTER = (process.env.NEXT_PUBLIC_UNISWAP_ROUTER_ADDRESS ??
   "0x0000000000000000000000000000000000000000") as Address;
 
-const WETH_OVERRIDE = process.env.NEXT_PUBLIC_WETH_ADDRESS as Address | undefined;
+const WETH_OVERRIDE = (process.env.NEXT_PUBLIC_WETH_ADDRESS ??
+  process.env.NEXT_PUBLIC_WOPN_ADDRESS ??
+  getWopnAddress()) as Address;
 
 export function getRouterAddress(type: RouterType = "primary"): Address {
   if (type === "uniswap" && UNISWAP_ROUTER !== "0x0000000000000000000000000000000000000000") {
@@ -32,7 +35,9 @@ export function isValidTokenAddress(address: string): address is Address {
 }
 
 export async function getWethAddress(client: PublicClient, routerType: RouterType = "primary"): Promise<Address> {
-  if (WETH_OVERRIDE) return WETH_OVERRIDE;
+  if (WETH_OVERRIDE && WETH_OVERRIDE !== "0x0000000000000000000000000000000000000000") {
+    return WETH_OVERRIDE;
+  }
   const router = getRouterAddress(routerType);
   if (router === "0x0000000000000000000000000000000000000000") {
     throw new Error("DEX router is not configured");

@@ -2,9 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
-import { useAccount } from "wagmi";
+import { useAccount, useChainId } from "wagmi";
 import type { Address } from "viem";
-import { ArrowDownUp, Settings2 } from "lucide-react";
+import { ArrowDownUp, Settings2, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -28,6 +28,8 @@ import {
   isPayTokenConfigured,
 } from "@/lib/swap/constants";
 import { cn } from "@/lib/utils";
+import { opnChain } from "@/lib/wagmi";
+import { resolveTokenByAddress } from "@/lib/token-resolve";
 
 interface SwapPanelProps {
   initialToken?: string;
@@ -36,14 +38,17 @@ interface SwapPanelProps {
 
 export function SwapPanel({ initialToken = "", initialMode = "buy" }: SwapPanelProps) {
   const { address, isConnected } = useAccount();
+  const chainId = useChainId();
   const { openConnectModal } = useConnectModal();
   const [tokenAddress, setTokenAddress] = useState(initialToken);
+  const [tokenSymbol, setTokenSymbol] = useState<string>("Token");
   const [mode, setMode] = useState<SwapMode>(initialMode);
   const [payToken, setPayToken] = useState<PayToken>(OPN_PAY_TOKEN);
   const [amountIn, setAmountIn] = useState("");
   const [slippage, setSlippage] = useState(DEFAULT_SLIPPAGE);
   const [gasEstimate, setGasEstimate] = useState<bigint | null>(null);
 
+  const wrongNetwork = isConnected && chainId !== opnChain.id;
   const validToken = isValidTokenAddress(tokenAddress);
   const { quote, loading, error: quoteError } = useSwapQuote(
     tokenAddress,
@@ -66,8 +71,30 @@ export function SwapPanel({ initialToken = "", initialMode = "buy" }: SwapPanelP
 
   const minReceived = quote ? applySlippage(quote.amountOut, slippage) : 0n;
 
-  const receiveLabel = mode === "buy" ? "Token" : payToken.symbol;
+  const receiveLabel = mode === "buy" ? tokenSymbol : payToken.symbol;
   const receiveDecimals = mode === "buy" ? 18 : quote?.paymentDecimals ?? payToken.decimals;
+
+  useEffect(() => {
+    setTokenAddress(initialToken);
+    setMode(initialMode);
+    setPayToken(OPN_PAY_TOKEN);
+  }, [initialToken, initialMode]);
+
+  useEffect(() => {
+    if (!validToken) {
+      setTokenSymbol("Token");
+      return;
+    }
+    resolveTokenByAddress(tokenAddress).then((t) => {
+      if (t) setTokenSymbol(t.symbol);
+    });
+  }, [tokenAddress, validToken]);
+
+  useEffect(() => {
+    if (mode === "buy" || mode === "sell") {
+      setPayToken(OPN_PAY_TOKEN);
+    }
+  }, [mode]);
 
   const amountOutDisplay = useMemo(() => {
     if (!quote) return "0";
@@ -117,6 +144,35 @@ export function SwapPanel({ initialToken = "", initialMode = "buy" }: SwapPanelP
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
+          {wrongNetwork && (
+            <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+              <span>
+                Switch to {opnChain.name} (chain {opnChain.id}) to swap.
+              </span>
+            </div>
+          )}
+
+          <div className="rounded-lg border bg-muted/30 px-3 py-2 text-sm">
+            {mode === "buy" ? (
+              <p>
+                <span className="text-muted-foreground">From:</span>{" "}
+                <strong>{payToken.symbol}</strong>
+                <span className="mx-2 text-muted-foreground">→</span>
+                <span className="text-muted-foreground">To:</span>{" "}
+                <strong>{validToken ? tokenSymbol : "Select token"}</strong>
+              </p>
+            ) : (
+              <p>
+                <span className="text-muted-foreground">From:</span>{" "}
+                <strong>{validToken ? tokenSymbol : "Select token"}</strong>
+                <span className="mx-2 text-muted-foreground">→</span>
+                <span className="text-muted-foreground">To:</span>{" "}
+                <strong>{payToken.symbol}</strong>
+              </p>
+            )}
+          </div>
+
           <div className="grid grid-cols-2 gap-2 rounded-lg bg-muted p-1">
             {(["buy", "sell"] as SwapMode[]).map((m) => (
               <button
@@ -238,7 +294,13 @@ export function SwapPanel({ initialToken = "", initialMode = "buy" }: SwapPanelP
             <Button
               className="w-full"
               disabled={
-                !quote || loading || isBusy || !validToken || !amountIn || !isPayTokenConfigured(payToken)
+                !quote ||
+                loading ||
+                isBusy ||
+                wrongNetwork ||
+                !validToken ||
+                !amountIn ||
+                !isPayTokenConfigured(payToken)
               }
               onClick={handleSwap}
             >
