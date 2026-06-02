@@ -50,7 +50,7 @@ export const platformLinks: SidebarNavItem[] = [
 export const userLinks: SidebarNavItem[] = [
   { id: "dashboard", href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { id: "my-tokens", href: "/my-tokens", label: "My Tokens", icon: Coins },
-  { id: "my-liquidity", href: "/my-liquidity", label: "My Liquidity", icon: Droplets },
+  { id: "my-liquidity", href: "/my-liquidity", label: "Liquidity", icon: Droplets },
   { id: "watchlist", href: "/watchlist", label: "Watchlist", icon: Bookmark },
   { id: "following", href: "/following", label: "Following", icon: Users },
 ];

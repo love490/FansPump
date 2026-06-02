@@ -36,7 +36,7 @@ export default function MyLiquidityPage() {
   return (
     <div className="space-y-6 py-2 sm:py-4">
       <header>
-        <h1 className="text-2xl font-bold">My Liquidity</h1>
+        <h1 className="text-2xl font-bold">Liquidity</h1>
         <p className="mt-1 text-muted-foreground">
           Add liquidity to your tokens paired with OPN on OPNChain.
         </p>

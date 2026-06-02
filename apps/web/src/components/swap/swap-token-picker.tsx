@@ -31,6 +31,31 @@ type SwapTokenPickerProps = {
   label?: string;
 };
 
+function TokenAvatar({ token, size = "md" }: { token: SwapToken; size?: "sm" | "md" }) {
+  const dim = size === "sm" ? "h-7 w-7" : "h-8 w-8";
+  const text = size === "sm" ? "text-[10px]" : "text-xs";
+
+  if (token.logoUrl) {
+    return (
+      <div className={cn("relative shrink-0 overflow-hidden rounded-full", dim)}>
+        <Image src={token.logoUrl} alt="" fill className="object-cover" unoptimized />
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className={cn(
+        "flex shrink-0 items-center justify-center rounded-full bg-primary/10 font-bold text-primary",
+        dim,
+        text
+      )}
+    >
+      {token.symbol.slice(0, 2).toUpperCase()}
+    </div>
+  );
+}
+
 function TokenRow({
   token,
   onPick,
@@ -45,22 +70,15 @@ function TokenRow({
       type="button"
       onClick={onPick}
       className={cn(
-        "flex w-full items-center gap-3 px-3 py-2 text-left text-sm hover:bg-muted",
+        "flex w-full items-center gap-3 px-3 py-2 text-left text-sm hover:bg-muted/60",
         active && "bg-primary/10"
       )}
     >
-      {token.logoUrl ? (
-        <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-md">
-          <Image src={token.logoUrl} alt="" fill className="object-cover" unoptimized />
-        </div>
-      ) : (
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-primary/10 text-xs font-bold text-primary">
-          {token.symbol.slice(0, 2).toUpperCase()}
-        </div>
-      )}
+      <TokenAvatar token={token} />
       <div className="min-w-0 flex-1">
         <p className="truncate font-medium">
-          {token.name} <span className="text-muted-foreground">({token.symbol})</span>
+          {token.symbol}
+          <span className="ml-1.5 font-normal text-muted-foreground">{token.name}</span>
         </p>
         <p className="truncate font-mono text-xs text-muted-foreground">
           {shortenAddress(token.contractAddress, 6)}
@@ -72,7 +90,7 @@ function TokenRow({
 
 export function SwapTokenPicker({ value, onChange, label = "Token" }: SwapTokenPickerProps) {
   const [query, setQuery] = useState("");
-  const [searchOpen, setSearchOpen] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
   const [quickOpen, setQuickOpen] = useState(false);
   const [results, setResults] = useState<SwapToken[]>([]);
   const [quickTokens, setQuickTokens] = useState<SwapToken[]>([]);
@@ -81,17 +99,20 @@ export function SwapTokenPicker({ value, onChange, label = "Token" }: SwapTokenP
   const [selected, setSelected] = useState<SwapToken | null>(null);
   const [resolutionDone, setResolutionDone] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const validAddress = isValidTokenAddress(value);
   const client = usePublicClient();
+  const hasSelection = Boolean(value && validAddress && selected);
 
-  const showSearchResults = searchOpen && !quickOpen && query.trim().length > 0;
+  const showSearchResults = pickerOpen && !quickOpen && query.trim().length > 0;
   const dropdownOpen = quickOpen || showSearchResults;
 
   useEffect(() => {
     if (!value || !validAddress) {
       setSelected(null);
       setResolutionDone(false);
+      if (!value) setPickerOpen(true);
       return;
     }
     if (selected?.contractAddress.toLowerCase() === value.toLowerCase()) return;
@@ -117,6 +138,7 @@ export function SwapTokenPicker({ value, onChange, label = "Token" }: SwapTokenP
             logoUrl: d.token.logoUrl,
           });
           setResolutionDone(true);
+          setPickerOpen(false);
           return;
         }
 
@@ -136,6 +158,7 @@ export function SwapTokenPicker({ value, onChange, label = "Token" }: SwapTokenP
               symbol: sym,
               logoUrl: null,
             });
+            setPickerOpen(false);
           } catch {
             if (!cancelled) setSelected(null);
           } finally {
@@ -164,9 +187,7 @@ export function SwapTokenPicker({ value, onChange, label = "Token" }: SwapTokenP
       .map(registryToSwapToken)
       .filter((t): t is SwapToken => t !== null);
 
-    Promise.all([
-      fetch(`/api/tokens?section=new&limit=20&chainId=984`).then((r) => r.json()),
-    ])
+    Promise.all([fetch(`/api/tokens?section=new&limit=20&chainId=984`).then((r) => r.json())])
       .then(([d]) => {
         const fromDb = (d.tokens ?? []) as SwapToken[];
         setQuickTokens(mergeSwapTokenLists(popular, fromDb));
@@ -176,7 +197,7 @@ export function SwapTokenPicker({ value, onChange, label = "Token" }: SwapTokenP
   }, [quickOpen, quickTokens.length]);
 
   useEffect(() => {
-    if (!searchOpen || quickOpen || query.trim().length < 1) {
+    if (!pickerOpen || quickOpen || query.trim().length < 1) {
       setResults([]);
       setLoading(false);
       return;
@@ -207,18 +228,26 @@ export function SwapTokenPicker({ value, onChange, label = "Token" }: SwapTokenP
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [query, searchOpen, quickOpen, client]);
+  }, [query, pickerOpen, quickOpen, client]);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setSearchOpen(false);
+        setPickerOpen(false);
         setQuickOpen(false);
+        if (hasSelection) setQuery("");
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+  }, [hasSelection]);
+
+  useEffect(() => {
+    if (pickerOpen) {
+      const t = setTimeout(() => inputRef.current?.focus(), 50);
+      return () => clearTimeout(t);
+    }
+  }, [pickerOpen]);
 
   const filteredQuick = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -235,9 +264,14 @@ export function SwapTokenPicker({ value, onChange, label = "Token" }: SwapTokenP
     onChange(token.contractAddress);
     setSelected(token);
     setQuery("");
-    setSearchOpen(false);
+    setPickerOpen(false);
     setQuickOpen(false);
     setResolutionDone(true);
+  }
+
+  function openPicker() {
+    setPickerOpen(true);
+    setQuery("");
   }
 
   function clearSelection() {
@@ -245,6 +279,7 @@ export function SwapTokenPicker({ value, onChange, label = "Token" }: SwapTokenP
     setSelected(null);
     setQuery("");
     setResolutionDone(false);
+    setPickerOpen(true);
   }
 
   function applyManualAddress() {
@@ -254,7 +289,7 @@ export function SwapTokenPicker({ value, onChange, label = "Token" }: SwapTokenP
     setSelected(null);
     setResolutionDone(false);
     setQuery("");
-    setSearchOpen(false);
+    setPickerOpen(false);
     setQuickOpen(false);
   }
 
@@ -271,140 +306,136 @@ export function SwapTokenPicker({ value, onChange, label = "Token" }: SwapTokenP
     <div ref={containerRef} className="space-y-2">
       <Label>{label}</Label>
 
-      {value && validAddress && selected && (
-        <div className="flex items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2">
-          {selected.logoUrl ? (
-            <div className="relative h-7 w-7 shrink-0 overflow-hidden rounded-md">
-              <Image src={selected.logoUrl} alt="" fill className="object-cover" unoptimized />
+      {hasSelection && !pickerOpen ? (
+        <button
+          type="button"
+          onClick={openPicker}
+          className="flex w-full items-center gap-2.5 rounded-lg border border-border/50 bg-transparent px-3 py-2.5 text-left transition-colors hover:border-border hover:bg-muted/30"
+          aria-label={`Change token: ${selected!.symbol}`}
+        >
+          <TokenAvatar token={selected!} size="sm" />
+          <span className="min-w-0 flex-1 truncate text-sm font-semibold">{selected!.symbol}</span>
+          <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+        </button>
+      ) : (
+        <div className="relative">
+          <div className="flex gap-1">
+            <div className="relative min-w-0 flex-1">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                ref={inputRef}
+                value={query}
+                onChange={(e) => {
+                  setQuery(e.target.value);
+                  if (!quickOpen) setPickerOpen(true);
+                }}
+                onFocus={() => {
+                  if (!quickOpen) setPickerOpen(true);
+                }}
+                placeholder="Search name, symbol, or address…"
+                className="border-border/50 bg-transparent pl-9 pr-2 shadow-none focus-visible:ring-1"
+                aria-expanded={pickerOpen || quickOpen}
+                aria-autocomplete="list"
+              />
             </div>
-          ) : (
-            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary/10 text-[10px] font-bold text-primary">
-              {selected.symbol.slice(0, 2).toUpperCase()}
+            {hasSelection && (
+              <button
+                type="button"
+                onClick={clearSelection}
+                className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-border/50 bg-transparent text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
+                aria-label="Clear token"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => {
+                setQuickOpen((v) => !v);
+                setPickerOpen(false);
+              }}
+              className={cn(
+                "inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-border/50 bg-transparent text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground",
+                quickOpen && "border-primary/50 text-primary"
+              )}
+              aria-label="Choose token from list"
+              aria-expanded={quickOpen}
+            >
+              <ChevronDown className={cn("h-4 w-4 transition-transform", quickOpen && "rotate-180")} />
+            </button>
+          </div>
+
+          {dropdownOpen && (
+            <div className="absolute left-0 right-0 top-full z-50 mt-1 overflow-hidden rounded-lg border border-border/60 bg-popover/95 shadow-lg backdrop-blur-sm">
+              {quickOpen && (
+                <>
+                  <div className="border-b border-border/50 px-3 py-2 text-xs font-medium text-muted-foreground">
+                    Popular · Recently created
+                  </div>
+                  <div className="max-h-52 overflow-y-auto">
+                    {quickLoading ? (
+                      <div className="flex items-center gap-2 px-3 py-3 text-sm text-muted-foreground">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Loading tokens…
+                      </div>
+                    ) : filteredQuick.length === 0 ? (
+                      <p className="px-3 py-3 text-sm text-muted-foreground">No matching token found.</p>
+                    ) : (
+                      filteredQuick.map((token) => (
+                        <TokenRow
+                          key={`quick-${token.contractAddress}`}
+                          token={token}
+                          active={activeAddress === token.contractAddress.toLowerCase()}
+                          onPick={() => pickToken(token)}
+                        />
+                      ))
+                    )}
+                  </div>
+                </>
+              )}
+
+              {showSearchResults && (
+                <>
+                  {quickOpen && <div className="border-b border-border/50" />}
+                  <div className="max-h-52 overflow-y-auto">
+                    {loading && (
+                      <div className="flex items-center gap-2 px-3 py-3 text-sm text-muted-foreground">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Searching…
+                      </div>
+                    )}
+                    {!loading && results.length === 0 && !showManualHint && (
+                      <p className="px-3 py-3 text-sm text-muted-foreground">No matching token found.</p>
+                    )}
+                    {showManualHint && (
+                      <button
+                        type="button"
+                        onClick={applyManualAddress}
+                        className="flex w-full flex-col items-start px-3 py-2 text-left text-sm hover:bg-muted/60"
+                      >
+                        <span className="font-medium">Use contract address</span>
+                        <span className="font-mono text-xs text-muted-foreground">{query.trim()}</span>
+                      </button>
+                    )}
+                    {results.map((token) => (
+                      <TokenRow
+                        key={token.contractAddress}
+                        token={token}
+                        active={activeAddress === token.contractAddress.toLowerCase()}
+                        onPick={() => pickToken(token)}
+                      />
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
           )}
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium">
-              {selected.name} ({selected.symbol})
-            </p>
-            <p className="truncate font-mono text-xs text-muted-foreground">{shortenAddress(value, 6)}</p>
-          </div>
-          <button
-            type="button"
-            onClick={clearSelection}
-            className="shrink-0 rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-            aria-label="Clear token"
-          >
-            <X className="h-4 w-4" />
-          </button>
         </div>
       )}
 
       {value && validAddress && !selected && resolutionDone && (
         <p className="text-sm text-muted-foreground">No token found for this address.</p>
       )}
-
-      <div className="relative">
-        <div className="flex gap-1">
-          <div className="relative min-w-0 flex-1">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={query}
-              onChange={(e) => {
-                setQuery(e.target.value);
-                if (!quickOpen) setSearchOpen(true);
-              }}
-              onFocus={() => {
-                if (!quickOpen) setSearchOpen(true);
-              }}
-              placeholder="Search by name, symbol, or contract address (0x…)"
-              className="pl-9 pr-2"
-              aria-expanded={searchOpen || quickOpen}
-              aria-autocomplete="list"
-            />
-          </div>
-          <button
-            type="button"
-            onClick={() => {
-              setQuickOpen((v) => !v);
-              setSearchOpen(false);
-            }}
-            className={cn(
-              "inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-input bg-background text-muted-foreground shadow-sm transition-colors hover:bg-muted hover:text-foreground",
-              quickOpen && "border-primary text-primary"
-            )}
-            aria-label="Choose token from list"
-            aria-expanded={quickOpen}
-          >
-            <ChevronDown className={cn("h-4 w-4 transition-transform", quickOpen && "rotate-180")} />
-          </button>
-        </div>
-
-        {dropdownOpen && (
-          <div className="absolute left-0 right-0 top-full z-50 mt-1 overflow-hidden rounded-lg border bg-popover shadow-lg">
-          {quickOpen && (
-            <>
-              <div className="border-b px-3 py-2 text-xs font-medium text-muted-foreground">
-                Popular · Recently created
-              </div>
-              <div className="max-h-52 overflow-y-auto">
-                {quickLoading ? (
-                  <div className="flex items-center gap-2 px-3 py-3 text-sm text-muted-foreground">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Loading tokens…
-                  </div>
-                ) : filteredQuick.length === 0 ? (
-                  <p className="px-3 py-3 text-sm text-muted-foreground">No matching token found.</p>
-                ) : (
-                  filteredQuick.map((token) => (
-                    <TokenRow
-                      key={`quick-${token.contractAddress}`}
-                      token={token}
-                      active={activeAddress === token.contractAddress.toLowerCase()}
-                      onPick={() => pickToken(token)}
-                    />
-                  ))
-                )}
-              </div>
-            </>
-          )}
-
-          {showSearchResults && (
-            <>
-              {quickOpen && <div className="border-b" />}
-              <div className="max-h-52 overflow-y-auto">
-                {loading && (
-                  <div className="flex items-center gap-2 px-3 py-3 text-sm text-muted-foreground">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Searching…
-                  </div>
-                )}
-                {!loading && results.length === 0 && !showManualHint && (
-                  <p className="px-3 py-3 text-sm text-muted-foreground">No matching token found.</p>
-                )}
-                {showManualHint && (
-                  <button
-                    type="button"
-                    onClick={applyManualAddress}
-                    className="flex w-full flex-col items-start px-3 py-2 text-left text-sm hover:bg-muted"
-                  >
-                    <span className="font-medium">Use contract address</span>
-                    <span className="font-mono text-xs text-muted-foreground">{query.trim()}</span>
-                  </button>
-                )}
-                {results.map((token) => (
-                  <TokenRow
-                    key={token.contractAddress}
-                    token={token}
-                    active={activeAddress === token.contractAddress.toLowerCase()}
-                    onPick={() => pickToken(token)}
-                  />
-                ))}
-              </div>
-            </>
-          )}
-          </div>
-        )}
-      </div>
 
       {value && !validAddress && (
         <p className="text-xs text-red-600">Invalid or unsupported token address</p>
