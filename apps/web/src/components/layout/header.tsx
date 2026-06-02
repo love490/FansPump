@@ -52,7 +52,7 @@ export function Header() {
 
         <div className="flex items-center gap-2">
           <ThemeToggle />
-          <ConnectButton showBalance={false} chainStatus="icon" accountStatus="address" />
+          <ConnectButton showBalance chainStatus="icon" accountStatus="address" />
         </div>
       </div>
     </header>

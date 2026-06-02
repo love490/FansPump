@@ -10,7 +10,7 @@ export function TopBar() {
       <div className="flex items-center gap-1.5 sm:gap-2">
         <TokenSearch />
         <ThemeToggle />
-        <ConnectButton showBalance={false} chainStatus="icon" accountStatus="address" />
+        <ConnectButton showBalance chainStatus="icon" accountStatus="address" />
       </div>
     </header>
   );
