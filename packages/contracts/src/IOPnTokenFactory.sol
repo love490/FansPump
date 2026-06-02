@@ -38,7 +38,7 @@ contract IOPnTokenFactory is AccessControl, Pausable, ReentrancyGuard {
         _grantRole(DEFAULT_ADMIN_ROLE, admin);
         _grantRole(OPERATOR_ROLE, admin);
         feeRecipient = admin;
-        baseCreationFee = 200 ether;
+        baseCreationFee = 2 ether;
     }
 
     function calculateCreationFee(uint256 featureFlags) public view returns (uint256) {

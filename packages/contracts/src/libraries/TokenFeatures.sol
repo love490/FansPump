@@ -25,13 +25,20 @@ library TokenFeatures {
         require(bps <= MAX_TAX_BPS, "TokenFeatures: tax exceeds 5%");
     }
 
-    uint256 internal constant FEE_MINTABLE = 50 ether;
-    uint256 internal constant FEE_TAXABLE = 40 ether;
-    uint256 internal constant FEE_ANTI_BOT = 100 ether;
+    uint256 internal constant FEE_DEFAULT = 0.2 ether;
+    uint256 internal constant FEE_TAXABLE = 1 ether;
+    uint256 internal constant FEE_ANTI_BOT = 0.5 ether;
 
     function calculateCreationFee(uint256 flags, uint256 baseFee) internal pure returns (uint256 fee) {
         fee = baseFee;
-        if (has(flags, MINTABLE)) fee += FEE_MINTABLE;
+        if (has(flags, MINTABLE)) fee += FEE_DEFAULT;
+        if (has(flags, BURNABLE)) fee += FEE_DEFAULT;
+        if (has(flags, PAUSABLE)) fee += FEE_DEFAULT;
+        if (has(flags, MAX_WALLET)) fee += FEE_DEFAULT;
+        if (has(flags, MAX_TX)) fee += FEE_DEFAULT;
+        if (has(flags, TRADING_SWITCH)) fee += FEE_DEFAULT;
+        if (has(flags, BLACKLIST)) fee += FEE_DEFAULT;
+        if (has(flags, WHITELIST)) fee += FEE_DEFAULT;
         if (has(flags, TAXABLE)) fee += FEE_TAXABLE;
         if (has(flags, ANTI_BOT)) fee += FEE_ANTI_BOT;
     }

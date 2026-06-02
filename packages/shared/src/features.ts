@@ -48,16 +48,23 @@ export const FEATURE_DESCRIPTIONS: Record<keyof typeof TOKEN_FEATURES, string> =
 };
 
 /** Base fee to deploy any token (OPN). */
-export const TOKEN_CREATION_BASE_FEE = 200;
+export const TOKEN_CREATION_BASE_FEE = 2;
 /** @deprecated Use TOKEN_CREATION_BASE_FEE */
 export const TOKEN_CREATION_FEE = TOKEN_CREATION_BASE_FEE;
 export const TOKEN_CREATION_FEE_SYMBOL = "OPN";
 
 /** Extra OPN fee per optional feature (only listed features add cost). */
 export const FEATURE_EXTRA_FEES: Partial<Record<keyof typeof TOKEN_FEATURES, number>> = {
-  MINTABLE: 50,
-  TAXABLE: 40,
-  ANTI_BOT: 100,
+  MINTABLE: 0.2,
+  BURNABLE: 0.2,
+  PAUSABLE: 0.2,
+  MAX_WALLET: 0.2,
+  MAX_TX: 0.2,
+  TRADING_SWITCH: 0.2,
+  BLACKLIST: 0.2,
+  WHITELIST: 0.2,
+  TAXABLE: 1,
+  ANTI_BOT: 0.5,
 };
 
 export function calculateCreationFeeOpn(selectedFeatures: number[]): number {
