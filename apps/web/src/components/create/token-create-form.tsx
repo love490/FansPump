@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAccount, usePublicClient, useWaitForTransactionReceipt, useWriteContract } from "wagmi";
-import { decodeEventLog, isAddress, parseEther, zeroAddress } from "viem";
+import { decodeEventLog, getEventSelector, isAddress, parseAbiItem, parseEther, zeroAddress } from "viem";
 import {
   TOKEN_FEATURES,
   TAX_WALLETS,
@@ -108,9 +108,20 @@ export function TokenCreateForm() {
     hash: txHash,
   });
   const [deployedToken, setDeployedToken] = useState<string | null>(null);
+  const [extractFailed, setExtractFailed] = useState(false);
   const [registering, setRegistering] = useState(false);
   const [registerError, setRegisterError] = useState<string | null>(null);
   const [registered, setRegistered] = useState(false);
+  const [manualToken, setManualToken] = useState("");
+
+  const tokenCreatedEvent = useMemo(
+    () =>
+      parseAbiItem(
+        "event TokenCreated(address indexed token, address indexed creator, string name, string symbol, uint256 featureFlags, uint256 initialSupply)"
+      ),
+    []
+  );
+  const tokenCreatedSelector = useMemo(() => getEventSelector(tokenCreatedEvent), [tokenCreatedEvent]);
 
   function toggleFeature(bit: number) {
     setSelectedFeatures((prev) =>
@@ -275,12 +286,14 @@ export function TokenCreateForm() {
     if (!publicClient) return;
 
     // Extract token address from factory TokenCreated event.
+    let found = false;
     for (const log of receipt.logs ?? []) {
-      if (!log?.address) continue;
-      if (log.address.toLowerCase() !== FACTORY_ADDRESS.toLowerCase()) continue;
+      if (!log?.topics?.length) continue;
+      // Don't rely on log.address matching exactly (proxies / tooling can differ).
+      if (log.topics[0]?.toLowerCase?.() !== tokenCreatedSelector.toLowerCase()) continue;
       try {
         const decoded = decodeEventLog({
-          abi: factoryAbi,
+          abi: [tokenCreatedEvent],
           data: log.data,
           topics: log.topics,
         });
@@ -288,13 +301,15 @@ export function TokenCreateForm() {
         const token = (decoded.args as { token?: string }).token;
         if (token && isAddress(token)) {
           setDeployedToken(token);
+          found = true;
           return;
         }
       } catch {
         // ignore non-matching logs
       }
     }
-  }, [receipt, txHash, deployedToken, publicClient]);
+    if (!found) setExtractFailed(true);
+  }, [receipt, txHash, deployedToken, publicClient, tokenCreatedEvent, tokenCreatedSelector]);
 
   useEffect(() => {
     if (!deployedToken || registered || registering) return;
@@ -317,9 +332,39 @@ export function TokenCreateForm() {
         </CardHeader>
         <CardContent className="space-y-3">
           {!deployedToken ? (
-            <p className="text-sm text-muted-foreground">
-              Finalizing… extracting contract address from the transaction logs.
-            </p>
+            <div className="space-y-2">
+              <p className="text-sm text-muted-foreground">
+                Finalizing… extracting contract address from the transaction logs.
+              </p>
+              {extractFailed && (
+                <div className="rounded-lg border bg-white/60 p-3">
+                  <p className="text-sm text-red-600">
+                    We couldn’t auto-detect the token address from the logs.
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Paste the token contract address from the block explorer, and we’ll save it to “My Tokens”.
+                  </p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <Input
+                      value={manualToken}
+                      onChange={(e) => setManualToken(e.target.value)}
+                      placeholder="0x..."
+                      className="min-w-[260px]"
+                    />
+                    <Button
+                      type="button"
+                      onClick={() => {
+                        const v = manualToken.trim();
+                        if (isAddress(v)) setDeployedToken(v);
+                      }}
+                      disabled={!isAddress(manualToken.trim())}
+                    >
+                      Use address
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
           ) : (
             <>
               <div className="rounded-lg border bg-white/60 p-3">
