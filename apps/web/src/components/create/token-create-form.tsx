@@ -259,7 +259,7 @@ export function TokenCreateForm() {
   }
 
   const registerMetadata = useCallback(async (contractAddress: string) => {
-    await fetch("/api/tokens", {
+    const res = await fetch("/api/tokens", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -279,6 +279,12 @@ export function TokenCreateForm() {
         maxTx: maxTx || null,
       }),
     });
+    if (!res.ok) {
+      const data = await res.json().catch(() => null);
+      throw new Error(
+        typeof data?.error === "string" ? data.error : "Failed to register token (API error)"
+      );
+    }
   }, [address, buyTax, hasTax, maxTx, maxWallet, metadata, name, selectedFeatures, sellTax, supply, symbol, txHash]);
 
   useEffect(() => {
@@ -321,7 +327,36 @@ export function TokenCreateForm() {
       .finally(() => setRegistering(false));
   }, [deployedToken, registered, registering, registerMetadata]);
 
-  if (isSuccess && txHash) {
+  const receiptStatus =
+    receipt && "status" in receipt
+      ? // viem returns 'success' | 'reverted' on some chains, or 1/0 on others
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (receipt as any).status
+      : undefined;
+  const txSucceeded = receiptStatus === "success" || receiptStatus === 1 || receiptStatus === "0x1";
+  const txReverted = receiptStatus === "reverted" || receiptStatus === 0 || receiptStatus === "0x0";
+
+  if (isSuccess && txHash && txReverted) {
+    return (
+      <Card className="border-red-200 bg-red-50">
+        <CardHeader>
+          <CardTitle>Token deployment failed</CardTitle>
+          <CardDescription>Transaction reverted on-chain: {txHash}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-red-700">
+            Your wallet may still show an OPN deduction due to <strong>gas fees</strong>, but the token contract
+            was not created.
+          </p>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Check the transaction in the block explorer for the exact revert reason, then try again.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (isSuccess && txHash && (txSucceeded || receiptStatus == null)) {
     return (
       <Card className="border-green-200 bg-green-50">
         <CardHeader>
@@ -335,6 +370,10 @@ export function TokenCreateForm() {
             <div className="space-y-2">
               <p className="text-sm text-muted-foreground">
                 Finalizing… extracting contract address from the transaction logs.
+              </p>
+              <p className="text-xs text-muted-foreground">
+                If this stays stuck, it usually means the transaction didn’t emit the `TokenCreated` event (wrong
+                factory address / wrong network) or the explorer is needed to copy the contract address.
               </p>
               {extractFailed && (
                 <div className="rounded-lg border bg-white/60 p-3">
