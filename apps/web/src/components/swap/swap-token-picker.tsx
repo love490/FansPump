@@ -182,18 +182,11 @@ export function SwapTokenPicker({ value, onChange, label = "Token" }: SwapTokenP
     if (!quickOpen) return;
     if (quickTokens.length > 0) return;
     setQuickLoading(true);
-
     const popular = getPopularRegistryTokens()
       .map(registryToSwapToken)
       .filter((t): t is SwapToken => t !== null);
-
-    Promise.all([fetch(`/api/tokens?section=new&limit=20&chainId=984`).then((r) => r.json())])
-      .then(([d]) => {
-        const fromDb = (d.tokens ?? []) as SwapToken[];
-        setQuickTokens(mergeSwapTokenLists(popular, fromDb));
-      })
-      .catch(() => setQuickTokens(popular))
-      .finally(() => setQuickLoading(false));
+    setQuickTokens(popular);
+    setQuickLoading(false);
   }, [quickOpen, quickTokens.length]);
 
   useEffect(() => {
@@ -370,7 +363,7 @@ export function SwapTokenPicker({ value, onChange, label = "Token" }: SwapTokenP
               {quickOpen && (
                 <>
                   <div className="border-b border-border/50 px-3 py-2 text-xs font-medium text-muted-foreground">
-                    Popular · Recently created
+                    Popular tokens
                   </div>
                   <div className="max-h-52 overflow-y-auto">
                     {quickLoading ? (
