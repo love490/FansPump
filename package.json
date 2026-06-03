@@ -8,6 +8,7 @@
     "build": "pnpm -r build",
     "lint": "pnpm -r lint",
     "test": "pnpm --filter @iopn/contracts test",
+    "postinstall": "pnpm db:generate",
     "db:generate": "pnpm --filter @iopn/database generate",
     "db:push": "pnpm --filter @iopn/database push",
     "db:migrate": "pnpm --filter @iopn/database migrate",
