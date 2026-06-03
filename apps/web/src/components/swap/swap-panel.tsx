@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { useAccount, useChainId } from "wagmi";
 import type { Address } from "viem";
@@ -47,9 +47,12 @@ export function SwapPanel({ initialToken = "", initialMode = "buy" }: SwapPanelP
   const [amountIn, setAmountIn] = useState("");
   const [slippage, setSlippage] = useState(DEFAULT_SLIPPAGE);
   const [gasEstimate, setGasEstimate] = useState<bigint | null>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const settingsRef = useRef<HTMLDivElement>(null);
 
   const wrongNetwork = isConnected && chainId !== opnChain.id;
   const validToken = isValidTokenAddress(tokenAddress);
+  const pairSelected = validToken;
   const { quote, loading, error: quoteError } = useSwapQuote(
     tokenAddress,
     amountIn,
@@ -118,6 +121,17 @@ export function SwapPanel({ initialToken = "", initialMode = "buy" }: SwapPanelP
     if (approved) refetch();
   }, [approved, refetch]);
 
+  useEffect(() => {
+    if (!settingsOpen) return;
+    function handleClickOutside(e: MouseEvent) {
+      if (settingsRef.current && !settingsRef.current.contains(e.target as Node)) {
+        setSettingsOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [settingsOpen]);
+
   async function handleSwap() {
     if (!quote) return;
     if (needsApproval && !approved) {
@@ -134,12 +148,48 @@ export function SwapPanel({ initialToken = "", initialMode = "buy" }: SwapPanelP
     <div className="mx-auto w-full max-w-lg space-y-4">
       <Card className="border-border shadow-sm">
         <CardHeader className="pb-4">
-          <div className="flex items-center justify-between">
+          <div className="flex items-start justify-between gap-3">
             <div>
               <CardTitle className="flex items-center gap-2">
                 <ArrowDownUp className="h-5 w-5 text-primary" /> Swap
               </CardTitle>
               <CardDescription>Buy and sell tokens on OPNChain</CardDescription>
+            </div>
+            <div ref={settingsRef} className="relative shrink-0">
+              <button
+                type="button"
+                onClick={() => setSettingsOpen((o) => !o)}
+                className={cn(
+                  "inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border/60 bg-transparent text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground",
+                  settingsOpen && "border-primary/40 bg-primary/5 text-primary"
+                )}
+                aria-label="Swap settings"
+                aria-expanded={settingsOpen}
+              >
+                <Settings2 className="h-4 w-4" />
+              </button>
+              {settingsOpen && (
+                <div className="absolute right-0 top-full z-50 mt-2 w-52 rounded-lg border border-border/60 bg-popover/95 p-3 shadow-lg backdrop-blur-sm">
+                  <p className="mb-2 text-xs font-medium text-muted-foreground">Slippage tolerance</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {SLIPPAGE_OPTIONS.map((s) => (
+                      <button
+                        key={s}
+                        type="button"
+                        onClick={() => setSlippage(s)}
+                        className={cn(
+                          "rounded-full border px-2.5 py-1 text-xs font-medium transition-colors",
+                          slippage === s
+                            ? "border-primary bg-primary/10 text-primary"
+                            : "border-border/60 text-muted-foreground hover:border-border hover:text-foreground"
+                        )}
+                      >
+                        {s}%
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </CardHeader>
@@ -197,11 +247,13 @@ export function SwapPanel({ initialToken = "", initialMode = "buy" }: SwapPanelP
             {mode === "buy" ? (
               <div className="mb-2 flex items-center justify-between gap-2">
                 <Label className="mb-0">You pay</Label>
-                <SwapPayTokenSelect
-                  value={payToken}
-                  onChange={setPayToken}
-                  excludeAddress={validToken ? tokenAddress : undefined}
-                />
+                {pairSelected && (
+                  <SwapPayTokenSelect
+                    value={payToken}
+                    onChange={setPayToken}
+                    excludeAddress={tokenAddress}
+                  />
+                )}
               </div>
             ) : (
               <Label>You sell (tokens)</Label>
@@ -220,65 +272,53 @@ export function SwapPanel({ initialToken = "", initialMode = "buy" }: SwapPanelP
           <div className="rounded-lg border border-dashed bg-muted/30 p-4">
             <div className="mb-2 flex items-center justify-between gap-2">
               <p className="text-xs text-muted-foreground">You receive</p>
-              {mode === "sell" && (
+              {mode === "sell" && pairSelected && (
                 <SwapPayTokenSelect
                   value={payToken}
                   onChange={setPayToken}
-                  excludeAddress={validToken ? tokenAddress : undefined}
+                  excludeAddress={tokenAddress}
                 />
               )}
             </div>
             <p className="text-2xl font-semibold tabular-nums">
-              {loading ? "…" : amountOutDisplay}{" "}
-              <span className="text-sm font-normal text-muted-foreground">{receiveLabel}</span>
+              {pairSelected ? (
+                <>
+                  {loading ? "…" : amountOutDisplay}{" "}
+                  <span className="text-sm font-normal text-muted-foreground">{receiveLabel}</span>
+                </>
+              ) : (
+                <span className="text-base font-normal text-muted-foreground">Select a token pair</span>
+              )}
             </p>
           </div>
 
-          <div className="space-y-2 rounded-lg border p-3 text-sm">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Route</span>
-              <span>{quote?.routeLabel ?? "—"}</span>
+          {pairSelected && (
+            <div className="space-y-2 rounded-lg border border-border/50 bg-muted/20 p-3 text-sm">
+              <p className="text-xs font-medium text-muted-foreground">Trade details</p>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Route</span>
+                <span>{quote?.routeLabel ?? "—"}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Router</span>
+                <span className="text-right text-xs sm:text-sm">{quote?.routerLabel ?? "—"}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Price impact</span>
+                <span className={quote && quote.priceImpactBps > 300 ? "text-amber-600" : ""}>
+                  {quote ? `${(quote.priceImpactBps / 100).toFixed(2)}%` : "—"}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Minimum received</span>
+                <span>{quote ? minReceivedDisplay : "—"}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Est. gas</span>
+                <span>{gasEstimate != null ? gasEstimate.toString() : "—"}</span>
+              </div>
             </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Router</span>
-              <span className="text-right text-xs sm:text-sm">{quote?.routerLabel ?? "—"}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Price impact</span>
-              <span className={quote && quote.priceImpactBps > 300 ? "text-amber-600" : ""}>
-                {quote ? `${(quote.priceImpactBps / 100).toFixed(2)}%` : "—"}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Minimum received</span>
-              <span>{quote ? minReceivedDisplay : "—"}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Est. gas</span>
-              <span>{gasEstimate != null ? gasEstimate.toString() : "—"}</span>
-            </div>
-          </div>
-
-          <div>
-            <Label className="flex items-center gap-1">
-              <Settings2 className="h-3.5 w-3.5" /> Slippage tolerance
-            </Label>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {SLIPPAGE_OPTIONS.map((s) => (
-                <button
-                  key={s}
-                  type="button"
-                  onClick={() => setSlippage(s)}
-                  className={cn(
-                    "rounded-full border px-3 py-1 text-xs font-medium",
-                    slippage === s ? "border-primary bg-primary/10 text-primary" : "text-muted-foreground"
-                  )}
-                >
-                  {s}%
-                </button>
-              ))}
-            </div>
-          </div>
+          )}
 
           {quoteError && <p className="text-sm text-red-600">{quoteError}</p>}
 
