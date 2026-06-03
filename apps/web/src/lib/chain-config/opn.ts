@@ -23,7 +23,7 @@ export const OPN_TESTNET_TOKENS = {
 /** Deployed FansPump / IOPn contracts on OPN Testnet (defaults when env unset). */
 export const OPN_TESTNET_CONTRACTS = {
   FACTORY: "0xe93B7E9d8B5e6b4676d78693C24794A66F8Bb9AC" as Address,
-  DEX_ROUTER: "0x3D54572e28d463426719942F8BdcEB05D2AD977f" as Address,
+  DEX_ROUTER: "0x14B86DCeC0A0Aff9c8fCa816bcEbf5ddD52C0d33" as Address,
   LIQUIDITY_ROUTER: "0x3D54572e28d463426719942F8BdcEB05D2AD977f" as Address,
 } as const;
 
