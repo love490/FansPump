@@ -2,8 +2,30 @@ import type { Address } from "viem";
 
 /** OPNChain Testnet — single source of truth for chain + ecosystem tokens. */
 export const OPN_CHAIN_ID = 984;
-export const OPN_RPC_URL = "https://testnet-rpc2.iopn.tech/";
+
+/** Official OPN testnet RPC endpoints — primary first, fallback second. */
+export const OPN_RPC_URLS = [
+  "https://testnet-rpc.iopn.tech/",
+  "https://testnet-rpc2.iopn.tech/",
+] as const;
+
+/** Primary RPC (backwards compatible). */
+export const OPN_RPC_URL = OPN_RPC_URLS[0];
+
 export const OPN_EXPLORER_URL = "https://testnet.iopn.tech/";
+
+/** Resolve RPC list: env override (comma-separated) or built-in fallbacks. */
+export function getOpnRpcUrls(): string[] {
+  const env = process.env.NEXT_PUBLIC_RPC_URL?.trim();
+  if (env) {
+    const fromEnv = env
+      .split(",")
+      .map((url) => url.trim())
+      .filter(Boolean);
+    if (fromEnv.length > 0) return fromEnv;
+  }
+  return [...OPN_RPC_URLS];
+}
 
 const ZERO = "0x0000000000000000000000000000000000000000" as Address;
 
@@ -30,7 +52,8 @@ export const OPN_TESTNET_CONTRACTS = {
 export const opnChainConfig = {
   id: Number(process.env.NEXT_PUBLIC_CHAIN_ID ?? OPN_CHAIN_ID),
   name: "OPNChain Testnet",
-  rpcUrl: process.env.NEXT_PUBLIC_RPC_URL ?? OPN_RPC_URL,
+  rpcUrl: getOpnRpcUrls()[0],
+  rpcUrls: getOpnRpcUrls(),
   explorerUrl: process.env.NEXT_PUBLIC_BLOCK_EXPLORER_URL ?? OPN_EXPLORER_URL,
   nativeCurrency: {
     name: "OPN",
