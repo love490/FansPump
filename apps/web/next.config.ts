@@ -10,10 +10,10 @@ const nextConfig: NextConfig = {
   serverExternalPackages: ["@prisma/client", "prisma"],
   outputFileTracingIncludes: {
     "/api/**/*": [
-      "../../packages/database/src/generated/client/**/*",
+      "../../node_modules/.pnpm/@prisma+client@*/node_modules/.prisma/client/**/*",
     ],
     "/*": [
-      "../../packages/database/src/generated/client/**/*",
+      "../../node_modules/.pnpm/@prisma+client@*/node_modules/.prisma/client/**/*",
     ],
   },
   webpack: (config) => {

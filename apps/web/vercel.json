@@ -1,5 +1,5 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "installCommand": "cd ../.. && pnpm install",
-  "buildCommand": "cd ../.. && DATABASE_URL=${DATABASE_URL:-postgresql://build:build@localhost:5432/build?schema=public} pnpm db:generate && pnpm --filter @iopn/web build"
+  "buildCommand": "cd ../.. && DATABASE_URL=${DATABASE_URL:-postgresql://build:build@localhost:5432/build?schema=public} pnpm vercel-build"
 }

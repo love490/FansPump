@@ -18,4 +18,3 @@ packages/contracts/lib
 apps/web/.next
 apps/web/node_modules
 *.tsbuildinfo
-packages/database/src/generated
