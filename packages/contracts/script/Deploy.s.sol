@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import {Script} from "forge-std/Script.sol";
+import {Script, console2} from "forge-std/Script.sol";
 import {IOPnTokenFactory} from "../src/IOPnTokenFactory.sol";
 import {IOPnLiquidityRouter} from "../src/IOPnLiquidityRouter.sol";
 
@@ -14,7 +14,8 @@ contract DeployScript is Script {
         vm.startBroadcast(deployerPrivateKey);
 
         IOPnTokenFactory factory = new IOPnTokenFactory(deployer);
-        IOPnLiquidityRouter liquidityRouter = new IOPnLiquidityRouter(deployer, primaryRouter);
+        IOPnLiquidityRouter liquidityRouter =
+            new IOPnLiquidityRouter(deployer, primaryRouter);
 
         vm.stopBroadcast();
 

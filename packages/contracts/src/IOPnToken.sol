@@ -19,8 +19,8 @@ contract IOPnToken is ERC20, ERC20Burnable, ERC20Pausable, Ownable, ReentrancyGu
     uint16 public immutable BUY_TAX_BPS;
     uint16 public immutable SELL_TAX_BPS;
 
-    TaxDistribution public immutable TAX_DISTRIBUTION;
-    AntiBotConfig public immutable ANTI_BOT_CONFIG;
+    TaxDistribution public TAX_DISTRIBUTION;
+    AntiBotConfig public ANTI_BOT_CONFIG;
 
     bool public tradingEnabled;
     uint256 public launchProtectionEndsAt;

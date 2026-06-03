@@ -8,8 +8,6 @@ import {IOPnToken} from "./IOPnToken.sol";
 import {IIOPnToken} from "./interfaces/IIOPnToken.sol";
 import {TokenFeatures} from "./libraries/TokenFeatures.sol";
 
-/// @title IOPnTokenFactory
-/// @notice Deploys IOPnToken instances with permanently locked feature configuration.
 contract IOPnTokenFactory is AccessControl, Pausable, ReentrancyGuard {
     bytes32 public constant OPERATOR_ROLE = keccak256("OPERATOR_ROLE");
 
@@ -22,6 +20,7 @@ contract IOPnTokenFactory is AccessControl, Pausable, ReentrancyGuard {
 
     event FactoryPaused(address indexed account);
     event FactoryUnpaused(address indexed account);
+
     event TokenCreated(
         address indexed token,
         address indexed creator,
@@ -52,7 +51,8 @@ contract IOPnTokenFactory is AccessControl, Pausable, ReentrancyGuard {
 
     /** @dev Alias for backwards compatibility with admin tooling. */
     function setCreationFee(uint256 fee) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        setBaseCreationFee(fee);
+        baseCreationFee = fee;
+        emit CreationFeeUpdated(fee);
     }
 
     function creationFee() external view returns (uint256) {
@@ -69,7 +69,7 @@ contract IOPnTokenFactory is AccessControl, Pausable, ReentrancyGuard {
         return allTokens.length;
     }
 
-    function createToken(IIOPnToken.TokenConfig calldata config)
+    function createToken(IOPnToken.TokenConfig calldata config)
         external
         payable
         nonReentrant
@@ -77,6 +77,7 @@ contract IOPnTokenFactory is AccessControl, Pausable, ReentrancyGuard {
         returns (address token)
     {
         require(msg.value >= calculateCreationFee(config.featureFlags), "Factory: insufficient fee");
+
         if (msg.value > 0) {
             (bool sent,) = feeRecipient.call{value: msg.value}("");
             require(sent, "Factory: fee transfer failed");
@@ -85,6 +86,7 @@ contract IOPnTokenFactory is AccessControl, Pausable, ReentrancyGuard {
         require(bytes(config.name).length > 0, "Factory: empty name");
         require(bytes(config.symbol).length > 0, "Factory: empty symbol");
         require(config.initialSupply > 0, "Factory: zero supply");
+
         _validateFeatureConfig(config);
 
         IIOPnToken.TokenConfig memory cfg = config;
@@ -97,8 +99,14 @@ contract IOPnTokenFactory is AccessControl, Pausable, ReentrancyGuard {
         isIOPnToken[token] = true;
         tokenCreator[token] = msg.sender;
 
-        emit TokenCreated(token, msg.sender, config.name, config.symbol, config.featureFlags, config.initialSupply);
-        emit IIOPnToken.TokenDeployed(token, msg.sender, config.featureFlags);
+        emit TokenCreated(
+            token,
+            msg.sender,
+            config.name,
+            config.symbol,
+            config.featureFlags,
+            config.initialSupply
+        );
     }
 
     function pauseFactory() external onlyRole(DEFAULT_ADMIN_ROLE) {
@@ -111,17 +119,20 @@ contract IOPnTokenFactory is AccessControl, Pausable, ReentrancyGuard {
         emit FactoryUnpaused(msg.sender);
     }
 
-    function _validateFeatureConfig(IIOPnToken.TokenConfig calldata config) internal pure {
+    function _validateFeatureConfig(IOPnToken.TokenConfig calldata config) internal pure {
         if (TokenFeatures.has(config.featureFlags, TokenFeatures.MAX_WALLET)) {
             require(config.maxWalletAmount > 0, "Factory: max wallet required");
         }
+
         if (TokenFeatures.has(config.featureFlags, TokenFeatures.MAX_TX)) {
             require(config.maxTxAmount > 0, "Factory: max tx required");
         }
+
         if (TokenFeatures.has(config.featureFlags, TokenFeatures.TAXABLE)) {
             TokenFeatures.validateTaxBps(config.buyTaxBps);
             TokenFeatures.validateTaxBps(config.sellTaxBps);
         }
+
         if (TokenFeatures.has(config.featureFlags, TokenFeatures.ANTI_BOT)) {
             require(
                 !config.antiBot.launchGuardEnabled

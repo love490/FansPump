@@ -43,7 +43,6 @@ interface IIOPnToken {
     function launchProtectionEndsAt() external view returns (uint256);
 
     event TradingEnabledUpdated(bool enabled);
-    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
     event OwnershipRenounced(address indexed previousOwner);
     event TokenDeployed(address indexed token, address indexed creator, uint256 featureFlags);
 }
