@@ -7,7 +7,7 @@ import {
   parseEther,
   parseUnits,
 } from "viem";
-import { uniswapV2RouterAbi, erc20Abi } from "./abis";
+import { uniswapV2RouterAbi, opnDexRouterAbi, erc20Abi } from "./abis";
 import { SWAP_DEADLINE_SECONDS, type RouterType, type SwapMode } from "./constants";
 import { getWopnAddress } from "@/lib/chain-config/opn";
 import { type PayToken, isPayTokenConfigured } from "./payment-tokens";
@@ -30,6 +30,10 @@ export function getRouterAddress(type: RouterType = "primary"): Address {
   return PRIMARY_ROUTER;
 }
 
+function getRouterAbi(type: RouterType = "primary") {
+  return type === "uniswap" ? uniswapV2RouterAbi : opnDexRouterAbi;
+}
+
 export function isValidTokenAddress(address: string): address is Address {
   return isAddress(address) && address !== "0x0000000000000000000000000000000000000000";
 }
@@ -42,7 +46,19 @@ export async function getWethAddress(client: PublicClient, routerType: RouterTyp
   if (router === "0x0000000000000000000000000000000000000000") {
     throw new Error("DEX router is not configured");
   }
-  return client.readContract({ address: router, abi: uniswapV2RouterAbi, functionName: "WETH" });
+  const abi = getRouterAbi(routerType);
+  if (routerType !== "uniswap") {
+    try {
+      return await client.readContract({ address: router, abi, functionName: "WOPN" });
+    } catch {
+      // fall through to WETH or config default
+    }
+  }
+  try {
+    return await client.readContract({ address: router, abi, functionName: "WETH" });
+  } catch {
+    return getWopnAddress();
+  }
 }
 
 async function resolvePayTokenDecimals(client: PublicClient, payToken: PayToken): Promise<number> {
@@ -88,6 +104,7 @@ export interface SwapQuoteResult {
   amountOut: bigint;
   path: Address[];
   routerAddress: Address;
+  routerType: RouterType;
   routerLabel: string;
   priceImpactBps: number;
   routeLabel: string;
@@ -135,7 +152,7 @@ export async function fetchSwapQuote(params: SwapQuoteParams): Promise<SwapQuote
 
   const amounts = await client.readContract({
     address: routerAddress,
-    abi: uniswapV2RouterAbi,
+    abi: getRouterAbi(routerType),
     functionName: "getAmountsOut",
     args: [parsedIn, path],
   });
@@ -167,6 +184,7 @@ export async function fetchSwapQuote(params: SwapQuoteParams): Promise<SwapQuote
     amountOut,
     path,
     routerAddress,
+    routerType,
     routerLabel: routerType === "uniswap" ? "Uniswap-compatible" : "IOPn DEX Router",
     priceImpactBps,
     routeLabel: `${routeFrom} → ${routeTo}`,
@@ -189,7 +207,7 @@ async function estimatePriceImpactBps(
     const refIn = amountIn / 100n || 1n;
     const refAmounts = await client.readContract({
       address: router,
-      abi: uniswapV2RouterAbi,
+      abi: getRouterAbi(),
       functionName: "getAmountsOut",
       args: [refIn, path],
     });
@@ -219,12 +237,16 @@ export function buildSwapTransaction(params: BuildSwapTxParams) {
   const { quote, recipient, slippagePercent, mode } = params;
   const deadline = BigInt(Math.floor(Date.now() / 1000) + SWAP_DEADLINE_SECONDS);
   const amountOutMin = applySlippage(quote.amountOut, slippagePercent);
+  const useOpnRouter = quote.routerType !== "uniswap";
+  const abi = getRouterAbi(quote.routerType);
 
   if (mode === "buy" && quote.swapKind === "native-in") {
     return {
       address: quote.routerAddress,
-      abi: uniswapV2RouterAbi,
-      functionName: "swapExactETHForTokens" as const,
+      abi,
+      functionName: (useOpnRouter ? "swapExactOPNForTokens" : "swapExactETHForTokens") as
+        | "swapExactOPNForTokens"
+        | "swapExactETHForTokens",
       args: [amountOutMin, quote.path, recipient, deadline] as const,
       value: quote.amountIn,
     };
@@ -233,8 +255,10 @@ export function buildSwapTransaction(params: BuildSwapTxParams) {
   if (mode === "sell" && quote.swapKind === "native-out") {
     return {
       address: quote.routerAddress,
-      abi: uniswapV2RouterAbi,
-      functionName: "swapExactTokensForETH" as const,
+      abi,
+      functionName: (useOpnRouter ? "swapExactTokensForOPN" : "swapExactTokensForETH") as
+        | "swapExactTokensForOPN"
+        | "swapExactTokensForETH",
       args: [quote.amountIn, amountOutMin, quote.path, recipient, deadline] as const,
       value: 0n,
     };
@@ -242,7 +266,7 @@ export function buildSwapTransaction(params: BuildSwapTxParams) {
 
   return {
     address: quote.routerAddress,
-    abi: uniswapV2RouterAbi,
+    abi,
     functionName: "swapExactTokensForTokens" as const,
     args: [quote.amountIn, amountOutMin, quote.path, recipient, deadline] as const,
     value: 0n,
