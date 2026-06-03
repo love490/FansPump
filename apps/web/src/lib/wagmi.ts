@@ -37,7 +37,7 @@ export const wagmiConfig = getDefaultConfig({
 
 export { getFactoryAddress, isFactoryConfigured, getFactoryConfigError } from "./factory-config";
 
-/** Deployed IOPnTokenFactory on OPNChain. Must be set via NEXT_PUBLIC_FACTORY_ADDRESS. */
+/** Deployed IOPnTokenFactory on OPNChain — env override or testnet default in chain config. */
 export const FACTORY_ADDRESS = opnChainConfig.contracts.factory;
 
 export const LIQUIDITY_ROUTER_ADDRESS = opnChainConfig.contracts.liquidityRouter;

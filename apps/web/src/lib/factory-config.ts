@@ -1,28 +1,27 @@
 import { isAddress, zeroAddress } from "viem";
+import { opnChainConfig } from "./chain-config/opn";
 
 const ZERO = zeroAddress.toLowerCase();
 
+/** Resolved factory address — env override or OPN testnet default from chain config. */
 export function getFactoryAddress(): `0x${string}` {
-  return (process.env.NEXT_PUBLIC_FACTORY_ADDRESS ??
-    "0x0000000000000000000000000000000000000000") as `0x${string}`;
+  return opnChainConfig.contracts.factory;
 }
 
 export function isFactoryConfigured(address?: string | null): boolean {
-  if (!address) return false;
-  if (!isAddress(address)) return false;
-  return address.toLowerCase() !== ZERO;
+  const resolved = address ?? getFactoryAddress();
+  if (!resolved) return false;
+  if (!isAddress(resolved)) return false;
+  return resolved.toLowerCase() !== ZERO;
 }
 
 export function getFactoryConfigError(): string | null {
-  const raw = process.env.NEXT_PUBLIC_FACTORY_ADDRESS;
-  if (!raw || raw.trim() === "") {
-    return "Factory contract not configured. Set NEXT_PUBLIC_FACTORY_ADDRESS in your deployment environment.";
-  }
-  if (!isAddress(raw)) {
+  const resolved = getFactoryAddress();
+  if (!isAddress(resolved)) {
     return "Factory contract address is invalid. Check NEXT_PUBLIC_FACTORY_ADDRESS.";
   }
-  if (raw.toLowerCase() === ZERO) {
-    return "Factory contract not configured. NEXT_PUBLIC_FACTORY_ADDRESS cannot be the zero address.";
+  if (resolved.toLowerCase() === ZERO) {
+    return "Factory contract not configured. Set NEXT_PUBLIC_FACTORY_ADDRESS in your deployment environment.";
   }
   return null;
 }

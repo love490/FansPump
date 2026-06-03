@@ -20,6 +20,13 @@ export const OPN_TESTNET_TOKENS = {
   USDT: "0x3e01b4d892E0D0A219eF8BBe7e260a6bc8d9B31b" as Address,
 } as const;
 
+/** Deployed FansPump / IOPn contracts on OPN Testnet (defaults when env unset). */
+export const OPN_TESTNET_CONTRACTS = {
+  FACTORY: "0xe93B7E9d8B5e6b4676d78693C24794A66F8Bb9AC" as Address,
+  DEX_ROUTER: "0x3D54572e28d463426719942F8BdcEB05D2AD977f" as Address,
+  LIQUIDITY_ROUTER: "0x3D54572e28d463426719942F8BdcEB05D2AD977f" as Address,
+} as const;
+
 export const opnChainConfig = {
   id: Number(process.env.NEXT_PUBLIC_CHAIN_ID ?? OPN_CHAIN_ID),
   name: "OPNChain Testnet",
@@ -31,9 +38,12 @@ export const opnChainConfig = {
     decimals: 18,
   },
   contracts: {
-    factory: envAddress("NEXT_PUBLIC_FACTORY_ADDRESS", ZERO),
-    dexRouter: envAddress("NEXT_PUBLIC_DEX_ROUTER_ADDRESS", ZERO),
-    liquidityRouter: envAddress("NEXT_PUBLIC_LIQUIDITY_ROUTER_ADDRESS", ZERO),
+    factory: envAddress("NEXT_PUBLIC_FACTORY_ADDRESS", OPN_TESTNET_CONTRACTS.FACTORY),
+    dexRouter: envAddress("NEXT_PUBLIC_DEX_ROUTER_ADDRESS", OPN_TESTNET_CONTRACTS.DEX_ROUTER),
+    liquidityRouter: envAddress(
+      "NEXT_PUBLIC_LIQUIDITY_ROUTER_ADDRESS",
+      OPN_TESTNET_CONTRACTS.LIQUIDITY_ROUTER
+    ),
     liquidityLocker: envAddress("NEXT_PUBLIC_LIQUIDITY_LOCKER_ADDRESS", ZERO),
     /** Wrapped native OPN — used by DEX routers when native OPN is swapped. */
     wopn: envAddress("NEXT_PUBLIC_WETH_ADDRESS", OPN_TESTNET_TOKENS.WOPN),
