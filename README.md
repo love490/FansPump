@@ -82,9 +82,9 @@ Configure platform admins — see [docs/ADMIN.md](docs/ADMIN.md).
 
 See [docs/SECURITY.md](docs/SECURITY.md).
 
-## Deploy to Vercel
+## Deploy to Railway
 
-See [docs/VERCEL.md](docs/VERCEL.md) for Root Directory, env vars, and monorepo settings.
+See [docs/RAILWAY.md](docs/RAILWAY.md) for Railway setup, env vars, and database migration steps.
 
 ## License
 

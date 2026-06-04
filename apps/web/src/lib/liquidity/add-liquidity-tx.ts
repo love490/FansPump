@@ -16,6 +16,7 @@ export async function resolveNativeAddLiquidityFn(
   to: Address,
   deadline: bigint
 ): Promise<NativeAddLiquidityFn> {
+  let lastError: unknown;
   for (const functionName of nativeLiquidityFns) {
     try {
       await client.simulateContract({
@@ -27,12 +28,13 @@ export async function resolveNativeAddLiquidityFn(
         value: amountNative,
       });
       return functionName;
-    } catch {
-      // try next name
+    } catch (e) {
+      lastError = e;
     }
   }
+  const detail = lastError instanceof Error ? lastError.message : lastError ? String(lastError) : "unknown error";
   throw new Error(
-    "DEX router does not support native OPN liquidity. Check NEXT_PUBLIC_DEX_ROUTER_ADDRESS."
+    `DEX router does not support native OPN liquidity (${detail}). Check NEXT_PUBLIC_DEX_ROUTER_ADDRESS.`
   );
 }
 

@@ -9,7 +9,7 @@
     "lint": "pnpm -r lint",
     "test": "pnpm --filter @iopn/contracts test",
     "postinstall": "pnpm db:generate",
-    "vercel-build": "pnpm db:generate && pnpm --filter @iopn/web build",
+    "railway-build": "pnpm db:generate && pnpm --filter @iopn/web build",
     "db:generate": "pnpm --filter @iopn/database generate",
     "db:push": "pnpm --filter @iopn/database push",
     "db:migrate": "pnpm --filter @iopn/database migrate",

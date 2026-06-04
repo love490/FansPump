@@ -29,9 +29,9 @@ pnpm db:generate
 pnpm db:migrate   # or db:push for dev
 ```
 
-## 3. Frontend
+## 3. Frontend (Railway)
 
-Configure `apps/web/.env`:
+Configure environment variables in Railway (see [RAILWAY.md](./RAILWAY.md)) or `apps/web/.env.local` for local dev:
 
 ```env
 DATABASE_URL=...

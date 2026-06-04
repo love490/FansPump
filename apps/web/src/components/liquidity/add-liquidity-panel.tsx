@@ -8,7 +8,6 @@ import {
   useChainId,
   usePublicClient,
   useReadContract,
-  useWaitForTransactionReceipt,
   useWriteContract,
 } from "wagmi";
 import { formatUnits, maxUint256, parseEther, parseUnits, type Address, type Hash } from "viem";
@@ -32,12 +31,14 @@ import {
 } from "@/lib/liquidity/pair-tokens";
 import { isValidTokenAddress } from "@/lib/swap/routerAdapter";
 import { erc20Abi } from "@/lib/swap/abis";
+import { saveLiquidityPosition } from "@/lib/liquidity/my-liquidity-storage";
 import { cn, shortenAddress } from "@/lib/utils";
 import { opnChainConfig } from "@/lib/chain-config/opn";
 
 type AddLiquidityPanelProps = {
   initialToken?: string;
   showManageLink?: boolean;
+  onLiquidityAdded?: () => void;
 };
 
 type LiquidityAction = "idle" | "approve-token" | "approve-pair" | "add";
@@ -59,7 +60,11 @@ function parseError(e: unknown): string {
   return "Transaction failed";
 }
 
-export function AddLiquidityPanel({ initialToken = "", showManageLink = true }: AddLiquidityPanelProps) {
+export function AddLiquidityPanel({
+  initialToken = "",
+  showManageLink = true,
+  onLiquidityAdded,
+}: AddLiquidityPanelProps) {
   const { address, isConnected } = useAccount();
   const chainId = useChainId();
   const client = usePublicClient();
@@ -74,6 +79,7 @@ export function AddLiquidityPanel({ initialToken = "", showManageLink = true }: 
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [action, setAction] = useState<LiquidityAction>("idle");
+  const [processing, setProcessing] = useState(false);
   const [lastTxHash, setLastTxHash] = useState<Hash | undefined>();
 
   const pair = getLiquidityPair(pairId);
@@ -81,8 +87,7 @@ export function AddLiquidityPanel({ initialToken = "", showManageLink = true }: 
   const pairConflict = validToken && pairConflictsWithToken(pair, tokenAddress);
   const wrongNetwork = isConnected && chainId !== opnChain.id;
 
-  const { writeContractAsync, isPending: writePending } = useWriteContract();
-  const { isLoading: confirmingReceipt } = useWaitForTransactionReceipt({ hash: lastTxHash });
+  const { writeContractAsync } = useWriteContract();
 
   const { data: tokenSymbolRaw } = useReadContract({
     address: validToken ? (tokenAddress as Address) : undefined,
@@ -173,13 +178,18 @@ export function AddLiquidityPanel({ initialToken = "", showManageLink = true }: 
   const pairBalanceDisplay = pair.isNative ? nativeBalance?.value : pairTokenBalance;
   const pairBalanceDecimals = pair.decimals;
 
-  const busy = writePending || confirmingReceipt || action !== "idle";
+  const busy = processing;
 
   const amountsValid = Boolean(parsedTokenAmount && parsedPairAmount && !pairConflict);
 
+  const RECEIPT_TIMEOUT_MS = 120_000;
+
   async function waitForTx(hash: Hash) {
     if (!client) throw new Error("Network client unavailable");
-    const receipt = await client.waitForTransactionReceipt({ hash });
+    const receipt = await client.waitForTransactionReceipt({
+      hash,
+      timeout: RECEIPT_TIMEOUT_MS,
+    });
     if (receipt.status !== "success") {
       throw new Error("Transaction reverted on-chain");
     }
@@ -187,12 +197,20 @@ export function AddLiquidityPanel({ initialToken = "", showManageLink = true }: 
   }
 
   async function submitTx(
-    request: Parameters<typeof writeContractAsync>[0],
+    request: {
+      address: Address;
+      abi: readonly unknown[];
+      functionName: string;
+      args: readonly unknown[];
+      value?: bigint;
+    },
     label: string
   ): Promise<Hash> {
     setStatus(`${label} — confirm in your wallet…`);
     setError(null);
-    const hash = await writeContractAsync(request);
+    const hash = await writeContractAsync(
+      request as Parameters<typeof writeContractAsync>[0]
+    );
     setLastTxHash(hash);
     await waitForTx(hash);
     return hash;
@@ -213,6 +231,7 @@ export function AddLiquidityPanel({ initialToken = "", showManageLink = true }: 
       return;
     }
 
+    setProcessing(true);
     setAction("add");
     setError(null);
 
@@ -275,19 +294,42 @@ export function AddLiquidityPanel({ initialToken = "", showManageLink = true }: 
         deadline,
       });
 
-      setStatus(`Final step — Add liquidity (${tokenSymbol}/${pair.symbol}) in your wallet…`);
+      let addHash: Hash;
+      if (tx.value > 0n) {
+        addHash = await submitTx(
+          {
+            address: DEX_ROUTER_ADDRESS,
+            abi: dexRouterLiquidityAbi,
+            functionName: tx.functionName,
+            args: [...tx.args],
+            value: tx.value,
+          },
+          `Final step — Add liquidity (${tokenSymbol}/${pair.symbol}) in your wallet`
+        );
+      } else {
+        addHash = await submitTx(
+          {
+            address: DEX_ROUTER_ADDRESS,
+            abi: dexRouterLiquidityAbi,
+            functionName: tx.functionName,
+            args: [...tx.args],
+          },
+          `Final step — Add liquidity (${tokenSymbol}/${pair.symbol}) in your wallet`
+        );
+      }
 
-      const hash = await writeContractAsync({
-        address: DEX_ROUTER_ADDRESS,
-        abi: dexRouterLiquidityAbi,
-        functionName: tx.functionName,
-        args: [...tx.args],
-        value: tx.value,
+      saveLiquidityPosition({
+        tokenAddress: tokenAddress.toLowerCase(),
+        tokenSymbol,
+        pairId,
+        pairSymbol: pair.symbol,
+        txHash: addHash,
+        addedAt: new Date().toISOString(),
       });
-      setLastTxHash(hash);
-      await waitForTx(hash);
 
       setStatus(`Liquidity added (${tokenSymbol}/${pair.symbol}).`);
+      onLiquidityAdded?.();
+
       await Promise.all([
         refetchTokenBalance(),
         refetchPairBalance(),
@@ -301,6 +343,7 @@ export function AddLiquidityPanel({ initialToken = "", showManageLink = true }: 
       setStatus(null);
     } finally {
       setAction("idle");
+      setProcessing(false);
     }
   }
 

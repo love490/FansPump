@@ -1,6 +1,13 @@
 export const uniswapV2RouterAbi = [
   {
     type: "function",
+    name: "WOPN",
+    inputs: [],
+    outputs: [{ type: "address" }],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
     name: "WETH",
     inputs: [],
     outputs: [{ type: "address" }],
