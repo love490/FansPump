@@ -245,6 +245,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: msg || "Invalid token data" }, { status: 400 });
     }
     console.error("[POST /api/tokens] Failed to register token:", e);
-    return NextResponse.json({ error: "Failed to register token" }, { status: 500 });
+    return NextResponse.json(
+      {
+        error: "Failed to register token",
+        detail: e instanceof Error ? e.message : String(e),
+      },
+      { status: 500 }
+    );
   }
 }
