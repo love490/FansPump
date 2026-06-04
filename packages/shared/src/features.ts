@@ -38,7 +38,7 @@ export const FEATURE_DESCRIPTIONS: Record<keyof typeof TOKEN_FEATURES, string> =
   TRADING_SWITCH:
     "Trading starts disabled. Only the owner can move tokens until you explicitly enable trading for everyone.",
   TAXABLE:
-    "Applies buy and sell taxes on transfers (max 5% each). Tax is split across your chosen wallets at deploy.",
+    "Applies buy and sell taxes on transfers (max 5% each). Allocation percentages are fixed at deploy; wallet addresses can be set later by the owner.",
   ANTI_BOT:
     "Creation guard for a set period: max buy as a % of total supply and max per-wallet accumulation. No wallet cooldown timers.",
   BLACKLIST:
@@ -114,6 +114,16 @@ export const TAX_WALLET_LABELS: Record<(typeof TAX_WALLETS)[number], string> = {
   communityWallet: "Community Wallet",
   operationsWallet: "Operations Wallet",
   liquidityWallet: "Liquidity Wallet",
+};
+
+/** On-chain slot index for `setTaxWallet(uint8 slot, address wallet)`. */
+export const TAX_WALLET_SLOTS: Record<(typeof TAX_WALLETS)[number], number> = {
+  marketingWallet: 0,
+  developmentWallet: 1,
+  treasuryWallet: 2,
+  communityWallet: 3,
+  operationsWallet: 4,
+  liquidityWallet: 5,
 };
 
 export function hasFeature(flags: bigint | number, feature: number): boolean {

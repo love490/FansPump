@@ -162,6 +162,36 @@ contract IOPnTokenTest is Test {
         _create(cfg);
     }
 
+    function test_SetTaxWalletAfterDeploy() public {
+        address wallet = makeAddr("wallet");
+        address newWallet = makeAddr("newWallet");
+        IIOPnToken.TokenConfig memory cfg = _baseConfig();
+        cfg.featureFlags = TokenFeatures.TAXABLE;
+        cfg.buyTaxBps = 250;
+        cfg.sellTaxBps = 250;
+        cfg.taxDistribution = IIOPnToken.TaxDistribution({
+            marketingWallet: address(0),
+            developmentWallet: address(0),
+            treasuryWallet: address(0),
+            communityWallet: address(0),
+            operationsWallet: address(0),
+            liquidityWallet: address(0),
+            marketingBps: 10_000,
+            developmentBps: 0,
+            treasuryBps: 0,
+            communityBps: 0,
+            operationsBps: 0,
+            liquidityBps: 0
+        });
+        cfg.owner = creator;
+        address tokenAddr = _create(cfg);
+        IOPnToken token = IOPnToken(tokenAddr);
+
+        vm.prank(creator);
+        token.setTaxWallet(0, newWallet);
+        assertEq(token.TAX_DISTRIBUTION().marketingWallet, newWallet);
+    }
+
     function test_CreationFeeTiered() public view {
         assertEq(factory.calculateCreationFee(0), 200 ether);
         assertEq(factory.calculateCreationFee(TokenFeatures.MINTABLE), 250 ether);

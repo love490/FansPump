@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { TaxWalletManager } from "@/components/token/tax-wallet-manager";
 import { AlertTriangle } from "lucide-react";
 
 export default function OwnershipPage() {
@@ -49,6 +50,12 @@ export default function OwnershipPage() {
         </Card>
       ) : (
         <div className="space-y-6">
+          <TaxWalletManager
+            tokenAddress={tokenAddress}
+            isOwner={Boolean(isOwner)}
+            renounced={Boolean(renounced)}
+          />
+
           <Card>
             <CardHeader>
               <CardTitle>Transfer ownership</CardTitle>

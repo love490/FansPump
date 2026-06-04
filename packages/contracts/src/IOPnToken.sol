@@ -160,6 +160,42 @@ contract IOPnToken is ERC20, ERC20Burnable, ERC20Pausable, Ownable, ReentrancyGu
         isWhitelisted[account] = status;
     }
 
+    /// @notice Update a tax recipient wallet address. Tax rates and allocation % are immutable.
+    /// @param slot 0=marketing, 1=development, 2=treasury, 3=community, 4=operations, 5=liquidity
+    function setTaxWallet(uint8 slot, address wallet)
+        external
+        onlyOwner
+        onlyIfFeature(TokenFeatures.TAXABLE)
+        notRenounced
+    {
+        require(wallet != address(0), "IOPnToken: zero wallet");
+        TaxDistribution storage dist = TAX_DISTRIBUTION;
+
+        if (slot == 0) {
+            require(dist.marketingBps > 0, "IOPnToken: slot disabled");
+            dist.marketingWallet = wallet;
+        } else if (slot == 1) {
+            require(dist.developmentBps > 0, "IOPnToken: slot disabled");
+            dist.developmentWallet = wallet;
+        } else if (slot == 2) {
+            require(dist.treasuryBps > 0, "IOPnToken: slot disabled");
+            dist.treasuryWallet = wallet;
+        } else if (slot == 3) {
+            require(dist.communityBps > 0, "IOPnToken: slot disabled");
+            dist.communityWallet = wallet;
+        } else if (slot == 4) {
+            require(dist.operationsBps > 0, "IOPnToken: slot disabled");
+            dist.operationsWallet = wallet;
+        } else if (slot == 5) {
+            require(dist.liquidityBps > 0, "IOPnToken: slot disabled");
+            dist.liquidityWallet = wallet;
+        } else {
+            revert("IOPnToken: invalid tax wallet slot");
+        }
+
+        emit TaxWalletUpdated(slot, wallet);
+    }
+
     // --- Internal hooks ---
 
     function _update(address from, address to, uint256 value)

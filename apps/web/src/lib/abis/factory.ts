@@ -217,6 +217,42 @@ export const tokenAbi = [
   },
   {
     type: "function",
+    name: "TAX_DISTRIBUTION",
+    inputs: [],
+    outputs: [
+      {
+        name: "",
+        type: "tuple",
+        components: [
+          { name: "marketingWallet", type: "address" },
+          { name: "developmentWallet", type: "address" },
+          { name: "treasuryWallet", type: "address" },
+          { name: "communityWallet", type: "address" },
+          { name: "operationsWallet", type: "address" },
+          { name: "liquidityWallet", type: "address" },
+          { name: "marketingBps", type: "uint16" },
+          { name: "developmentBps", type: "uint16" },
+          { name: "treasuryBps", type: "uint16" },
+          { name: "communityBps", type: "uint16" },
+          { name: "operationsBps", type: "uint16" },
+          { name: "liquidityBps", type: "uint16" },
+        ],
+      },
+    ],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "setTaxWallet",
+    inputs: [
+      { name: "slot", type: "uint8" },
+      { name: "wallet", type: "address" },
+    ],
+    outputs: [],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
     name: "balanceOf",
     inputs: [{ name: "account", type: "address" }],
     outputs: [{ type: "uint256" }],

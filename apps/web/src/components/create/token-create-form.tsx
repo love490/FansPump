@@ -99,7 +99,6 @@ export function TokenCreateForm() {
     for (const w of TAX_WALLETS) init[w] = false;
     return init;
   });
-  const [taxWallets, setTaxWallets] = useState<Record<string, string>>({});
   const [taxBps, setTaxBps] = useState<Record<string, number>>({ ...EMPTY_TAX_BPS });
   const [antiBot, setAntiBot] = useState({
     launchGuardEnabled: true,
@@ -159,17 +158,6 @@ export function TokenCreateForm() {
   const allTaxWalletsEnabled = enabledTaxWalletCount === TAX_WALLETS.length;
   const someTaxWalletsEnabled = enabledTaxWalletCount > 0 && !allTaxWalletsEnabled;
 
-  const taxWalletsValid = useMemo(() => {
-    for (const w of TAX_WALLETS) {
-      if (!enabledTaxWallets[w]) continue;
-      const addr = (taxWallets[w] ?? "").trim();
-      if (!addr) return false;
-      if (!isAddress(addr)) return false;
-      if (addr.toLowerCase() === zeroAddress.toLowerCase()) return false;
-    }
-    return true;
-  }, [enabledTaxWallets, taxWallets]);
-
   function toggleTaxWallet(w: (typeof TAX_WALLETS)[number]) {
     const nextEnabled = !enabledTaxWallets[w];
     setEnabledTaxWallets({ ...enabledTaxWallets, [w]: nextEnabled });
@@ -182,7 +170,6 @@ export function TokenCreateForm() {
       const nextPercents = { ...taxAllocPercents };
       delete nextPercents[bpsKey];
       setTaxAllocPercents(nextPercents);
-      setTaxWallets({ ...taxWallets, [w]: "" });
     }
   }
 
@@ -194,7 +181,6 @@ export function TokenCreateForm() {
       setTaxBps({ ...EMPTY_TAX_BPS });
       setTaxAllocTokens({});
       setTaxAllocPercents({});
-      setTaxWallets({});
     }
   }
 
@@ -293,18 +279,18 @@ export function TokenCreateForm() {
 
     const flags = encodeFeatureFlags(selectedFeatures);
     const taxDist = {
-      marketingWallet: (enabledTaxWallets.marketingWallet ? (taxWallets.marketingWallet ?? zeroAddress) : zeroAddress) as `0x${string}`,
-      developmentWallet: (enabledTaxWallets.developmentWallet ? (taxWallets.developmentWallet ?? zeroAddress) : zeroAddress) as `0x${string}`,
-      treasuryWallet: (enabledTaxWallets.treasuryWallet ? (taxWallets.treasuryWallet ?? zeroAddress) : zeroAddress) as `0x${string}`,
-      communityWallet: (enabledTaxWallets.communityWallet ? (taxWallets.communityWallet ?? zeroAddress) : zeroAddress) as `0x${string}`,
-      operationsWallet: (enabledTaxWallets.operationsWallet ? (taxWallets.operationsWallet ?? zeroAddress) : zeroAddress) as `0x${string}`,
-      liquidityWallet: (enabledTaxWallets.liquidityWallet ? (taxWallets.liquidityWallet ?? zeroAddress) : zeroAddress) as `0x${string}`,
-      marketingBps: taxBps.marketingBps,
-      developmentBps: taxBps.developmentBps,
-      treasuryBps: taxBps.treasuryBps,
-      communityBps: taxBps.communityBps,
-      operationsBps: taxBps.operationsBps,
-      liquidityBps: taxBps.liquidityBps,
+      marketingWallet: zeroAddress,
+      developmentWallet: zeroAddress,
+      treasuryWallet: zeroAddress,
+      communityWallet: zeroAddress,
+      operationsWallet: zeroAddress,
+      liquidityWallet: zeroAddress,
+      marketingBps: enabledTaxWallets.marketingWallet ? taxBps.marketingBps : 0,
+      developmentBps: enabledTaxWallets.developmentWallet ? taxBps.developmentBps : 0,
+      treasuryBps: enabledTaxWallets.treasuryWallet ? taxBps.treasuryBps : 0,
+      communityBps: enabledTaxWallets.communityWallet ? taxBps.communityBps : 0,
+      operationsBps: enabledTaxWallets.operationsWallet ? taxBps.operationsBps : 0,
+      liquidityBps: enabledTaxWallets.liquidityWallet ? taxBps.liquidityBps : 0,
     };
 
     writeContract(
@@ -703,8 +689,8 @@ export function TokenCreateForm() {
             {hasTax && (
               <>
                 <p className="text-sm text-muted-foreground">
-                  Enter buy/sell tax and wallet splits as a percentage or as token amounts. On-chain values are
-                  converted automatically.
+                  Set buy/sell tax rates and allocation splits now. Wallet addresses are configured
+                  after deployment on the token&apos;s Ownership page.
                 </p>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <TaxRateInput
@@ -760,40 +746,30 @@ export function TokenCreateForm() {
                       </div>
 
                       {enabled ? (
-                        <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                          <div>
-                            <Label>{TAX_WALLET_LABELS[w]} address</Label>
+                        <div className="mt-3">
+                          <Label>
+                            {taxAllocUnit === "percent" ? "Allocation (% of tax)" : "Allocation (tokens)"}
+                          </Label>
+                          {taxAllocUnit === "percent" ? (
                             <Input
-                              placeholder="0x..."
-                              value={taxWallets[w] ?? ""}
-                              onChange={(e) => setTaxWallets({ ...taxWallets, [w]: e.target.value })}
+                              value={taxAllocPercents[bpsKey] ?? ""}
+                              onChange={(e) => setTaxAllocPercent(bpsKey, e.target.value)}
+                              placeholder="e.g. 20"
+                              inputMode="decimal"
                             />
-                          </div>
-                          <div>
-                            <Label>
-                              {taxAllocUnit === "percent" ? "Allocation (% of tax)" : "Allocation (tokens)"}
-                            </Label>
-                            {taxAllocUnit === "percent" ? (
-                              <Input
-                                value={taxAllocPercents[bpsKey] ?? ""}
-                                onChange={(e) => setTaxAllocPercent(bpsKey, e.target.value)}
-                                placeholder="e.g. 20"
-                                inputMode="decimal"
-                              />
-                            ) : (
-                              <Input
-                                value={taxAllocTokens[bpsKey] ?? ""}
-                                onChange={(e) => setTaxAllocTokenAmount(bpsKey, e.target.value)}
-                                placeholder="Token amount"
-                                inputMode="decimal"
-                              />
-                            )}
-                            {bps > 0 && (
-                              <p className="mt-1 text-xs text-muted-foreground">
-                                {`${(bps / 100).toFixed(2)}%`} · {bps} bps
-                              </p>
-                            )}
-                          </div>
+                          ) : (
+                            <Input
+                              value={taxAllocTokens[bpsKey] ?? ""}
+                              onChange={(e) => setTaxAllocTokenAmount(bpsKey, e.target.value)}
+                              placeholder="Token amount"
+                              inputMode="decimal"
+                            />
+                          )}
+                          {bps > 0 && (
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              {`${(bps / 100).toFixed(2)}%`} · {bps} bps
+                            </p>
+                          )}
                         </div>
                       ) : (
                         <p className="mt-2 text-xs text-muted-foreground">Disabled (0%).</p>
@@ -805,12 +781,7 @@ export function TokenCreateForm() {
                   Tax allocation total: {taxTotal / 100}% (must equal 100%)
                 </p>
                 {enabledTaxWalletCount === 0 && (
-                  <p className="text-sm text-red-600">Enable at least one wallet for tax allocation.</p>
-                )}
-                {!taxWalletsValid && enabledTaxWalletCount > 0 && (
-                  <p className="text-sm text-red-600">
-                    Enter a valid wallet address for every enabled allocation.
-                  </p>
+                  <p className="text-sm text-red-600">Enable at least one allocation slot.</p>
                 )}
               </>
             )}
@@ -850,8 +821,7 @@ export function TokenCreateForm() {
                 disabled={
                   (hasTax && !taxRatesValid) ||
                   (hasTax && enabledTaxWalletCount === 0) ||
-                  (hasTax && taxTotal !== 10000) ||
-                  (hasTax && !taxWalletsValid)
+                  (hasTax && taxTotal !== 10000)
                 }
               >
                 Continue

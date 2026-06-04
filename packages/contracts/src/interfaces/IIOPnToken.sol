@@ -45,4 +45,5 @@ interface IIOPnToken {
     event TradingEnabledUpdated(bool enabled);
     event OwnershipRenounced(address indexed previousOwner);
     event TokenDeployed(address indexed token, address indexed creator, uint256 featureFlags);
+    event TaxWalletUpdated(uint8 indexed slot, address wallet);
 }
