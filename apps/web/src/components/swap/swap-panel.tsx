@@ -259,9 +259,8 @@ export function SwapPanel({ initialToken = "", initialMode = "buy" }: SwapPanelP
               <Label>You sell (tokens)</Label>
             )}
             <Input
-              type="number"
-              min="0"
-              step="any"
+              type="text"
+              inputMode="decimal"
               placeholder="0.0"
               value={amountIn}
               onChange={(e) => setAmountIn(e.target.value)}

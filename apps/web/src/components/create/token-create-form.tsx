@@ -51,6 +51,15 @@ import { AlertTriangle, Lock } from "lucide-react";
 
 const FEATURE_ENTRIES = Object.entries(TOKEN_FEATURES) as [keyof typeof TOKEN_FEATURES, number][];
 
+const EMPTY_TAX_BPS: Record<string, number> = {
+  marketingBps: 0,
+  developmentBps: 0,
+  treasuryBps: 0,
+  communityBps: 0,
+  operationsBps: 0,
+  liquidityBps: 0,
+};
+
 const SOCIAL_LINK_FIELDS = [
   { key: "website" as const, label: "Website", placeholder: "https://yourproject.com" },
   { key: "github" as const, label: "GitHub", placeholder: "https://github.com/your-org/your-repo" },
@@ -83,21 +92,15 @@ export function TokenCreateForm() {
   const [buyTaxTokensPerTransfer, setBuyTaxTokensPerTransfer] = useState(() => bpsToTaxPerToken(250));
   const [sellTaxTokensPerTransfer, setSellTaxTokensPerTransfer] = useState(() => bpsToTaxPerToken(250));
   const [taxAllocUnit, setTaxAllocUnit] = useState<SupplyInputUnit>("percent");
+  const [taxAllocPercents, setTaxAllocPercents] = useState<Record<string, string>>({});
   const [taxAllocTokens, setTaxAllocTokens] = useState<Record<string, string>>({});
   const [enabledTaxWallets, setEnabledTaxWallets] = useState<Record<string, boolean>>(() => {
     const init: Record<string, boolean> = {};
-    for (const w of TAX_WALLETS) init[w] = true;
+    for (const w of TAX_WALLETS) init[w] = false;
     return init;
   });
   const [taxWallets, setTaxWallets] = useState<Record<string, string>>({});
-  const [taxBps, setTaxBps] = useState<Record<string, number>>({
-    marketingBps: 2000,
-    developmentBps: 2000,
-    treasuryBps: 2000,
-    communityBps: 2000,
-    operationsBps: 1000,
-    liquidityBps: 1000,
-  });
+  const [taxBps, setTaxBps] = useState<Record<string, number>>({ ...EMPTY_TAX_BPS });
   const [antiBot, setAntiBot] = useState({
     launchGuardEnabled: true,
     maxLaunchBuyUnit: "percent" as SupplyInputUnit,
@@ -153,6 +156,9 @@ export function TokenCreateForm() {
     [enabledTaxWallets]
   );
 
+  const allTaxWalletsEnabled = enabledTaxWalletCount === TAX_WALLETS.length;
+  const someTaxWalletsEnabled = enabledTaxWalletCount > 0 && !allTaxWalletsEnabled;
+
   const taxWalletsValid = useMemo(() => {
     for (const w of TAX_WALLETS) {
       if (!enabledTaxWallets[w]) continue;
@@ -173,12 +179,22 @@ export function TokenCreateForm() {
       const nextTokens = { ...taxAllocTokens };
       delete nextTokens[bpsKey];
       setTaxAllocTokens(nextTokens);
+      const nextPercents = { ...taxAllocPercents };
+      delete nextPercents[bpsKey];
+      setTaxAllocPercents(nextPercents);
       setTaxWallets({ ...taxWallets, [w]: "" });
-    } else {
-      // If user enables a wallet and some allocation is still unassigned, give it the remainder by default.
-      const bpsKey = `${w.replace("Wallet", "Bps")}` as keyof typeof taxBps;
-      const remainder = Math.max(0, 10000 - taxTotal);
-      if (remainder > 0) setTaxBps({ ...taxBps, [bpsKey]: remainder });
+    }
+  }
+
+  function toggleAllTaxWallets(enable: boolean) {
+    const nextEnabled: Record<string, boolean> = {};
+    for (const w of TAX_WALLETS) nextEnabled[w] = enable;
+    setEnabledTaxWallets(nextEnabled);
+    if (!enable) {
+      setTaxBps({ ...EMPTY_TAX_BPS });
+      setTaxAllocTokens({});
+      setTaxAllocPercents({});
+      setTaxWallets({});
     }
   }
 
@@ -188,10 +204,27 @@ export function TokenCreateForm() {
       const nextTokens: Record<string, string> = {};
       for (const w of TAX_WALLETS) {
         const bpsKey = `${w.replace("Wallet", "Bps")}` as keyof typeof taxBps;
-        nextTokens[bpsKey] = bpsToTokenAmountString(supply, taxBps[bpsKey] ?? 0);
+        const percent = taxAllocPercents[bpsKey]?.trim();
+        if (percent) {
+          nextTokens[bpsKey] = bpsToTokenAmountString(supply, percentToAllocationBps(percent));
+        } else {
+          nextTokens[bpsKey] = taxAllocTokens[bpsKey] ?? bpsToTokenAmountString(supply, taxBps[bpsKey] ?? 0);
+        }
       }
       setTaxAllocTokens(nextTokens);
     } else {
+      const nextPercents: Record<string, string> = {};
+      for (const w of TAX_WALLETS) {
+        const bpsKey = `${w.replace("Wallet", "Bps")}` as keyof typeof taxBps;
+        const tokens = taxAllocTokens[bpsKey];
+        if (tokens?.trim()) {
+          const bps = tokenAmountToBps(supply, tokens);
+          nextPercents[bpsKey] = bps > 0 ? bpsToPercentString(bps) : "";
+        } else if ((taxBps[bpsKey] ?? 0) > 0) {
+          nextPercents[bpsKey] = bpsToPercentString(taxBps[bpsKey] ?? 0);
+        }
+      }
+      setTaxAllocPercents(nextPercents);
       const nextBps = { ...taxBps };
       for (const w of TAX_WALLETS) {
         const bpsKey = `${w.replace("Wallet", "Bps")}` as keyof typeof taxBps;
@@ -206,6 +239,7 @@ export function TokenCreateForm() {
   }
 
   function setTaxAllocPercent(bpsKey: string, percentRaw: string) {
+    setTaxAllocPercents({ ...taxAllocPercents, [bpsKey]: percentRaw });
     setTaxBps({ ...taxBps, [bpsKey]: percentToAllocationBps(percentRaw) });
   }
 
@@ -599,7 +633,7 @@ export function TokenCreateForm() {
             </div>
             <div className="sm:col-span-2">
               <Label>Initial supply</Label>
-              <Input value={supply} onChange={(e) => setSupply(e.target.value)} type="number" />
+              <Input value={supply} onChange={(e) => setSupply(e.target.value)} inputMode="decimal" placeholder="1000000" />
             </div>
             <Button className="sm:col-span-2" onClick={() => setStep(2)} disabled={!name || !symbol}>
               Continue
@@ -700,7 +734,16 @@ export function TokenCreateForm() {
                 </div>
                 <div className="flex flex-wrap items-center justify-between gap-2 border-t pt-4">
                   <Label className="mb-0">Tax wallet allocation</Label>
-                  <AmountUnitToggle unit={taxAllocUnit} onUnitChange={switchTaxAllocUnit} />
+                  <div className="flex flex-wrap items-center gap-3">
+                    <label className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground">
+                      <Checkbox
+                        checked={allTaxWalletsEnabled ? true : someTaxWalletsEnabled ? "indeterminate" : false}
+                        onCheckedChange={(checked) => toggleAllTaxWallets(checked === true)}
+                      />
+                      Select all
+                    </label>
+                    <AmountUnitToggle unit={taxAllocUnit} onUnitChange={switchTaxAllocUnit} />
+                  </div>
                 </div>
                 {TAX_WALLETS.map((w) => {
                   const bpsKey = `${w.replace("Wallet", "Bps")}` as keyof typeof taxBps;
@@ -710,13 +753,8 @@ export function TokenCreateForm() {
                     <div key={w} className="rounded-lg border p-3">
                       <div className="flex items-center justify-between gap-3">
                         <Label className="mb-0">{TAX_WALLET_LABELS[w]}</Label>
-                        <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={enabled}
-                            onChange={() => toggleTaxWallet(w)}
-                            className="h-4 w-4"
-                          />
+                        <label className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground">
+                          <Checkbox checked={enabled} onCheckedChange={() => toggleTaxWallet(w)} />
                           Enable
                         </label>
                       </div>
@@ -732,25 +770,29 @@ export function TokenCreateForm() {
                             />
                           </div>
                           <div>
-                            <Label>Allocation (% of tax)</Label>
+                            <Label>
+                              {taxAllocUnit === "percent" ? "Allocation (% of tax)" : "Allocation (tokens)"}
+                            </Label>
                             {taxAllocUnit === "percent" ? (
                               <Input
-                                value={bpsToPercentString(bps)}
+                                value={taxAllocPercents[bpsKey] ?? ""}
                                 onChange={(e) => setTaxAllocPercent(bpsKey, e.target.value)}
-                                placeholder="e.g. 100"
+                                placeholder="e.g. 20"
                                 inputMode="decimal"
                               />
                             ) : (
                               <Input
-                                value={taxAllocTokens[bpsKey] ?? bpsToTokenAmountString(supply, bps)}
+                                value={taxAllocTokens[bpsKey] ?? ""}
                                 onChange={(e) => setTaxAllocTokenAmount(bpsKey, e.target.value)}
-                                placeholder="e.g. 200000"
+                                placeholder="Token amount"
                                 inputMode="decimal"
                               />
                             )}
-                            <p className="mt-1 text-xs text-muted-foreground">
-                              {`${(bps / 100).toFixed(2)}%`} · {bps} bps
-                            </p>
+                            {bps > 0 && (
+                              <p className="mt-1 text-xs text-muted-foreground">
+                                {`${(bps / 100).toFixed(2)}%`} · {bps} bps
+                              </p>
+                            )}
                           </div>
                         </div>
                       ) : (

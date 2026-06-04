@@ -9,22 +9,21 @@ import {
 } from "viem";
 import { uniswapV2RouterAbi, opnDexRouterAbi, erc20Abi } from "./abis";
 import { SWAP_DEADLINE_SECONDS, type RouterType, type SwapMode } from "./constants";
-import { getWopnAddress } from "@/lib/chain-config/opn";
+import { opnChainConfig, getWopnAddress } from "@/lib/chain-config/opn";
 import { type PayToken, isPayTokenConfigured } from "./payment-tokens";
 
-const PRIMARY_ROUTER = (process.env.NEXT_PUBLIC_DEX_ROUTER_ADDRESS ??
-  process.env.NEXT_PUBLIC_PRIMARY_DEX_ROUTER ??
-  "0x0000000000000000000000000000000000000000") as Address;
+const ZERO = "0x0000000000000000000000000000000000000000" as Address;
 
-const UNISWAP_ROUTER = (process.env.NEXT_PUBLIC_UNISWAP_ROUTER_ADDRESS ??
-  "0x0000000000000000000000000000000000000000") as Address;
+const PRIMARY_ROUTER = opnChainConfig.contracts.dexRouter;
+
+const UNISWAP_ROUTER = (process.env.NEXT_PUBLIC_UNISWAP_ROUTER_ADDRESS ?? ZERO) as Address;
 
 const WETH_OVERRIDE = (process.env.NEXT_PUBLIC_WETH_ADDRESS ??
   process.env.NEXT_PUBLIC_WOPN_ADDRESS ??
   getWopnAddress()) as Address;
 
 export function getRouterAddress(type: RouterType = "primary"): Address {
-  if (type === "uniswap" && UNISWAP_ROUTER !== "0x0000000000000000000000000000000000000000") {
+  if (type === "uniswap" && UNISWAP_ROUTER !== ZERO) {
     return UNISWAP_ROUTER;
   }
   return PRIMARY_ROUTER;
@@ -39,11 +38,11 @@ export function isValidTokenAddress(address: string): address is Address {
 }
 
 export async function getWethAddress(client: PublicClient, routerType: RouterType = "primary"): Promise<Address> {
-  if (WETH_OVERRIDE && WETH_OVERRIDE !== "0x0000000000000000000000000000000000000000") {
+  if (WETH_OVERRIDE && WETH_OVERRIDE !== ZERO) {
     return WETH_OVERRIDE;
   }
   const router = getRouterAddress(routerType);
-  if (router === "0x0000000000000000000000000000000000000000") {
+  if (router === ZERO) {
     throw new Error("DEX router is not configured");
   }
   const abi = getRouterAbi(routerType);
@@ -120,8 +119,8 @@ export async function fetchSwapQuote(params: SwapQuoteParams): Promise<SwapQuote
   const { client, tokenAddress, amountIn, mode, payToken, routerType = "primary" } = params;
   const routerAddress = getRouterAddress(routerType);
 
-  if (routerAddress === "0x0000000000000000000000000000000000000000") {
-    throw new Error("Swap router is not configured. Set NEXT_PUBLIC_DEX_ROUTER_ADDRESS.");
+  if (routerAddress === ZERO) {
+    throw new Error("Swap router is not configured.");
   }
 
   if (!isPayTokenConfigured(payToken)) {
