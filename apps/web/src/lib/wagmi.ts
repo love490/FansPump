@@ -12,7 +12,7 @@ import {
   OPN_RPC_URLS,
 } from "./chain-config/opn";
 
-/** OPNChain Testnet — multi-RPC with automatic fallback */
+/** OPNChain Testnet — RPC via testnet-rpc2.iopn.tech */
 export { OPN_CHAIN_ID, OPN_RPC_URL, OPN_RPC_URLS, OPN_EXPLORER_URL };
 
 const rpcUrls = getOpnRpcUrls();

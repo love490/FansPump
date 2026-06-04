@@ -3,18 +3,15 @@ import type { Address } from "viem";
 /** OPNChain Testnet — single source of truth for chain + ecosystem tokens. */
 export const OPN_CHAIN_ID = 984;
 
-/** Official OPN testnet RPC endpoints — primary first, fallback second. */
-export const OPN_RPC_URLS = [
-  "https://testnet-rpc.iopn.tech/",
-  "https://testnet-rpc2.iopn.tech/",
-] as const;
+/** Official OPN testnet RPC endpoint. */
+export const OPN_RPC_URLS = ["https://testnet-rpc2.iopn.tech/"] as const;
 
 /** Primary RPC (backwards compatible). */
 export const OPN_RPC_URL = OPN_RPC_URLS[0];
 
 export const OPN_EXPLORER_URL = "https://testnet.iopn.tech/";
 
-/** Resolve RPC list: env override (comma-separated) or built-in fallbacks. */
+/** Resolve RPC list: env override or the default testnet-rpc2 endpoint. */
 export function getOpnRpcUrls(): string[] {
   const env = process.env.NEXT_PUBLIC_RPC_URL?.trim();
   if (env) {
