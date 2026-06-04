@@ -5,12 +5,13 @@ import Link from "next/link";
 import {
   useAccount,
   useBalance,
+  useChainId,
   usePublicClient,
   useReadContract,
   useWaitForTransactionReceipt,
   useWriteContract,
 } from "wagmi";
-import { formatUnits, maxUint256, parseEther, parseUnits, type Address } from "viem";
+import { formatUnits, maxUint256, parseEther, parseUnits, type Address, type Hash } from "viem";
 import { SwapTokenPicker } from "@/components/swap/swap-token-picker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,8 +19,9 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useWalletLiquidityTokens } from "@/hooks/liquidity/useWalletLiquidityTokens";
 import { tokenAbi } from "@/lib/abis/factory";
-import { DEX_ROUTER_ADDRESS } from "@/lib/wagmi";
+import { DEX_ROUTER_ADDRESS, opnChain } from "@/lib/wagmi";
 import { dexRouterLiquidityAbi } from "@/lib/liquidity/dex-router-abi";
+import { simulateAddLiquidity } from "@/lib/liquidity/add-liquidity-tx";
 import {
   getLiquidityPair,
   LIQUIDITY_DEADLINE_SECONDS,
@@ -30,11 +32,14 @@ import {
 import { isValidTokenAddress } from "@/lib/swap/routerAdapter";
 import { erc20Abi } from "@/lib/swap/abis";
 import { cn, shortenAddress } from "@/lib/utils";
+import { opnChainConfig } from "@/lib/chain-config/opn";
 
 type AddLiquidityPanelProps = {
   initialToken?: string;
   showManageLink?: boolean;
 };
+
+type LiquidityAction = "idle" | "approve-token" | "approve-pair" | "add";
 
 function formatBalance(amount: bigint, decimals: number, maxFrac = 4): string {
   const raw = formatUnits(amount, decimals);
@@ -45,8 +50,17 @@ function formatBalance(amount: bigint, decimals: number, maxFrac = 4): string {
   return n.toLocaleString(undefined, { maximumFractionDigits: maxFrac });
 }
 
+function parseError(e: unknown): string {
+  if (e instanceof Error) return e.message;
+  if (typeof e === "object" && e && "shortMessage" in e && typeof (e as { shortMessage: string }).shortMessage === "string") {
+    return (e as { shortMessage: string }).shortMessage;
+  }
+  return "Transaction failed";
+}
+
 export function AddLiquidityPanel({ initialToken = "", showManageLink = true }: AddLiquidityPanelProps) {
   const { address, isConnected } = useAccount();
+  const chainId = useChainId();
   const client = usePublicClient();
   const { tokens: walletTokens, loading: walletLoading, refresh: refreshWalletTokens } =
     useWalletLiquidityTokens(address);
@@ -57,13 +71,26 @@ export function AddLiquidityPanel({ initialToken = "", showManageLink = true }: 
   const [pairAmount, setPairAmount] = useState("");
   const [tokenDecimals, setTokenDecimals] = useState(18);
   const [status, setStatus] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [action, setAction] = useState<LiquidityAction>("idle");
+  const [lastTxHash, setLastTxHash] = useState<Hash | undefined>();
 
   const pair = getLiquidityPair(pairId);
   const validToken = isValidTokenAddress(tokenAddress);
   const pairConflict = validToken && pairConflictsWithToken(pair, tokenAddress);
+  const wrongNetwork = isConnected && chainId !== opnChain.id;
 
-  const { writeContractAsync, data: hash, isPending, reset } = useWriteContract();
-  const { isLoading: confirming } = useWaitForTransactionReceipt({ hash });
+  const { writeContractAsync, isPending: writePending } = useWriteContract();
+  const { isLoading: confirmingReceipt } = useWaitForTransactionReceipt({ hash: lastTxHash });
+
+  const { data: tokenSymbolRaw } = useReadContract({
+    address: validToken ? (tokenAddress as Address) : undefined,
+    abi: erc20Abi,
+    functionName: "symbol",
+  });
+
+  const tokenSymbol =
+    typeof tokenSymbolRaw === "string" && tokenSymbolRaw.length > 0 ? tokenSymbolRaw : "Token";
 
   const { data: tokenBalance, refetch: refetchTokenBalance } = useReadContract({
     address: validToken ? (tokenAddress as Address) : undefined,
@@ -79,9 +106,7 @@ export function AddLiquidityPanel({ initialToken = "", showManageLink = true }: 
     args: address ? [address] : undefined,
   });
 
-  const { data: nativeBalance, refetch: refetchNativeBalance } = useBalance({
-    address,
-  });
+  const { data: nativeBalance, refetch: refetchNativeBalance } = useBalance({ address });
 
   const { data: tokenAllowance, refetch: refetchTokenAllowance } = useReadContract({
     address: validToken ? (tokenAddress as Address) : undefined,
@@ -144,91 +169,153 @@ export function AddLiquidityPanel({ initialToken = "", showManageLink = true }: 
   const needsPairApproval =
     !pair.isNative && parsedPairAmount !== null && (pairAllowance ?? 0n) < parsedPairAmount;
 
-  const pairBalanceDisplay = pair.isNative
-    ? nativeBalance?.value
-    : pairTokenBalance;
+  const pairBalanceDisplay = pair.isNative ? nativeBalance?.value : pairTokenBalance;
   const pairBalanceDecimals = pair.decimals;
 
-  async function approveToken() {
-    if (!validToken) return;
-    setStatus(null);
-    await writeContractAsync({
-      address: tokenAddress as Address,
-      abi: erc20Abi,
-      functionName: "approve",
-      args: [DEX_ROUTER_ADDRESS, maxUint256],
-    });
-    await refetchTokenAllowance();
-    setStatus("Token approved.");
+  const busy = writePending || confirmingReceipt || action !== "idle";
+
+  const amountsValid = Boolean(parsedTokenAmount && parsedPairAmount && !pairConflict);
+
+  async function waitForTx(hash: Hash) {
+    if (!client) throw new Error("Network client unavailable");
+    const receipt = await client.waitForTransactionReceipt({ hash });
+    if (receipt.status !== "success") {
+      throw new Error("Transaction reverted on-chain");
+    }
+    return receipt;
   }
 
-  async function approvePairToken() {
-    if (!pair.address) return;
-    setStatus(null);
-    await writeContractAsync({
-      address: pair.address,
+  async function submitTx(
+    request: Parameters<typeof writeContractAsync>[0],
+    label: string
+  ): Promise<Hash> {
+    setStatus(`${label} — confirm in your wallet…`);
+    setError(null);
+    const hash = await writeContractAsync(request);
+    setLastTxHash(hash);
+    await waitForTx(hash);
+    return hash;
+  }
+
+  async function readAllowance(token: Address, owner: Address): Promise<bigint> {
+    if (!client) return 0n;
+    return client.readContract({
+      address: token,
       abi: erc20Abi,
-      functionName: "approve",
-      args: [DEX_ROUTER_ADDRESS, maxUint256],
+      functionName: "allowance",
+      args: [owner, DEX_ROUTER_ADDRESS],
     });
-    await refetchPairAllowance();
-    setStatus(`${pair.symbol} approved.`);
   }
 
   async function addLiquidity() {
-    if (!address || !validToken || !parsedTokenAmount || !parsedPairAmount || pairConflict) return;
-
-    setStatus(null);
-    const deadline = BigInt(Math.floor(Date.now() / 1000) + LIQUIDITY_DEADLINE_SECONDS);
-
-    if (pair.isNative) {
-      await writeContractAsync({
-        address: DEX_ROUTER_ADDRESS,
-        abi: dexRouterLiquidityAbi,
-        functionName: "addLiquidityETH",
-        args: [tokenAddress as Address, parsedTokenAmount, 0n, 0n, address, deadline],
-        value: parsedPairAmount,
-      });
-    } else if (pair.address) {
-      await writeContractAsync({
-        address: DEX_ROUTER_ADDRESS,
-        abi: dexRouterLiquidityAbi,
-        functionName: "addLiquidity",
-        args: [
-          tokenAddress as Address,
-          pair.address,
-          parsedTokenAmount,
-          parsedPairAmount,
-          0n,
-          0n,
-          address,
-          deadline,
-        ],
-      });
+    if (!address || !client || !validToken || !parsedTokenAmount || !parsedPairAmount || pairConflict) {
+      return;
     }
 
-    setStatus("Liquidity added successfully.");
-    reset();
-    await Promise.all([
-      refetchTokenBalance(),
-      refetchPairBalance(),
-      refetchNativeBalance(),
-      refetchTokenAllowance(),
-      refetchPairAllowance(),
-      refreshWalletTokens(),
-    ]);
+    setAction("add");
+    setError(null);
+
+    try {
+      const tokenAllowanceNow = await readAllowance(tokenAddress as Address, address);
+      if (tokenAllowanceNow < parsedTokenAmount) {
+        setAction("approve-token");
+        await submitTx(
+          {
+            address: tokenAddress as Address,
+            abi: erc20Abi,
+            functionName: "approve",
+            args: [DEX_ROUTER_ADDRESS, maxUint256],
+          },
+          `Step 1 — Approve ${tokenSymbol} in your wallet`
+        );
+        await refetchTokenAllowance();
+      }
+
+      if (!pair.isNative && pair.address) {
+        const pairAllowanceNow = await readAllowance(pair.address, address);
+        if (pairAllowanceNow < parsedPairAmount) {
+          setAction("approve-pair");
+          await submitTx(
+            {
+              address: pair.address,
+              abi: erc20Abi,
+              functionName: "approve",
+              args: [DEX_ROUTER_ADDRESS, maxUint256],
+            },
+            `Step 2 — Approve ${pair.symbol} in your wallet`
+          );
+          await refetchPairAllowance();
+        }
+      }
+
+      setAction("add");
+      const deadline = BigInt(Math.floor(Date.now() / 1000) + LIQUIDITY_DEADLINE_SECONDS);
+
+      const tokenAllowanceFinal = await readAllowance(tokenAddress as Address, address);
+      if (tokenAllowanceFinal < parsedTokenAmount) {
+        throw new Error(`${tokenSymbol} approval failed or was rejected.`);
+      }
+
+      if (!pair.isNative && pair.address) {
+        const pairAllowanceFinal = await readAllowance(pair.address, address);
+        if (pairAllowanceFinal < parsedPairAmount) {
+          throw new Error(`${pair.symbol} approval failed or was rejected.`);
+        }
+      }
+
+      const tx = await simulateAddLiquidity({
+        client,
+        router: DEX_ROUTER_ADDRESS,
+        account: address,
+        token: tokenAddress as Address,
+        pair,
+        amountToken: parsedTokenAmount,
+        amountPair: parsedPairAmount,
+        deadline,
+      });
+
+      setStatus(`Final step — Add liquidity (${tokenSymbol}/${pair.symbol}) in your wallet…`);
+
+      const hash = await writeContractAsync({
+        address: DEX_ROUTER_ADDRESS,
+        abi: dexRouterLiquidityAbi,
+        functionName: tx.functionName,
+        args: [...tx.args],
+        value: tx.value,
+      });
+      setLastTxHash(hash);
+      await waitForTx(hash);
+
+      setStatus(`Liquidity added (${tokenSymbol}/${pair.symbol}).`);
+      await Promise.all([
+        refetchTokenBalance(),
+        refetchPairBalance(),
+        refetchNativeBalance(),
+        refetchTokenAllowance(),
+        refetchPairAllowance(),
+        refreshWalletTokens(),
+      ]);
+    } catch (e) {
+      setError(parseError(e));
+      setStatus(null);
+    } finally {
+      setAction("idle");
+    }
   }
 
-  const busy = isPending || confirming;
-  const canAddLiquidity =
-    isConnected &&
-    validToken &&
-    !pairConflict &&
-    parsedTokenAmount &&
-    parsedPairAmount &&
-    !needsTokenApproval &&
-    !needsPairApproval &&
-    !busy;
+  const pendingSteps =
+    (needsTokenApproval ? 1 : 0) + (needsPairApproval ? 1 : 0) + 1;
+
+  const addLiquidityLabel =
+    action === "approve-token"
+      ? `Approving ${tokenSymbol}… (${pendingSteps} wallet steps)`
+      : action === "approve-pair"
+        ? `Approving ${pair.symbol}… (${pendingSteps} wallet steps)`
+        : action === "add"
+          ? `Adding liquidity…`
+          : pendingSteps > 1
+            ? `Add liquidity (${pendingSteps} steps in wallet)`
+            : `Add liquidity (${tokenSymbol}/${pair.symbol})`;
 
   return (
     <div className="space-y-6">
@@ -342,7 +429,9 @@ export function AddLiquidityPanel({ initialToken = "", showManageLink = true }: 
           <CardHeader>
             <CardTitle>3. Add liquidity</CardTitle>
             <CardDescription>
-              Approve spending, then add liquidity via the OPNChain DEX router.
+              Click once — your wallet will walk you through each step (approve {tokenSymbol}
+              {needsPairApproval ? `, approve ${pair.symbol}` : pair.isNative ? ", send OPN" : ""}, then add
+              liquidity).
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -352,7 +441,7 @@ export function AddLiquidityPanel({ initialToken = "", showManageLink = true }: 
               <>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div>
-                    <Label>Token amount</Label>
+                    <Label>{tokenSymbol} amount</Label>
                     <Input
                       type="text"
                       inputMode="decimal"
@@ -364,7 +453,7 @@ export function AddLiquidityPanel({ initialToken = "", showManageLink = true }: 
                     <p className="mt-1 text-xs text-muted-foreground">
                       Balance:{" "}
                       {tokenBalance !== undefined
-                        ? `${formatBalance(tokenBalance, tokenDecimals)} (wallet)`
+                        ? `${formatBalance(tokenBalance, tokenDecimals)} ${tokenSymbol}`
                         : "—"}
                     </p>
                   </div>
@@ -387,24 +476,47 @@ export function AddLiquidityPanel({ initialToken = "", showManageLink = true }: 
                   </div>
                 </div>
 
-                <div className="flex flex-wrap gap-2">
-                  {needsTokenApproval && (
-                    <Button type="button" variant="outline" disabled={busy} onClick={() => void approveToken()}>
-                      Approve token
-                    </Button>
+                <div className="rounded-lg border border-dashed bg-muted/20 p-3 text-sm text-muted-foreground">
+                  <p className="font-medium text-foreground">One button — wallet will ask for:</p>
+                  <ol className="mt-2 list-decimal space-y-1 pl-4">
+                    {needsTokenApproval && (
+                      <li>
+                        <strong>Approve {tokenSymbol}</strong>
+                      </li>
+                    )}
+                    {needsPairApproval && (
+                      <li>
+                        <strong>Approve {pair.symbol}</strong>
+                      </li>
+                    )}
+                    {pair.isNative && !needsPairApproval && (
+                      <li>
+                        <strong>OPN</strong> included with add liquidity (no OPN approval)
+                      </li>
+                    )}
+                    <li>
+                      <strong>Add liquidity ({tokenSymbol}/{pair.symbol})</strong>
+                    </li>
+                  </ol>
+                  {!needsTokenApproval && !needsPairApproval && (
+                    <p className="mt-2 text-xs text-green-700">Approvals already set — one wallet confirm.</p>
                   )}
-                  {needsPairApproval && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      disabled={busy}
-                      onClick={() => void approvePairToken()}
-                    >
-                      Approve {pair.symbol}
-                    </Button>
-                  )}
-                  <Button type="button" disabled={!canAddLiquidity} onClick={() => void addLiquidity()}>
-                    {busy ? "Confirm in wallet…" : `Add ${pair.symbol} liquidity`}
+                </div>
+
+                {wrongNetwork && (
+                  <p className="text-sm text-amber-700">
+                    Switch your wallet to {opnChain.name} (chain {opnChain.id}).
+                  </p>
+                )}
+
+                <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                  <Button
+                    type="button"
+                    className="w-full sm:w-auto"
+                    disabled={!amountsValid || busy || wrongNetwork}
+                    onClick={() => void addLiquidity()}
+                  >
+                    {addLiquidityLabel}
                   </Button>
                   {showManageLink && (
                     <Button asChild variant="ghost">
@@ -414,8 +526,19 @@ export function AddLiquidityPanel({ initialToken = "", showManageLink = true }: 
                 </div>
 
                 {status && <p className="text-sm text-green-700">{status}</p>}
-                {hash && (
-                  <p className="font-mono text-xs text-muted-foreground">Tx: {shortenAddress(hash, 8)}</p>
+                {error && <p className="text-sm text-red-600">{error}</p>}
+                {lastTxHash && (
+                  <p className="font-mono text-xs text-muted-foreground">
+                    Tx:{" "}
+                    <a
+                      href={`${opnChainConfig.explorerUrl.replace(/\/$/, "")}/tx/${lastTxHash}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="underline"
+                    >
+                      {shortenAddress(lastTxHash, 10)}
+                    </a>
+                  </p>
                 )}
               </>
             )}

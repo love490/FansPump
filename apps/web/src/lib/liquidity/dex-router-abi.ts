@@ -2,6 +2,24 @@
 export const dexRouterLiquidityAbi = [
   {
     type: "function",
+    name: "addLiquidityOPN",
+    inputs: [
+      { name: "token", type: "address" },
+      { name: "amountTokenDesired", type: "uint256" },
+      { name: "amountTokenMin", type: "uint256" },
+      { name: "amountOPNMin", type: "uint256" },
+      { name: "to", type: "address" },
+      { name: "deadline", type: "uint256" },
+    ],
+    outputs: [
+      { name: "amountToken", type: "uint256" },
+      { name: "amountOPN", type: "uint256" },
+      { name: "liquidity", type: "uint256" },
+    ],
+    stateMutability: "payable",
+  },
+  {
+    type: "function",
     name: "addLiquidityETH",
     inputs: [
       { name: "token", type: "address" },

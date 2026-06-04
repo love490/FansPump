@@ -39,21 +39,11 @@ export function WrapPanel() {
       <CardContent className="space-y-4">
         <div className="grid grid-cols-2 gap-2 rounded-lg bg-muted p-1">
           {(["wrap", "unwrap"] as WrapMode[]).map((m) => (
-            <button
-              key={m}
-              type="button"
-              onClick={() => {
-                setMode(m);
-                reset();
-                setAmount("");
-              }}
-              className={cn(
-                "rounded-md py-2 text-sm font-medium transition-colors",
-                mode === m
-                  ? "bg-primary text-primary-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
-              )}
-            >
+            <button key={m} type="button"
+              onClick={() => { setMode(m); reset(); setAmount(""); }}
+              className={cn("rounded-md py-2 text-sm font-medium transition-colors",
+                mode === m ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+              )}>
               {m === "wrap" ? "Wrap OPN → WOPN" : "Unwrap WOPN → OPN"}
             </button>
           ))}
@@ -71,68 +61,43 @@ export function WrapPanel() {
           <div className="flex items-center justify-between">
             <span className="text-sm font-medium">Amount ({fromSymbol})</span>
             {fromBalance && (
-              <button
-                type="button"
-                onClick={() => setAmount(formatEther(fromBalance.value))}
-                className="text-xs text-primary hover:underline"
-              >
+              <button type="button" onClick={() => setAmount(formatEther(fromBalance.value))}
+                className="text-xs text-primary hover:underline">
                 Max: {Number(formatEther(fromBalance.value)).toFixed(4)} {fromSymbol}
               </button>
             )}
           </div>
-          <Input
-            type="text"
-            inputMode="decimal"
-            placeholder="0.0"
-            value={amount}
-            onChange={(e) => {
-              setAmount(e.target.value);
-              reset();
-            }}
-          />
+          <Input type="text" inputMode="decimal" placeholder="0.0" value={amount}
+            onChange={(e) => { setAmount(e.target.value); reset(); }} />
         </div>
 
         <div className="rounded-lg border border-dashed bg-muted/30 p-4">
-          <p className="mb-1 text-xs text-muted-foreground">You receive</p>
+          <p className="text-xs text-muted-foreground mb-1">You receive</p>
           <p className="text-2xl font-semibold tabular-nums">
             {amount && Number(amount) > 0 ? amount : "0"}{" "}
             <span className="text-sm font-normal text-muted-foreground">{toSymbol}</span>
           </p>
-          <p className="mt-1 text-xs text-muted-foreground">1:1 — no fees</p>
+          <p className="text-xs text-muted-foreground mt-1">1:1 — no fees</p>
         </div>
 
         {status === "success" && (
           <div className="rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-800">
-            {mode === "wrap" ? "Wrapped" : "Unwrapped"} successfully!{" "}
+            ✅ {mode === "wrap" ? "Wrapped" : "Unwrapped"} successfully!{" "}
             {hash && (
-              <a
-                href={`${opnChainConfig.explorerUrl.replace(/\/$/, "")}/tx/${hash}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="underline"
-              >
+              <a href={`${opnChainConfig.explorerUrl}tx/${hash}`} target="_blank" rel="noopener noreferrer" className="underline">
                 View tx
               </a>
             )}
           </div>
         )}
-        {wrongNetwork && (
-          <p className="text-sm text-amber-700">
-            Switch your wallet to {opnChain.name} (chain {opnChain.id}).
-          </p>
-        )}
         {error && <p className="text-sm text-red-600">{error}</p>}
 
         {!isConnected ? (
-          <Button className="w-full" onClick={() => openConnectModal?.()}>
-            Connect Wallet
-          </Button>
+          <Button className="w-full" onClick={() => openConnectModal?.()}>Connect Wallet</Button>
         ) : (
-          <Button
-            className="w-full"
+          <Button className="w-full"
             disabled={!amount || Number(amount) <= 0 || status === "pending" || wrongNetwork}
-            onClick={() => void execute(mode, amount)}
-          >
+            onClick={() => execute(mode, amount)}>
             {status === "pending" ? "Processing…" : mode === "wrap" ? "Wrap OPN → WOPN" : "Unwrap WOPN → OPN"}
           </Button>
         )}
