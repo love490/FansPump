@@ -113,26 +113,32 @@ export async function GET(request: NextRequest) {
   const where: Prisma.TokenProjectWhereInput =
     filters.length === 0 ? chainFilter : filters.length === 1 ? filters[0] : { AND: filters };
 
-  const tokens = await prisma.tokenProject.findMany({
-    where,
-    orderBy: q ? { createdAt: "desc" as const } : (orderBy ?? { createdAt: "desc" }),
-    take: q ? Math.min(limit, 20) : limit,
-    select: {
-      id: true,
-      contractAddress: true,
-      chainId: true,
-      name: true,
-      symbol: true,
-      logoUrl: true,
-      description: true,
-      viewCount: true,
-      holderCount: true,
-      isFeatured: true,
-      featureFlags: true,
-      createdAt: true,
-      creator: { select: { verification: { select: { id: true } } } },
-    },
-  });
+  let tokens: Awaited<ReturnType<typeof prisma.tokenProject.findMany>>;
+  try {
+    tokens = await prisma.tokenProject.findMany({
+      where,
+      orderBy: q ? { createdAt: "desc" as const } : (orderBy ?? { createdAt: "desc" }),
+      take: q ? Math.min(limit, 20) : limit,
+      select: {
+        id: true,
+        contractAddress: true,
+        chainId: true,
+        name: true,
+        symbol: true,
+        logoUrl: true,
+        description: true,
+        viewCount: true,
+        holderCount: true,
+        isFeatured: true,
+        featureFlags: true,
+        createdAt: true,
+        creator: { select: { verification: { select: { id: true } } } },
+      },
+    });
+  } catch (e) {
+    console.error("[GET /api/tokens] Prisma error:", e);
+    return NextResponse.json({ error: "Database error", detail: String(e) }, { status: 500 });
+  }
 
   const enriched = tokens.map((t) => ({
     ...t,
