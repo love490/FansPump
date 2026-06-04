@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useAccount, useChainId, usePublicClient, useWaitForTransactionReceipt, useWriteContract } from "wagmi";
+import { useAccount, useChainId, usePublicClient, useReadContract, useWaitForTransactionReceipt, useWriteContract } from "wagmi";
 import { isAddress, parseEther, zeroAddress } from "viem";
 import {
   TOKEN_FEATURES,
@@ -119,7 +119,25 @@ export function TokenCreateForm() {
     github: "",
   });
 
+  const featureFlags = useMemo(
+    () => encodeFeatureFlags(selectedFeatures),
+    [selectedFeatures]
+  );
+
   const { writeContract, data: txHash, isPending, error: writeError, reset: resetWrite } = useWriteContract();
+  const { data: onChainCreationFee } = useReadContract({
+    address: FACTORY_ADDRESS,
+    abi: factoryAbi,
+    functionName: "calculateCreationFee",
+    args: [BigInt(featureFlags)],
+    query: { enabled: factoryReady },
+  });
+  const { data: factoryPaused } = useReadContract({
+    address: FACTORY_ADDRESS,
+    abi: factoryAbi,
+    functionName: "paused",
+    query: { enabled: factoryReady },
+  });
   const { data: receipt, isLoading: confirming, isSuccess } = useWaitForTransactionReceipt({
     hash: txHash,
   });
@@ -138,7 +156,15 @@ export function TokenCreateForm() {
     );
   }
 
-  const taxTotal = Object.values(taxBps).reduce((a, b) => a + b, 0);
+  const enabledTaxTotal = useMemo(
+    () =>
+      TAX_WALLETS.reduce((sum, w) => {
+        if (!enabledTaxWallets[w]) return sum;
+        const bpsKey = `${w.replace("Wallet", "Bps")}` as keyof typeof taxBps;
+        return sum + (taxBps[bpsKey] ?? 0);
+      }, 0),
+    [enabledTaxWallets, taxBps]
+  );
   const hasTax = selectedFeatures.includes(TOKEN_FEATURES.TAXABLE);
   const hasAntiBot = selectedFeatures.includes(TOKEN_FEATURES.ANTI_BOT);
   const totalCreationFee = calculateCreationFeeOpn(selectedFeatures);
@@ -234,10 +260,75 @@ export function TokenCreateForm() {
     setTaxBps({ ...taxBps, [bpsKey]: tokenAmountToBps(supply, tokenRaw) });
   }
 
+  function parseTokenAmount(raw: string, label: string): bigint {
+    const cleaned = raw.replace(/,/g, "").trim();
+    if (!cleaned) throw new Error(`Enter a valid ${label}`);
+    try {
+      const amount = parseEther(cleaned);
+      if (amount <= 0n) throw new Error(`${label} must be greater than zero`);
+      return amount;
+    } catch {
+      throw new Error(`Enter a valid ${label}`);
+    }
+  }
+
+  const deployBlockReason = useMemo(() => {
+    if (!isConnected) return "Connect your wallet to deploy.";
+    if (!factoryReady) return factoryConfigError ?? "Factory contract is not configured.";
+    if (factoryPaused) return "Token factory is paused. Try again later.";
+    if (wrongNetwork) return `Switch your wallet to ${opnChain.name} (chain ${opnChain.id}).`;
+    if (!name.trim() || !symbol.trim()) return "Token name and symbol are required.";
+    if (hasTax && !taxRatesValid) return "Buy and sell tax must be 5% or less.";
+    if (hasTax && enabledTaxWalletCount === 0) return "Enable at least one tax allocation slot.";
+    if (hasTax && enabledTaxTotal !== 10000) {
+      return `Tax allocation must total 100% (currently ${(enabledTaxTotal / 100).toFixed(2)}%).`;
+    }
+    if (selectedFeatures.includes(TOKEN_FEATURES.MAX_WALLET) && !maxWallet.trim()) {
+      return "Enter a max wallet amount.";
+    }
+    if (selectedFeatures.includes(TOKEN_FEATURES.MAX_TX) && !maxTx.trim()) {
+      return "Enter a max transaction amount.";
+    }
+    if (hasAntiBot && antiBot.launchGuardEnabled) {
+      if (maxLaunchBuyAmount <= 0n || maxLaunchWalletAmount <= 0n) {
+        return "Anti-bot max buy and max wallet must be greater than zero.";
+      }
+      if (!/^\d+$/.test(antiBot.protectionDuration.trim())) {
+        return "Enter a valid protection duration in seconds.";
+      }
+    }
+    return null;
+  }, [
+    isConnected,
+    factoryReady,
+    factoryConfigError,
+    factoryPaused,
+    wrongNetwork,
+    name,
+    symbol,
+    hasTax,
+    taxRatesValid,
+    enabledTaxWalletCount,
+    enabledTaxTotal,
+    selectedFeatures,
+    maxWallet,
+    maxTx,
+    hasAntiBot,
+    antiBot.launchGuardEnabled,
+    antiBot.protectionDuration,
+    maxLaunchBuyAmount,
+    maxLaunchWalletAmount,
+  ]);
+
   async function deploy() {
     if (!address) return;
     setDeployError(null);
     resetWrite();
+
+    if (deployBlockReason) {
+      setDeployError(deployBlockReason);
+      return;
+    }
 
     const configError = getFactoryConfigError();
     if (configError) {
@@ -272,12 +363,36 @@ export function TokenCreateForm() {
       return;
     }
 
+    let initialSupply: bigint;
+    let maxWalletAmount: bigint;
+    let maxTxAmount: bigint;
+    let protectionDuration: bigint;
+
+    try {
+      initialSupply = parseTokenAmount(supply, "initial supply");
+      maxWalletAmount = selectedFeatures.includes(TOKEN_FEATURES.MAX_WALLET)
+        ? parseTokenAmount(maxWallet, "max wallet amount")
+        : 0n;
+      maxTxAmount = selectedFeatures.includes(TOKEN_FEATURES.MAX_TX)
+        ? parseTokenAmount(maxTx, "max transaction amount")
+        : 0n;
+      protectionDuration = hasAntiBot ? BigInt(antiBot.protectionDuration.trim()) : 0n;
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Invalid token configuration.";
+      setDeployError(msg);
+      return;
+    }
+
+    const deploymentFee =
+      typeof onChainCreationFee === "bigint"
+        ? onChainCreationFee
+        : parseEther(String(totalCreationFee));
+
     console.log("[deploy] Deploying token…");
     console.log("[deploy] Factory Address:", FACTORY_ADDRESS);
     console.log("[deploy] Chain:", chainId);
-    console.log("[deploy] Deployment Fee:", totalCreationFee, TOKEN_CREATION_FEE_SYMBOL);
+    console.log("[deploy] Deployment Fee:", deploymentFee.toString(), "wei");
 
-    const flags = encodeFeatureFlags(selectedFeatures);
     const taxDist = {
       marketingWallet: zeroAddress,
       developmentWallet: zeroAddress,
@@ -293,36 +408,53 @@ export function TokenCreateForm() {
       liquidityBps: enabledTaxWallets.liquidityWallet ? taxBps.liquidityBps : 0,
     };
 
+    const tokenConfig = {
+      name: name.trim(),
+      symbol: symbol.trim(),
+      initialSupply,
+      featureFlags: BigInt(featureFlags),
+      maxWalletAmount,
+      maxTxAmount,
+      buyTaxBps: hasTax ? buyTax : 0,
+      sellTaxBps: hasTax ? sellTax : 0,
+      taxDistribution: taxDist,
+      antiBot: {
+        launchGuardEnabled: hasAntiBot ? antiBot.launchGuardEnabled : false,
+        maxLaunchBuy: hasAntiBot ? maxLaunchBuyAmount : 0n,
+        maxLaunchWallet: hasAntiBot ? maxLaunchWalletAmount : 0n,
+        protectionDuration,
+      },
+      owner: address,
+    } as const;
+
+    try {
+      await publicClient.simulateContract({
+        account: address,
+        address: FACTORY_ADDRESS,
+        abi: factoryAbi,
+        functionName: "createToken",
+        value: deploymentFee,
+        args: [tokenConfig],
+      });
+    } catch (e) {
+      const msg =
+        e instanceof Error
+          ? e.message.includes("reverted")
+            ? "Transaction would fail on-chain. Check tax allocation totals, feature settings, and creation fee."
+            : e.message
+          : "Could not simulate deployment.";
+      setDeployError(msg);
+      console.error("[deploy] Simulation failed:", e);
+      return;
+    }
+
     writeContract(
       {
         address: FACTORY_ADDRESS,
         abi: factoryAbi,
         functionName: "createToken",
-        value: parseEther(String(totalCreationFee)),
-        args: [
-          {
-            name,
-            symbol,
-            initialSupply: parseEther(supply),
-            featureFlags: BigInt(flags),
-            maxWalletAmount: selectedFeatures.includes(TOKEN_FEATURES.MAX_WALLET)
-              ? parseEther(maxWallet || "0")
-              : 0n,
-            maxTxAmount: selectedFeatures.includes(TOKEN_FEATURES.MAX_TX) ? parseEther(maxTx || "0") : 0n,
-            buyTaxBps: hasTax ? buyTax : 0,
-            sellTaxBps: hasTax ? sellTax : 0,
-            taxDistribution: taxDist,
-            antiBot: {
-              launchGuardEnabled: selectedFeatures.includes(TOKEN_FEATURES.ANTI_BOT)
-                ? antiBot.launchGuardEnabled
-                : false,
-              maxLaunchBuy: hasAntiBot ? maxLaunchBuyAmount : 0n,
-              maxLaunchWallet: hasAntiBot ? maxLaunchWalletAmount : 0n,
-              protectionDuration: BigInt(antiBot.protectionDuration),
-            },
-            owner: address,
-          },
-        ],
+        value: deploymentFee,
+        args: [tokenConfig],
       },
       {
         onSuccess: (hash) => {
@@ -572,6 +704,17 @@ export function TokenCreateForm() {
         </Card>
       )}
 
+      {factoryPaused && (
+        <Card className="border-red-200 bg-red-50">
+          <CardContent className="flex gap-3 pt-6">
+            <AlertTriangle className="h-5 w-5 shrink-0 text-red-700" />
+            <p className="text-sm text-red-900">
+              The token factory is currently paused. Deployment is disabled until it is unpaused.
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
       {wrongNetwork && (
         <Card className="border-amber-200 bg-amber-50">
           <CardContent className="flex gap-3 pt-6">
@@ -777,8 +920,8 @@ export function TokenCreateForm() {
                     </div>
                   );
                 })}
-                <p className={taxTotal === 10000 ? "text-green-700 text-sm" : "text-red-600 text-sm"}>
-                  Tax allocation total: {taxTotal / 100}% (must equal 100%)
+                <p className={enabledTaxTotal === 10000 ? "text-green-700 text-sm" : "text-red-600 text-sm"}>
+                  Tax allocation total: {(enabledTaxTotal / 100).toFixed(2)}% (must equal 100%)
                 </p>
                 {enabledTaxWalletCount === 0 && (
                   <p className="text-sm text-red-600">Enable at least one allocation slot.</p>
@@ -821,7 +964,7 @@ export function TokenCreateForm() {
                 disabled={
                   (hasTax && !taxRatesValid) ||
                   (hasTax && enabledTaxWalletCount === 0) ||
-                  (hasTax && taxTotal !== 10000)
+                  (hasTax && enabledTaxTotal !== 10000)
                 }
               >
                 Continue
@@ -877,24 +1020,22 @@ export function TokenCreateForm() {
             <div className="sm:col-span-2">
               <CreationFee selectedFeatures={selectedFeatures} />
             </div>
-            <div className="sm:col-span-2 flex gap-2">
-              <Button variant="outline" onClick={() => setStep(3)}>Back</Button>
+            <div className="sm:col-span-2 flex flex-col gap-2">
+              {deployBlockReason && (
+                <p className="text-sm text-amber-800">{deployBlockReason}</p>
+              )}
+              <div className="flex gap-2">
+              <Button variant="outline" type="button" onClick={() => setStep(3)}>Back</Button>
               <Button
-                onClick={deploy}
-                disabled={
-                  !isConnected ||
-                  !factoryReady ||
-                  wrongNetwork ||
-                  isPending ||
-                  confirming ||
-                  (hasTax && taxTotal !== 10000) ||
-                  (hasTax && !taxRatesValid)
-                }
+                type="button"
+                onClick={() => void deploy()}
+                disabled={Boolean(deployBlockReason) || isPending || confirming}
               >
                 {isPending || confirming
                   ? "Deploying..."
                   : `Deploy token · ${totalCreationFee} ${TOKEN_CREATION_FEE_SYMBOL}`}
               </Button>
+              </div>
             </div>
           </CardContent>
         </Card>
