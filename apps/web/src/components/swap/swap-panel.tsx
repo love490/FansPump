@@ -52,10 +52,8 @@ interface SwapPanelProps {
 }
 
 const SWAP_MODES: { id: SwapMode; label: string }[] = [
-  { id: "buy", label: "Buy" },
-  { id: "sell", label: "Sell" },
-  { id: "wrap", label: "Wrap" },
-  { id: "unwrap", label: "Unwrap" },
+  { id: "buy", label: "Buy Token" },
+  { id: "sell", label: "Sell Token" },
 ];
 
 function mapWrapStatus(status: string): SwapTxStatus {
@@ -73,7 +71,9 @@ export function SwapPanel({ initialToken = "", initialMode = "buy" }: SwapPanelP
 
   const [tokenAddress, setTokenAddress] = useState(initialToken);
   const [tokenSymbol, setTokenSymbol] = useState<string>("Token");
-  const [mode, setMode] = useState<SwapMode>(initialMode);
+  const [mode, setMode] = useState<SwapMode>(
+    initialMode === "sell" ? "sell" : "buy"
+  );
   const [payToken, setPayToken] = useState<PayToken>(OPN_PAY_TOKEN);
   const [amountIn, setAmountIn] = useState("");
   const [slippage, setSlippage] = useState(DEFAULT_SLIPPAGE);
@@ -85,16 +85,13 @@ export function SwapPanel({ initialToken = "", initialMode = "buy" }: SwapPanelP
   const validToken = isValidTokenAddress(tokenAddress);
   const pairSelected = validToken;
 
-  const isDedicatedWrap = mode === "wrap";
-  const isDedicatedUnwrap = mode === "unwrap";
   const isAutoWrap =
     mode === "buy" && payToken.isNative && validToken && isWopnToken(tokenAddress);
   const isAutoUnwrap =
     mode === "sell" && payToken.isNative && validToken && isWopnToken(tokenAddress);
-  const isWrapOrUnwrap = isDedicatedWrap || isDedicatedUnwrap || isAutoWrap || isAutoUnwrap;
-  const isSwapMode = mode === "buy" || mode === "sell";
+  const isWrapOrUnwrap = isAutoWrap || isAutoUnwrap;
 
-  const swapMode = isSwapMode ? (mode as "buy" | "sell") : "buy";
+  const swapMode = mode;
 
   const { quote, loading, error: quoteError } = useSwapQuote(
     tokenAddress,
@@ -102,7 +99,7 @@ export function SwapPanel({ initialToken = "", initialMode = "buy" }: SwapPanelP
     swapMode,
     payToken,
     slippage,
-    isSwapMode && validToken && !isWrapOrUnwrap
+    validToken && !isWrapOrUnwrap
   );
 
   const approvalToken = quote?.approvalToken as Address | undefined;
@@ -125,21 +122,17 @@ export function SwapPanel({ initialToken = "", initialMode = "buy" }: SwapPanelP
   const { data: wopnBalance } = useBalance({ address, token: wopnAddress });
 
   const needsApproval =
-    isSwapMode && !isWrapOrUnwrap && !!quote?.approvalToken && allowance < (quote?.amountIn ?? 0n);
+    !isWrapOrUnwrap && !!quote?.approvalToken && allowance < (quote?.amountIn ?? 0n);
 
   const minReceived = quote ? applySlippage(quote.amountOut, slippage) : 0n;
 
-  const receiveLabel = isDedicatedWrap
+  const receiveLabel = isAutoWrap
     ? "WOPN"
-    : isDedicatedUnwrap
+    : isAutoUnwrap
       ? "OPN"
-      : isAutoWrap
-        ? "WOPN"
-        : isAutoUnwrap
-          ? "OPN"
-          : swapMode === "buy"
-            ? tokenSymbol
-            : payToken.symbol;
+      : swapMode === "buy"
+        ? tokenSymbol
+        : payToken.symbol;
 
   const receiveDecimals =
     isWrapOrUnwrap || payToken.isNative
@@ -160,15 +153,8 @@ export function SwapPanel({ initialToken = "", initialMode = "buy" }: SwapPanelP
 
   useEffect(() => {
     setTokenAddress(initialToken);
-    setMode(initialMode);
+    setMode(initialMode === "sell" ? "sell" : "buy");
   }, [initialToken, initialMode]);
-
-  useEffect(() => {
-    if (mode === "wrap" || mode === "unwrap") {
-      setTokenAddress(wopnAddress);
-      setPayToken(OPN_PAY_TOKEN);
-    }
-  }, [mode, wopnAddress]);
 
   useEffect(() => {
     if (!validToken) {
@@ -225,11 +211,11 @@ export function SwapPanel({ initialToken = "", initialMode = "buy" }: SwapPanelP
   }
 
   async function handleAction() {
-    if (isDedicatedWrap || isAutoWrap) {
+    if (isAutoWrap) {
       await executeWrap("wrap", amountIn);
       return;
     }
-    if (isDedicatedUnwrap || isAutoUnwrap) {
+    if (isAutoUnwrap) {
       await executeWrap("unwrap", amountIn);
       return;
     }
@@ -241,9 +227,9 @@ export function SwapPanel({ initialToken = "", initialMode = "buy" }: SwapPanelP
     await executeSwap(quote, swapMode, slippage);
   }
 
-  const fromSymbol = isDedicatedWrap || isAutoWrap
+  const fromSymbol = isAutoWrap
     ? "OPN"
-    : isDedicatedUnwrap || isAutoUnwrap
+    : isAutoUnwrap
       ? "WOPN"
       : swapMode === "buy"
         ? payToken.symbol
@@ -251,9 +237,9 @@ export function SwapPanel({ initialToken = "", initialMode = "buy" }: SwapPanelP
           ? tokenSymbol
           : "Token";
 
-  const toSymbol = isDedicatedWrap || isAutoWrap
+  const toSymbol = isAutoWrap
     ? "WOPN"
-    : isDedicatedUnwrap || isAutoUnwrap
+    : isAutoUnwrap
       ? "OPN"
       : swapMode === "buy"
         ? validToken
@@ -261,37 +247,32 @@ export function SwapPanel({ initialToken = "", initialMode = "buy" }: SwapPanelP
           : "Token"
         : payToken.symbol;
 
-  const fromBalance =
-    isDedicatedWrap || isAutoWrap
-      ? nativeBalance
-      : isDedicatedUnwrap || isAutoUnwrap
-        ? wopnBalance
-        : swapMode === "buy"
-          ? payToken.isNative
-            ? nativeBalance
-            : undefined
+  const fromBalance = isAutoWrap
+    ? nativeBalance
+    : isAutoUnwrap
+      ? wopnBalance
+      : swapMode === "buy" && payToken.isNative
+        ? nativeBalance
+        : swapMode === "sell" && validToken && isWopnToken(tokenAddress)
+          ? wopnBalance
           : undefined;
 
   const approveLabel =
     swapMode === "buy" && !payToken.isNative ? `Approve ${payToken.symbol}` : "Approve Token";
 
-  const actionLabel = isDedicatedWrap || isAutoWrap
-    ? "Wrap OPN → WOPN"
-    : isDedicatedUnwrap || isAutoUnwrap
-      ? "Unwrap WOPN → OPN"
-      : isBusy
-        ? "Processing…"
-        : swapMode === "buy"
-          ? "Buy Token"
-          : "Sell Token";
+  const actionBusy = isWrapOrUnwrap ? wrapPending : isBusy;
+
+  const actionLabel = actionBusy
+    ? "Processing…"
+    : swapMode === "buy"
+      ? "Buy Token"
+      : "Sell Token";
 
   const activeStatus = isWrapOrUnwrap ? mapWrapStatus(wrapStatus) : status;
   const activeHash = isWrapOrUnwrap ? wrapHash ?? undefined : hash;
   const activeError = isWrapOrUnwrap ? wrapError : txError;
-  const actionBusy = isWrapOrUnwrap ? wrapPending : isBusy;
 
-  const showTokenPicker = !isDedicatedWrap && !isDedicatedUnwrap;
-  const showPaySelect = isSwapMode && !isWrapOrUnwrap;
+  const showPaySelect = !isWrapOrUnwrap;
 
   return (
     <div className="mx-auto w-full max-w-lg space-y-4">
@@ -302,9 +283,7 @@ export function SwapPanel({ initialToken = "", initialMode = "buy" }: SwapPanelP
               <CardTitle className="flex items-center gap-2">
                 <ArrowDownUp className="h-5 w-5 text-primary" /> Swap
               </CardTitle>
-              <CardDescription>
-                Trade tokens, wrap OPN to WOPN, or unwrap back — all in one panel
-              </CardDescription>
+              <CardDescription>Buy and sell tokens on OPNChain — OPN ↔ WOPN wraps automatically</CardDescription>
             </div>
             {!isWrapOrUnwrap && (
               <div ref={settingsRef} className="relative shrink-0">
@@ -356,7 +335,7 @@ export function SwapPanel({ initialToken = "", initialMode = "buy" }: SwapPanelP
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-2 rounded-lg bg-muted p-1 sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-2 rounded-lg bg-muted p-1">
             {SWAP_MODES.map(({ id, label }) => (
               <button
                 key={id}
@@ -384,36 +363,34 @@ export function SwapPanel({ initialToken = "", initialMode = "buy" }: SwapPanelP
               <span className="text-muted-foreground">To:</span> <strong>{toSymbol}</strong>
             </p>
             {isWrapOrUnwrap && (
-              <p className="mt-1 text-xs text-muted-foreground">1:1 conversion — no slippage</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                OPN ↔ WOPN at 1:1 (wrap/unwrap)
+              </p>
             )}
           </div>
 
-          {showTokenPicker && (
-            <>
-              <SwapTokenPicker value={tokenAddress} onChange={setTokenAddress} />
+          <SwapTokenPicker value={tokenAddress} onChange={setTokenAddress} />
 
-              <div className="flex flex-wrap gap-2">
-                <span className="w-full text-xs font-medium text-muted-foreground">Quick tokens</span>
-                {quickTokens.map((t) => (
-                  <button
-                    key={t.contractAddress}
-                    type="button"
-                    onClick={() => {
-                      setTokenAddress(t.contractAddress);
-                    }}
-                    className={cn(
-                      "rounded-full border px-3 py-1 text-xs font-medium transition-colors",
-                      tokenAddress.toLowerCase() === t.contractAddress.toLowerCase()
-                        ? "border-primary bg-primary/10 text-primary"
-                        : "border-border/60 text-muted-foreground hover:border-border hover:text-foreground"
-                    )}
-                  >
-                    {t.symbol}
-                  </button>
-                ))}
-              </div>
-            </>
-          )}
+          <div className="flex flex-wrap gap-2">
+            <span className="w-full text-xs font-medium text-muted-foreground">Quick tokens</span>
+            {quickTokens.map((t) => (
+              <button
+                key={t.contractAddress}
+                type="button"
+                onClick={() => {
+                  setTokenAddress(t.contractAddress);
+                }}
+                className={cn(
+                  "rounded-full border px-3 py-1 text-xs font-medium transition-colors",
+                  tokenAddress.toLowerCase() === t.contractAddress.toLowerCase()
+                    ? "border-primary bg-primary/10 text-primary"
+                    : "border-border/60 text-muted-foreground hover:border-border hover:text-foreground"
+                )}
+              >
+                {t.symbol}
+              </button>
+            ))}
+          </div>
 
           <div>
             <div className="mb-2 flex items-center justify-between gap-2">
@@ -503,7 +480,7 @@ export function SwapPanel({ initialToken = "", initialMode = "buy" }: SwapPanelP
             <p className="text-2xl font-semibold tabular-nums">
               {pairSelected || isWrapOrUnwrap ? (
                 <>
-                  {isSwapMode && !isWrapOrUnwrap && loading ? "…" : amountOutDisplay}{" "}
+                  {loading && !isWrapOrUnwrap ? "…" : amountOutDisplay}{" "}
                   <span className="text-sm font-normal text-muted-foreground">{receiveLabel}</span>
                 </>
               ) : (
@@ -512,7 +489,7 @@ export function SwapPanel({ initialToken = "", initialMode = "buy" }: SwapPanelP
             </p>
           </div>
 
-          {isSwapMode && pairSelected && !isWrapOrUnwrap && (
+          {pairSelected && !isWrapOrUnwrap && (
             <div className="space-y-2 rounded-lg border border-border/50 bg-muted/20 p-3 text-sm">
               <p className="text-xs font-medium text-muted-foreground">Trade details</p>
               <div className="flex justify-between">
@@ -558,13 +535,9 @@ export function SwapPanel({ initialToken = "", initialMode = "buy" }: SwapPanelP
                 Number(amountIn) <= 0 ||
                 actionBusy ||
                 wrongNetwork ||
-                (isSwapMode &&
-                  !isWrapOrUnwrap &&
-                  (!quote ||
-                    loading ||
-                    !validToken ||
-                    !isPayTokenConfigured(payToken))) ||
-                ((isDedicatedWrap || isDedicatedUnwrap) && !isConnected)
+                !validToken ||
+                (!isWrapOrUnwrap &&
+                  (!quote || loading || !isPayTokenConfigured(payToken)))
               }
               onClick={() => void handleAction()}
             >
@@ -579,13 +552,7 @@ export function SwapPanel({ initialToken = "", initialMode = "buy" }: SwapPanelP
         hash={activeHash}
         error={activeError}
         onReset={resetAll}
-        successLabel={
-          isDedicatedWrap || isAutoWrap
-            ? "Wrapped successfully"
-            : isDedicatedUnwrap || isAutoUnwrap
-              ? "Unwrapped successfully"
-              : "Swap successful"
-        }
+        successLabel="Swap successful"
       />
     </div>
   );

@@ -8,7 +8,7 @@ export default function SwapPage() {
       <div>
         <h1 className="text-2xl font-bold">Swap</h1>
         <p className="text-muted-foreground">
-          Buy, sell, wrap, and unwrap tokens on OPNChain — OPN, WOPN, USDT, and project tokens in one place.
+          Buy and sell tokens on OPNChain — OPN ↔ WOPN converts automatically at 1:1.
         </p>
       </div>
 
