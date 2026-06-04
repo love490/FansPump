@@ -642,9 +642,11 @@ export function TokenCreateForm() {
             </div>
           ) : (
             <>
-              <div className="rounded-lg border bg-white/60 p-3">
-                <p className="text-sm text-muted-foreground">Contract address</p>
-                <p className="break-all font-mono text-sm">{deployedToken}</p>
+              <div className="rounded-lg border border-iopn-200 bg-iopn-50 p-4">
+                <p className="text-sm font-medium text-iopn-800">Contract address</p>
+                <p className="mt-1 break-all font-mono text-sm font-semibold text-iopn-600">
+                  {deployedToken}
+                </p>
               </div>
 
               <div className="flex flex-wrap gap-2">
