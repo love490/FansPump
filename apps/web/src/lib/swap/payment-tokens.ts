@@ -1,4 +1,5 @@
 import type { Address } from "viem";
+import { getWopnAddress } from "@/lib/chain-config/opn";
 import {
   getRegistryPayTokens,
   registryToPayToken,
@@ -16,6 +17,15 @@ const payTokens = getRegistryPayTokens();
 
 export const OPN_PAY_TOKEN: PayToken =
   payTokens.find((t) => t.isNative) ?? payTokens[0];
+
+export const WOPN_PAY_TOKEN: PayToken =
+  payTokens.find((t) => t.symbol === "WOPN") ??
+  payTokens.find((t) => t.address?.toLowerCase() === getWopnAddress().toLowerCase()) ??
+  payTokens[0];
+
+export function isWopnToken(address: string): boolean {
+  return address.toLowerCase() === getWopnAddress().toLowerCase();
+}
 
 export function getBuiltinPayTokens(): PayToken[] {
   return payTokens.filter((t) => t.isNative || !!t.address);

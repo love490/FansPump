@@ -12,9 +12,16 @@ interface SwapTransactionStatusProps {
   hash?: string;
   error?: string | null;
   onReset?: () => void;
+  successLabel?: string;
 }
 
-export function SwapTransactionStatus({ status, hash, error, onReset }: SwapTransactionStatusProps) {
+export function SwapTransactionStatus({
+  status,
+  hash,
+  error,
+  onReset,
+  successLabel = "Swap successful",
+}: SwapTransactionStatusProps) {
   if (status === "idle") return null;
 
   if (status === "pending" || status === "confirming") {
@@ -35,7 +42,7 @@ export function SwapTransactionStatus({ status, hash, error, onReset }: SwapTran
       <DismissibleAlert variant="success" onDismiss={handleDismiss}>
         <div className="flex items-center gap-2 font-medium">
           <CheckCircle2 className="h-4 w-4 text-green-600" />
-          Swap successful
+          {successLabel}
         </div>
         {hash && (
           <div className="mt-3 flex flex-wrap gap-2">
