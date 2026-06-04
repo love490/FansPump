@@ -80,12 +80,32 @@ export function buildSwapPath(
   mode: SwapMode,
   payToken: PayToken
 ): Address[] {
+  const wethNorm = weth.toLowerCase() as Address;
+  const projectNorm = projectToken.toLowerCase() as Address;
+
   if (mode === "buy") {
-    if (payToken.isNative) return [weth, projectToken];
+    if (payToken.isNative) {
+      // native OPN → token: only need weth→token if they differ
+      if (wethNorm === projectNorm) return [weth]; // same token, no swap needed
+      return [weth, projectToken];
+    }
+    const payAddr = payToken.address!.toLowerCase() as Address;
+    if (payAddr === projectNorm) return [payToken.address!]; // already the token
+    if (wethNorm === projectNorm) return [payToken.address!, projectToken]; // skip weth hop
     return [payToken.address!, weth, projectToken];
   }
 
-  if (payToken.isNative) return [projectToken, weth];
+  // sell
+  if (payToken.isNative) {
+    if (wethNorm === projectNorm) return [projectToken]; // same token
+    return [projectToken, weth];
+  }
+  const payAddr = payToken.address!.toLowerCase() as Address;
+  if (projectNorm === payAddr) return [projectToken]; // same token
+  if (wethNorm === projectNorm || wethNorm === payAddr) {
+    // direct path, skip weth hop
+    return [projectToken, payToken.address!];
+  }
   return [projectToken, weth, payToken.address!];
 }
 
@@ -140,6 +160,11 @@ export async function fetchSwapQuote(params: SwapQuoteParams): Promise<SwapQuote
 
   const paymentDecimals = await resolvePayTokenDecimals(client, payToken);
   const weth = await getWethAddress(client, routerType);
+
+  if (tokenAddress.toLowerCase() === weth.toLowerCase() && payToken.isNative) {
+    throw new Error("Cannot swap WOPN for native OPN — they are the same asset.");
+  }
+
   const path = buildSwapPath(weth, tokenAddress, mode, payToken);
 
   const parsedIn =
