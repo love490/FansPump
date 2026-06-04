@@ -11,14 +11,17 @@ const EXT_BY_TYPE: Record<string, string> = {
   "image/gif": "gif",
 };
 
-const r2 = new S3Client({
-  region: "auto",
-  endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
-  credentials: {
-    accessKeyId: process.env.R2_ACCESS_KEY_ID!,
-    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
-  },
-});
+function getR2Client() {
+  const accountId = process.env.R2_ACCOUNT_ID;
+  const accessKeyId = process.env.R2_ACCESS_KEY_ID;
+  const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY;
+  if (!accountId || !accessKeyId || !secretAccessKey) return null;
+  return new S3Client({
+    region: "auto",
+    endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
+    credentials: { accessKeyId, secretAccessKey },
+  });
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -35,19 +38,27 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "File must be 5 MB or smaller" }, { status: 400 });
     }
 
+    const r2 = getR2Client();
+    const bucket = process.env.R2_BUCKET_NAME;
+    const publicUrl = process.env.R2_PUBLIC_URL;
+
+    if (!r2 || !bucket || !publicUrl) {
+      // R2 not configured — return null url so token creation still works without image
+      console.warn("[upload] R2 not configured, skipping image upload");
+      return NextResponse.json({ url: null, path: null });
+    }
+
     const ext = EXT_BY_TYPE[file.type] ?? "png";
     const key = `projects/${randomUUID()}.${ext}`;
 
-    await r2.send(
-      new PutObjectCommand({
-        Bucket: process.env.R2_BUCKET_NAME!,
-        Key: key,
-        Body: Buffer.from(await file.arrayBuffer()),
-        ContentType: file.type,
-      })
-    );
+    await r2.send(new PutObjectCommand({
+      Bucket: bucket,
+      Key: key,
+      Body: Buffer.from(await file.arrayBuffer()),
+      ContentType: file.type,
+    }));
 
-    const url = `${process.env.R2_PUBLIC_URL}/${key}`;
+    const url = `${publicUrl}/${key}`;
     return NextResponse.json({ url, path: key });
   } catch (e) {
     const message = e instanceof Error ? e.message : "Upload failed";
