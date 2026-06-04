@@ -7,6 +7,7 @@ import { RefreshCw } from "lucide-react";
 import { formatEther } from "viem";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DismissibleAlert } from "@/components/ui/dismissible-alert";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { opnChainConfig, getWopnAddress } from "@/lib/chain-config/opn";
@@ -81,16 +82,25 @@ export function WrapPanel() {
         </div>
 
         {status === "success" && (
-          <div className="rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-800">
-            ✅ {mode === "wrap" ? "Wrapped" : "Unwrapped"} successfully!{" "}
+          <DismissibleAlert variant="success" onDismiss={reset}>
+            {mode === "wrap" ? "Wrapped" : "Unwrapped"} successfully!{" "}
             {hash && (
-              <a href={`${opnChainConfig.explorerUrl}tx/${hash}`} target="_blank" rel="noopener noreferrer" className="underline">
+              <a
+                href={`${opnChainConfig.explorerUrl.replace(/\/$/, "")}/tx/${hash}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline"
+              >
                 View tx
               </a>
             )}
-          </div>
+          </DismissibleAlert>
         )}
-        {error && <p className="text-sm text-red-600">{error}</p>}
+        {status === "error" && error && (
+          <DismissibleAlert variant="error" onDismiss={reset}>
+            {error}
+          </DismissibleAlert>
+        )}
 
         {!isConnected ? (
           <Button className="w-full" onClick={() => openConnectModal?.()}>Connect Wallet</Button>

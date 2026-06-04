@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { DismissibleAlert } from "@/components/ui/dismissible-alert";
 import { useWalletLiquidityTokens } from "@/hooks/liquidity/useWalletLiquidityTokens";
 import { tokenAbi } from "@/lib/abis/factory";
 import { DEX_ROUTER_ADDRESS, opnChain } from "@/lib/wagmi";
@@ -317,6 +318,15 @@ export function AddLiquidityPanel({ initialToken = "", showManageLink = true }: 
             ? `Add liquidity (${pendingSteps} steps in wallet)`
             : `Add liquidity (${tokenSymbol}/${pair.symbol})`;
 
+  const terminalSuccess =
+    Boolean(status && !busy && status.toLowerCase().includes("liquidity added"));
+
+  function dismissNotice() {
+    setStatus(null);
+    setError(null);
+    setLastTxHash(undefined);
+  }
+
   return (
     <div className="space-y-6">
       <Card>
@@ -525,20 +535,33 @@ export function AddLiquidityPanel({ initialToken = "", showManageLink = true }: 
                   )}
                 </div>
 
-                {status && <p className="text-sm text-green-700">{status}</p>}
-                {error && <p className="text-sm text-red-600">{error}</p>}
-                {lastTxHash && (
-                  <p className="font-mono text-xs text-muted-foreground">
-                    Tx:{" "}
-                    <a
-                      href={`${opnChainConfig.explorerUrl.replace(/\/$/, "")}/tx/${lastTxHash}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="underline"
-                    >
-                      {shortenAddress(lastTxHash, 10)}
-                    </a>
-                  </p>
+                {status && busy && (
+                  <p className="text-sm text-muted-foreground">{status}</p>
+                )}
+
+                {terminalSuccess && status && (
+                  <DismissibleAlert variant="success" onDismiss={dismissNotice}>
+                    {status}
+                    {lastTxHash && (
+                      <p className="mt-2 font-mono text-xs opacity-80">
+                        Tx:{" "}
+                        <a
+                          href={`${opnChainConfig.explorerUrl.replace(/\/$/, "")}/tx/${lastTxHash}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="underline"
+                        >
+                          {shortenAddress(lastTxHash, 10)}
+                        </a>
+                      </p>
+                    )}
+                  </DismissibleAlert>
+                )}
+
+                {error && !busy && (
+                  <DismissibleAlert variant="error" onDismiss={dismissNotice}>
+                    {error}
+                  </DismissibleAlert>
                 )}
               </>
             )}
