@@ -39,6 +39,11 @@ export function MetadataImageField({
       const res = await fetch("/api/upload", { method: "POST", body: formData });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Upload failed");
+      if (!data.url) {
+        setError("Image storage is not configured yet. Paste an external image URL instead.");
+        setMode("url");
+        return;
+      }
       onChange(data.url);
       setMode("upload");
     } catch (e) {

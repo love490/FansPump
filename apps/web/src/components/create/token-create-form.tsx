@@ -18,6 +18,7 @@ import {
   MAX_TAX_BPS,
 } from "@iopn/shared";
 import { Button } from "@/components/ui/button";
+import { DismissibleAlert } from "@/components/ui/dismissible-alert";
 import { FeatureInfo } from "@/components/ui/feature-info";
 import { CreationFee } from "@/components/create/creation-fee";
 import { SupplyAmountInput } from "@/components/create/supply-amount-input";
@@ -150,6 +151,9 @@ export function TokenCreateForm() {
   const [extractFailed, setExtractFailed] = useState(false);
   const [registering, setRegistering] = useState(false);
   const [registerError, setRegisterError] = useState<string | null>(null);
+  const [dismissedDeployError, setDismissedDeployError] = useState(false);
+  const [dismissedTxFailure, setDismissedTxFailure] = useState(false);
+  const [dismissedRegisterError, setDismissedRegisterError] = useState(false);
   const [registered, setRegistered] = useState(false);
   const [manualToken, setManualToken] = useState("");
   const [resolvingAddress, setResolvingAddress] = useState(false);
@@ -542,7 +546,7 @@ export function TokenCreateForm() {
   }, [txHash]);
 
   useEffect(() => {
-    if (!deployedToken || registered || registering) return;
+    if (!deployedToken || !address || registered || registering) return;
     setRegistering(true);
     setRegisterError(null);
     registerMetadata(deployedToken)
@@ -550,7 +554,7 @@ export function TokenCreateForm() {
         setRegistered(true);
         console.log("[deploy] Registered token id:", result.token.id);
         const chainId = getActiveChainId();
-        void queryClient.invalidateQueries({ queryKey: tokenQueryKeys.myTokens(address ?? "", chainId) });
+        void queryClient.invalidateQueries({ queryKey: tokenQueryKeys.myTokens(address, chainId) });
         void queryClient.invalidateQueries({ queryKey: tokenQueryKeys.discover("new", chainId) });
         void queryClient.invalidateQueries({ queryKey: tokenQueryKeys.discover("trending", chainId) });
         void queryClient.invalidateQueries({ queryKey: tokenQueryKeys.stats(chainId) });
@@ -561,7 +565,7 @@ export function TokenCreateForm() {
         console.error("[deploy] Database save failed:", e);
       })
       .finally(() => setRegistering(false));
-  }, [deployedToken, registered, registering, registerMetadata, queryClient, address]);
+  }, [deployedToken, registered, registerMetadata, queryClient, address]);
 
   useEffect(() => {
     if (registered && deployedToken) {
@@ -569,26 +573,33 @@ export function TokenCreateForm() {
     }
   }, [registered, deployedToken, router]);
 
+  const activeDeployError = deployError ?? writeError?.message ?? null;
+
+  useEffect(() => {
+    setDismissedDeployError(false);
+  }, [activeDeployError]);
+
+  useEffect(() => {
+    setDismissedTxFailure(false);
+  }, [txHash]);
+
+  useEffect(() => {
+    setDismissedRegisterError(false);
+  }, [registerError]);
+
   const txSucceeded = receipt ? isReceiptSuccess(receipt) : false;
   const txReverted = receipt ? !isReceiptSuccess(receipt) : false;
 
-  if (isSuccess && txHash && txReverted) {
+  if (isSuccess && txHash && txReverted && !dismissedTxFailure) {
     return (
-      <Card className="border-red-200 bg-red-50">
-        <CardHeader>
-          <CardTitle>Token deployment failed</CardTitle>
-          <CardDescription>Transaction reverted on-chain: {txHash}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-red-700">
-            Your wallet may still show an OPN deduction due to <strong>gas fees</strong>, but the token contract
-            was not created.
-          </p>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Check the transaction in the block explorer for the exact revert reason, then try again.
-          </p>
-        </CardContent>
-      </Card>
+      <DismissibleAlert variant="error" onDismiss={() => setDismissedTxFailure(true)}>
+        <p className="font-medium">Token deployment failed</p>
+        <p className="mt-1 text-xs opacity-80">Transaction reverted on-chain: {txHash}</p>
+        <p className="mt-2 opacity-90">
+          Your wallet may still show an OPN deduction due to gas fees, but the token contract was not
+          created. Check the block explorer for the revert reason, then try again.
+        </p>
+      </DismissibleAlert>
     );
   }
 
@@ -683,8 +694,10 @@ export function TokenCreateForm() {
                 <p className="text-sm text-muted-foreground">Saving token and redirecting…</p>
               ) : registered ? (
                 <p className="text-sm text-green-700">Saved. Redirecting to your token page…</p>
-              ) : registerError ? (
-                <p className="text-sm text-red-600">Couldn&apos;t save to My Tokens: {registerError}</p>
+              ) : registerError && !dismissedRegisterError ? (
+                <DismissibleAlert variant="error" onDismiss={() => setDismissedRegisterError(true)}>
+                  Couldn&apos;t save to My Tokens: {registerError}
+                </DismissibleAlert>
               ) : null}
             </>
           )}
@@ -692,8 +705,6 @@ export function TokenCreateForm() {
       </Card>
     );
   }
-
-  const activeDeployError = deployError ?? writeError?.message ?? null;
 
   return (
     <div className="space-y-6">
@@ -739,13 +750,11 @@ export function TokenCreateForm() {
         </Card>
       )}
 
-      {activeDeployError && (
-        <Card className="border-red-200 bg-red-50">
-          <CardContent className="pt-6">
-            <p className="text-sm font-medium text-red-900">Deployment error</p>
-            <p className="mt-1 text-sm text-red-800">{activeDeployError}</p>
-          </CardContent>
-        </Card>
+      {activeDeployError && !dismissedDeployError && (
+        <DismissibleAlert variant="error" onDismiss={() => setDismissedDeployError(true)}>
+          <p className="font-medium">Deployment error</p>
+          <p className="mt-1 opacity-90">{activeDeployError}</p>
+        </DismissibleAlert>
       )}
       <Card className="border-amber-200 bg-amber-50">
         <CardContent className="flex gap-3 pt-6">
