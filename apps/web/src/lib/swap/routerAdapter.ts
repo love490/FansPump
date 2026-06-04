@@ -85,27 +85,25 @@ export function buildSwapPath(
 
   if (mode === "buy") {
     if (payToken.isNative) {
-      // native OPN → token: only need weth→token if they differ
-      if (wethNorm === projectNorm) return [weth]; // same token, no swap needed
+      if (wethNorm === projectNorm) return [weth];
       return [weth, projectToken];
     }
     const payAddr = payToken.address!.toLowerCase() as Address;
-    if (payAddr === projectNorm) return [payToken.address!]; // already the token
-    if (wethNorm === projectNorm) return [payToken.address!, projectToken]; // skip weth hop
+    if (payAddr === projectNorm) return [payToken.address!];
+    if (payAddr === wethNorm) return [weth, projectToken];
+    if (wethNorm === projectNorm) return [payToken.address!, projectToken];
     return [payToken.address!, weth, projectToken];
   }
 
   // sell
   if (payToken.isNative) {
-    if (wethNorm === projectNorm) return [projectToken]; // same token
+    if (wethNorm === projectNorm) return [projectToken];
     return [projectToken, weth];
   }
   const payAddr = payToken.address!.toLowerCase() as Address;
-  if (projectNorm === payAddr) return [projectToken]; // same token
-  if (wethNorm === projectNorm || wethNorm === payAddr) {
-    // direct path, skip weth hop
-    return [projectToken, payToken.address!];
-  }
+  if (projectNorm === payAddr) return [projectToken];
+  if (projectNorm === wethNorm) return [projectToken, payToken.address!];
+  if (wethNorm === payAddr) return [projectToken, payToken.address!];
   return [projectToken, weth, payToken.address!];
 }
 
