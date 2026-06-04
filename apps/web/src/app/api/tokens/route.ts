@@ -113,7 +113,8 @@ export async function GET(request: NextRequest) {
   const where: Prisma.TokenProjectWhereInput =
     filters.length === 0 ? chainFilter : filters.length === 1 ? filters[0] : { AND: filters };
 
-  let tokens: Awaited<ReturnType<typeof prisma.tokenProject.findMany>>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let tokens: any[];
   try {
     tokens = await prisma.tokenProject.findMany({
       where,

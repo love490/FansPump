@@ -565,6 +565,7 @@ export function TokenCreateForm() {
         console.error("[deploy] Database save failed:", e);
       })
       .finally(() => setRegistering(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [deployedToken, registered, registerMetadata, queryClient, address]);
 
   useEffect(() => {
