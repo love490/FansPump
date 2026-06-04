@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { mkdir, writeFile } from "fs/promises";
-import path from "path";
+import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { randomUUID } from "crypto";
-import { put } from "@vercel/blob";
 
 const MAX_SIZE = 5 * 1024 * 1024;
 const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
@@ -12,6 +10,15 @@ const EXT_BY_TYPE: Record<string, string> = {
   "image/webp": "webp",
   "image/gif": "gif",
 };
+
+const r2 = new S3Client({
+  region: "auto",
+  endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+  credentials: {
+    accessKeyId: process.env.R2_ACCESS_KEY_ID!,
+    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
+  },
+});
 
 export async function POST(request: NextRequest) {
   try {
@@ -29,43 +36,19 @@ export async function POST(request: NextRequest) {
     }
 
     const ext = EXT_BY_TYPE[file.type] ?? "png";
-    const filename = `${randomUUID()}.${ext}`;
+    const key = `projects/${randomUUID()}.${ext}`;
 
-    // Prefer a durable object store on Vercel (Blob). Serverless filesystem writes are not reliable.
-    // Enable by setting BLOB_READ_WRITE_TOKEN in the deployment environment.
-    if (process.env.BLOB_READ_WRITE_TOKEN) {
-      const key = `projects/${filename}`;
-      const blob = await put(key, file, {
-        access: "public",
-        contentType: file.type,
-        addRandomSuffix: false,
-        token: process.env.BLOB_READ_WRITE_TOKEN,
-      });
-      return NextResponse.json({ url: blob.url, path: key });
-    }
+    await r2.send(
+      new PutObjectCommand({
+        Bucket: process.env.R2_BUCKET_NAME!,
+        Key: key,
+        Body: Buffer.from(await file.arrayBuffer()),
+        ContentType: file.type,
+      })
+    );
 
-    // On Vercel/serverless, filesystem is read-only (EROFS). Don't attempt local writes.
-    if (process.env.VERCEL) {
-      return NextResponse.json(
-        {
-          error:
-            "Image uploads are not configured. Set BLOB_READ_WRITE_TOKEN in Vercel (Storage → Blob) and redeploy.",
-        },
-        { status: 500 }
-      );
-    }
-
-    // Local/dev fallback: write into /public/uploads/projects
-    const uploadDir = path.join(process.cwd(), "public", "uploads", "projects");
-    await mkdir(uploadDir, { recursive: true });
-    await writeFile(path.join(uploadDir, filename), Buffer.from(await file.arrayBuffer()));
-
-    const publicPath = `/uploads/projects/${filename}`;
-    const host = request.headers.get("x-forwarded-host") ?? request.headers.get("host");
-    const proto = request.headers.get("x-forwarded-proto") ?? "http";
-    const origin = host ? `${proto}://${host}` : request.nextUrl.origin;
-
-    return NextResponse.json({ url: `${origin}${publicPath}`, path: publicPath });
+    const url = `${process.env.R2_PUBLIC_URL}/${key}`;
+    return NextResponse.json({ url, path: key });
   } catch (e) {
     const message = e instanceof Error ? e.message : "Upload failed";
     return NextResponse.json({ error: message }, { status: 500 });
