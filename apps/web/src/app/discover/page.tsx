@@ -2,8 +2,11 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { TokenCard, type TokenCardData } from "@/components/tokens/token-card";
+import { useQuery } from "@tanstack/react-query";
+import { TokenCard } from "@/components/tokens/token-card";
 import { cn } from "@/lib/utils";
+import { fetchDiscoverTokens, tokenQueryKeys } from "@/lib/tokens-api";
+import { getActiveChainId } from "@/lib/chain-config/opn";
 
 const sections = [
   { id: "new", label: "New Token" },
@@ -20,6 +23,7 @@ function DiscoverContent() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const chainId = getActiveChainId();
   const sectionParam = searchParams.get("section");
   const initialSection =
     sectionParam && sectionIds.has(sectionParam as (typeof sections)[number]["id"])
@@ -27,8 +31,6 @@ function DiscoverContent() {
       : "new";
 
   const [section, setSection] = useState(initialSection);
-  const [tokens, setTokens] = useState<TokenCardData[]>([]);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (sectionParam && sectionIds.has(sectionParam as (typeof sections)[number]["id"])) {
@@ -36,13 +38,11 @@ function DiscoverContent() {
     }
   }, [sectionParam]);
 
-  useEffect(() => {
-    setLoading(true);
-    fetch(`/api/tokens?section=${section}`)
-      .then((r) => r.json())
-      .then((d) => setTokens(d.tokens ?? []))
-      .finally(() => setLoading(false));
-  }, [section]);
+  const { data: tokens = [], isLoading } = useQuery({
+    queryKey: tokenQueryKeys.discover(section, chainId),
+    queryFn: () => fetchDiscoverTokens(section, 24),
+    staleTime: 15_000,
+  });
 
   function selectSection(id: string) {
     setSection(id);
@@ -87,7 +87,7 @@ function DiscoverContent() {
         <h2 id="discover-results-heading" className="sr-only">
           {activeLabel}
         </h2>
-        {loading ? (
+        {isLoading ? (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {[...Array(6)].map((_, i) => (
               <div key={i} className="h-48 animate-pulse rounded-xl bg-muted" />

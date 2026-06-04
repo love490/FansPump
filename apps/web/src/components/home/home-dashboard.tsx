@@ -5,17 +5,32 @@ import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Rocket, TrendingUp, Users, Shield } from "lucide-react";
 import { motion } from "framer-motion";
-import { TokenCard, type TokenCardData } from "@/components/tokens/token-card";
-import { useEffect, useState } from "react";
+import { TokenCard } from "@/components/tokens/token-card";
+import { useQuery } from "@tanstack/react-query";
+import { fetchDiscoverTokens, fetchPlatformStats, tokenQueryKeys } from "@/lib/tokens-api";
+import { getActiveChainId } from "@/lib/chain-config/opn";
 
 export function HomeDashboard() {
-  const [tokens, setTokens] = useState<TokenCardData[]>([]);
+  const chainId = getActiveChainId();
 
-  useEffect(() => {
-    fetch("/api/tokens?section=trending&limit=6")
-      .then((r) => r.json())
-      .then((d) => setTokens(d.tokens ?? []));
-  }, []);
+  const { data: stats } = useQuery({
+    queryKey: tokenQueryKeys.stats(chainId),
+    queryFn: fetchPlatformStats,
+    staleTime: 30_000,
+  });
+
+  const { data: newTokens = [], isLoading: loadingNew } = useQuery({
+    queryKey: tokenQueryKeys.discover("new", chainId),
+    queryFn: () => fetchDiscoverTokens("new", 6),
+    staleTime: 15_000,
+  });
+
+  const statCards = [
+    { label: "Total Tokens", value: stats?.tokenCount ?? "—", icon: Rocket },
+    { label: "Verified Projects", value: stats?.verificationCount ?? "—", icon: Shield },
+    { label: "Community Votes", value: stats?.voteCount ?? "—", icon: TrendingUp },
+    { label: "Active Creators", value: stats?.creatorCount ?? "—", icon: Users },
+  ];
 
   return (
     <div className="space-y-8">
@@ -55,7 +70,7 @@ export function HomeDashboard() {
                 variant="outline"
                 className="border-white/30 bg-white/10 text-white hover:bg-white/20 hover:text-white sm:h-11 sm:px-8"
               >
-                <Link href="/discover">Explore Tokens</Link>
+                <Link href="/discover?section=new">Explore Tokens</Link>
               </Button>
             </div>
           </div>
@@ -63,12 +78,7 @@ export function HomeDashboard() {
       </motion.div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {[
-          { label: "Total Tokens", value: "—", icon: Rocket },
-          { label: "Verified Projects", value: "—", icon: Shield },
-          { label: "Community Votes", value: "—", icon: TrendingUp },
-          { label: "Active Creators", value: "—", icon: Users },
-        ].map((stat) => (
+        {statCards.map((stat) => (
           <div key={stat.label} className="rounded-xl border border-border bg-card p-5 shadow-sm">
             <stat.icon className="mb-2 h-5 w-5 text-primary" />
             <p className="text-2xl font-bold">{stat.value}</p>
@@ -79,18 +89,26 @@ export function HomeDashboard() {
 
       <div>
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-xl font-semibold">Explore Top Tokens</h2>
+          <h2 className="text-xl font-semibold">Newly Created</h2>
           <Button asChild variant="ghost" size="sm">
-            <Link href="/discover">
+            <Link href="/discover?section=new">
               View all <ArrowRight className="ml-1 h-4 w-4" />
             </Link>
           </Button>
         </div>
-        {tokens.length === 0 ? (
-          <p className="rounded-xl border border-dashed p-8 text-center text-muted-foreground">No tokens yet</p>
+        {loadingNew ? (
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="h-48 animate-pulse rounded-xl bg-muted" />
+            ))}
+          </div>
+        ) : newTokens.length === 0 ? (
+          <p className="rounded-xl border border-dashed p-8 text-center text-muted-foreground">
+            No tokens yet — be the first to launch on FansPump.
+          </p>
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            {tokens.map((t, i) => (
+            {newTokens.map((t, i) => (
               <TokenCard key={t.id} token={t} index={i} />
             ))}
           </div>

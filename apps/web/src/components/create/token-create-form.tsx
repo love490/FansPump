@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { useAccount, useChainId, usePublicClient, useReadContract, useWaitForTransactionReceipt, useWriteContract } from "wagmi";
 import { isAddress, parseEther, zeroAddress } from "viem";
 import {
@@ -46,6 +47,8 @@ import {
 } from "@/lib/wagmi";
 import { isReceiptSuccess, resolveDeployedTokenAddress } from "@/lib/token-deploy";
 import { registerTokenMetadata } from "@/lib/token-register";
+import { tokenQueryKeys } from "@/lib/tokens-api";
+import { getActiveChainId } from "@/lib/chain-config/opn";
 import Link from "next/link";
 import { AlertTriangle, Lock } from "lucide-react";
 
@@ -70,6 +73,7 @@ const SOCIAL_LINK_FIELDS = [
 
 export function TokenCreateForm() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { address, isConnected, chain } = useAccount();
   const chainId = useChainId();
   const publicClient = usePublicClient();
@@ -545,6 +549,11 @@ export function TokenCreateForm() {
       .then((result) => {
         setRegistered(true);
         console.log("[deploy] Registered token id:", result.token.id);
+        const chainId = getActiveChainId();
+        void queryClient.invalidateQueries({ queryKey: tokenQueryKeys.myTokens(address ?? "", chainId) });
+        void queryClient.invalidateQueries({ queryKey: tokenQueryKeys.discover("new", chainId) });
+        void queryClient.invalidateQueries({ queryKey: tokenQueryKeys.discover("trending", chainId) });
+        void queryClient.invalidateQueries({ queryKey: tokenQueryKeys.stats(chainId) });
       })
       .catch((e) => {
         const msg = e instanceof Error ? e.message : "Failed to save token metadata";
@@ -552,7 +561,7 @@ export function TokenCreateForm() {
         console.error("[deploy] Database save failed:", e);
       })
       .finally(() => setRegistering(false));
-  }, [deployedToken, registered, registering, registerMetadata]);
+  }, [deployedToken, registered, registering, registerMetadata, queryClient, address]);
 
   useEffect(() => {
     if (registered && deployedToken) {

@@ -117,8 +117,20 @@ export async function GET(request: NextRequest) {
     where,
     orderBy: q ? { createdAt: "desc" as const } : (orderBy ?? { createdAt: "desc" }),
     take: q ? Math.min(limit, 20) : limit,
-    include: {
-      creator: { include: { verification: true } },
+    select: {
+      id: true,
+      contractAddress: true,
+      chainId: true,
+      name: true,
+      symbol: true,
+      logoUrl: true,
+      description: true,
+      viewCount: true,
+      holderCount: true,
+      isFeatured: true,
+      featureFlags: true,
+      createdAt: true,
+      creator: { select: { verification: { select: { id: true } } } },
     },
   });
 
@@ -127,6 +139,12 @@ export async function GET(request: NextRequest) {
     featureFlags: t.featureFlags.toString(),
     creatorVerified: !!t.creator?.verification,
   }));
+
+  const cacheControl = creatorNormalized
+    ? "private, max-age=5, stale-while-revalidate=15"
+    : section === "new"
+      ? "public, s-maxage=5, stale-while-revalidate=10"
+      : "public, s-maxage=15, stale-while-revalidate=30";
 
   if (q) {
     const registryHits = searchRegistryTokens(q)
@@ -145,10 +163,10 @@ export async function GET(request: NextRequest) {
       ...registryHits.filter((t) => !seen.has(t.contractAddress.toLowerCase())),
       ...enriched,
     ];
-    return NextResponse.json({ tokens: merged.slice(0, limit) });
+    return NextResponse.json({ tokens: merged.slice(0, limit) }, { headers: { "Cache-Control": cacheControl } });
   }
 
-  return NextResponse.json({ tokens: enriched });
+  return NextResponse.json({ tokens: enriched }, { headers: { "Cache-Control": cacheControl } });
 }
 
 export async function POST(request: NextRequest) {
@@ -196,9 +214,13 @@ export async function POST(request: NextRequest) {
       where: { contractAddress: body.contractAddress },
       create: {
         contractAddress: body.contractAddress,
+        trendingScore: Date.now(),
         ...data,
       },
-      update: data,
+      update: {
+        ...data,
+        trendingScore: Date.now(),
+      },
     });
 
     console.log("[POST /api/tokens] Saved token:", token.contractAddress, "id:", token.id);

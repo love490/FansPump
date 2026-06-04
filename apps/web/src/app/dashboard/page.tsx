@@ -3,25 +3,32 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useAccount } from "wagmi";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Bookmark, Coins, Compass, Shield } from "lucide-react";
 import { fetchMyTokens } from "@/lib/token-register";
+import { getActiveChainId } from "@/lib/chain-config/opn";
+import { tokenQueryKeys } from "@/lib/tokens-api";
 
 export default function DashboardPage() {
   const { address, isConnected } = useAccount();
+  const chainId = getActiveChainId();
   const [watchlistCount, setWatchlistCount] = useState(0);
-  const [myTokensCount, setMyTokensCount] = useState(0);
   const [verified, setVerified] = useState(false);
+
+  const { data: myTokens = [] } = useQuery({
+    queryKey: tokenQueryKeys.myTokens(address ?? "", chainId),
+    queryFn: () => fetchMyTokens(address!),
+    enabled: Boolean(isConnected && address),
+    staleTime: 30_000,
+  });
 
   useEffect(() => {
     if (!address) return;
     fetch(`/api/watchlist?wallet=${address}`)
       .then((r) => r.json())
       .then((d) => setWatchlistCount(d.tokens?.length ?? 0));
-    fetchMyTokens(address)
-      .then((tokens) => setMyTokensCount(tokens.length))
-      .catch((e) => console.error("[dashboard] Failed to load token count:", e));
     fetch(`/api/verify?wallet=${address}`)
       .then((r) => r.json())
       .then((d) => setVerified(!!d.verified))
@@ -51,7 +58,7 @@ export default function DashboardPage() {
             <Card>
               <CardHeader className="pb-2">
                 <CardDescription>My tokens</CardDescription>
-                <CardTitle className="text-3xl">{myTokensCount}</CardTitle>
+                <CardTitle className="text-3xl">{myTokens.length}</CardTitle>
               </CardHeader>
             </Card>
             <Card>

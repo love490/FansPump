@@ -71,6 +71,10 @@ model TokenProject {
   lpBurns         LpBurn[]
 
   @@index([createdAt])
+  @@index([chainId])
+  @@index([creatorAddress])
+  @@index([chainId, creatorAddress])
+  @@index([chainId, createdAt])
   @@index([trendingScore])
   @@index([viewCount])
   @@index([holderCount])
