@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ChevronDown, Search } from "lucide-react";
-import { usePublicClient } from "wagmi";
-import type { Address } from "viem";
+import { ChevronDown, Loader2, Search } from "lucide-react";
+import { useAccount, useBalance, usePublicClient } from "wagmi";
+import { formatUnits, type Address } from "viem";
 import { cn } from "@/lib/utils";
 import {
   OPN_PAY_TOKEN,
@@ -11,9 +11,14 @@ import {
   payTokenFromListedToken,
   type PayToken,
 } from "@/lib/swap/payment-tokens";
-import { searchRegistryTokens, registryToPayToken } from "@/lib/token-registry";
+import {
+  getPopularRegistryTokens,
+  searchRegistryTokens,
+  registryToPayToken,
+} from "@/lib/token-registry";
 import { erc20Abi } from "@/lib/swap/abis";
 import { isValidTokenAddress } from "@/lib/swap/routerAdapter";
+import { SwapDropdownPortal } from "@/components/swap/swap-dropdown-portal";
 
 type ListedToken = {
   contractAddress: string;
@@ -30,9 +35,60 @@ type SwapPayTokenSelectProps = {
 
 function PayTokenAvatar({ symbol }: { symbol: string }) {
   return (
-    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[10px] font-bold text-primary">
+    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/15 text-xs font-bold text-primary">
       {symbol.slice(0, 2).toUpperCase()}
     </div>
+  );
+}
+
+function tokenDisplayName(symbol: string): string {
+  const hit = getPopularRegistryTokens().find(
+    (t) => t.symbol.toLowerCase() === symbol.toLowerCase()
+  );
+  return hit?.name ?? symbol;
+}
+
+function formatBalance(value: bigint | undefined, decimals: number): string {
+  if (value === undefined) return "0.0000";
+  const n = Number(formatUnits(value, decimals));
+  if (!Number.isFinite(n)) return "0.0000";
+  return n.toFixed(4);
+}
+
+function PayTokenRow({
+  token,
+  active,
+  balance,
+  onPick,
+}: {
+  token: PayToken;
+  active: boolean;
+  balance: string;
+  onPick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      role="option"
+      aria-selected={active}
+      onClick={onPick}
+      className={cn(
+        "flex w-full items-center justify-between gap-3 rounded-xl border border-border/50 bg-muted/30 p-3 text-left transition-colors hover:bg-muted/60",
+        active && "border-primary/50 bg-primary/10"
+      )}
+    >
+      <div className="flex min-w-0 items-center gap-3">
+        <PayTokenAvatar symbol={token.symbol} />
+        <div className="min-w-0">
+          <p className="truncate font-semibold">{token.symbol}</p>
+          <p className="truncate text-xs text-muted-foreground">{tokenDisplayName(token.symbol)}</p>
+        </div>
+      </div>
+      <div className="shrink-0 text-right">
+        <p className="font-semibold tabular-nums">{balance}</p>
+        <p className="text-xs text-muted-foreground">Balance</p>
+      </div>
+    </button>
   );
 }
 
@@ -42,14 +98,20 @@ export function SwapPayTokenSelect({
   excludeAddress,
   variant = "default",
 }: SwapPayTokenSelectProps) {
+  const { address } = useAccount();
+  const client = usePublicClient();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [listed, setListed] = useState<ListedToken[]>([]);
   const [resolvedAddressOption, setResolvedAddressOption] = useState<PayToken | null>(null);
   const [resolvingAddress, setResolvingAddress] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const [erc20Balances, setErc20Balances] = useState<Record<string, bigint>>({});
+
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
-  const client = usePublicClient();
+
+  const { data: nativeBalance } = useBalance({ address });
 
   useEffect(() => {
     if (!open) return;
@@ -58,6 +120,67 @@ export function SwapPayTokenSelect({
       .then((d) => setListed(d.tokens ?? []))
       .catch(() => setListed([]));
   }, [open]);
+
+  const exclude = excludeAddress?.toLowerCase();
+
+  const options = useMemo(() => {
+    const builtins = getBuiltinPayTokens();
+    const builtinIds = new Set(builtins.map((t) => t.id));
+    const fromList = listed
+      .filter((t) => t.contractAddress.toLowerCase() !== exclude)
+      .filter((t) => !builtinIds.has(t.contractAddress.toLowerCase()))
+      .map((t) => payTokenFromListedToken(t));
+
+    return [...builtins, ...fromList];
+  }, [listed, exclude]);
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return options;
+    const registryPay = searchRegistryTokens(q).map(registryToPayToken);
+    const fromOptions = options.filter(
+      (t) =>
+        t.symbol.toLowerCase().includes(q) ||
+        t.id.includes(q) ||
+        (t.address?.toLowerCase().includes(q) ?? false)
+    );
+    const seen = new Set<string>();
+    return [...registryPay, ...fromOptions].filter((t) => {
+      if (seen.has(t.id)) return false;
+      seen.add(t.id);
+      return true;
+    });
+  }, [options, query]);
+
+  useEffect(() => {
+    if (!open || !address || !client) {
+      setErc20Balances({});
+      return;
+    }
+
+    const erc20s = filtered.filter((t) => !t.isNative && t.address);
+    if (erc20s.length === 0) return;
+
+    let cancelled = false;
+    Promise.all(
+      erc20s.map(async (t) => {
+        const bal = await client.readContract({
+          address: t.address!,
+          abi: erc20Abi,
+          functionName: "balanceOf",
+          args: [address],
+        });
+        return [t.id, bal] as const;
+      })
+    ).then((rows) => {
+      if (cancelled) return;
+      setErc20Balances(Object.fromEntries(rows));
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [open, address, client, filtered]);
 
   useEffect(() => {
     if (!open) return;
@@ -139,48 +262,16 @@ export function SwapPayTokenSelect({
     return () => clearTimeout(t);
   }, [open]);
 
-  useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setOpen(false);
-        setQuery("");
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+  function close() {
+    setOpen(false);
+    setQuery("");
+  }
 
-  const exclude = excludeAddress?.toLowerCase();
-
-  const options = useMemo(() => {
-    const builtins = getBuiltinPayTokens();
-    const builtinIds = new Set(builtins.map((t) => t.id));
-    const fromList = listed
-      .filter((t) => t.contractAddress.toLowerCase() !== exclude)
-      .filter((t) => !builtinIds.has(t.contractAddress.toLowerCase()))
-      .map((t) => payTokenFromListedToken(t));
-
-    return [...builtins, ...fromList];
-  }, [listed, exclude]);
-
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return options;
-    const registryPay = searchRegistryTokens(q).map(registryToPayToken);
-    const fromOptions = options.filter(
-      (t) =>
-        t.symbol.toLowerCase().includes(q) ||
-        t.id.includes(q) ||
-        (t.address?.toLowerCase().includes(q) ?? false)
-    );
-    const seen = new Set<string>();
-    return [...registryPay, ...fromOptions].filter((t) => {
-      const key = t.id;
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
-  }, [options, query]);
+  function balanceFor(token: PayToken): string {
+    if (!address) return "0.0000";
+    if (token.isNative) return formatBalance(nativeBalance?.value, 18);
+    return formatBalance(erc20Balances[token.id], token.decimals);
+  }
 
   const addressQuery = query.trim();
   const isAddressQuery = isValidTokenAddress(addressQuery);
@@ -191,8 +282,9 @@ export function SwapPayTokenSelect({
       : "flex h-10 min-w-[7rem] items-center justify-between gap-2 rounded-lg border border-border bg-background px-3 text-sm font-semibold hover:bg-muted";
 
   return (
-    <div ref={containerRef} className="relative">
+    <div className="relative">
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => setOpen((o) => !o)}
         className={triggerClass}
@@ -209,103 +301,69 @@ export function SwapPayTokenSelect({
         />
       </button>
 
-      {open && (
-        <div
-          className={cn(
-            "absolute z-50 mt-1 overflow-hidden rounded-lg border bg-popover shadow-lg",
-            variant === "pill" ? "right-0 w-72" : "right-0 w-64"
-          )}
-        >
-          <div className="border-b p-2">
-            <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-              <input
-                ref={searchRef}
-                type="text"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search token…"
-                className="w-full rounded-md border bg-background py-2 pl-8 pr-2 text-sm outline-none focus:ring-1 focus:ring-primary"
-              />
-            </div>
+      <SwapDropdownPortal
+        open={open}
+        onClose={close}
+        anchorRef={triggerRef}
+        panelRef={panelRef}
+      >
+        <div className="border-b border-border/60 p-3">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <input
+              ref={searchRef}
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search token…"
+              className="w-full rounded-lg border border-border bg-muted/30 py-2.5 pl-9 pr-3 text-sm outline-none focus:ring-2 focus:ring-primary/30"
+            />
           </div>
-          <ul className="max-h-56 overflow-y-auto py-1" role="listbox">
-            {!query.trim() && (
-              <li className="px-3 py-1.5 text-xs font-medium text-muted-foreground">All tokens</li>
-            )}
-            {isAddressQuery && (
-              <>
-                {resolvingAddress && (
-                  <li className="px-3 py-2 text-sm text-muted-foreground">Searching…</li>
-                )}
-                {!resolvingAddress && resolvedAddressOption && (
-                  <li key={`resolved-${resolvedAddressOption.id}`}>
-                    <button
-                      type="button"
-                      role="option"
-                      aria-selected={value.id === resolvedAddressOption.id}
-                      onClick={() => {
-                        onChange(resolvedAddressOption);
-                        setOpen(false);
-                        setQuery("");
-                      }}
-                      className={cn(
-                        "flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-muted",
-                        value.id === resolvedAddressOption.id && "bg-primary/10 text-primary"
-                      )}
-                    >
-                      <PayTokenAvatar symbol={resolvedAddressOption.symbol} />
-                      <div>
-                        <span className="font-medium">{resolvedAddressOption.symbol}</span>
-                        <p className="font-mono text-xs text-muted-foreground">
-                          {resolvedAddressOption.address?.slice(0, 6)}…
-                          {resolvedAddressOption.address?.slice(-4)}
-                        </p>
-                      </div>
-                    </button>
-                  </li>
-                )}
-              </>
-            )}
-
-            {filtered.length === 0 && (!isAddressQuery || (!resolvedAddressOption && !resolvingAddress)) ? (
-              <li className="px-3 py-2 text-sm text-muted-foreground">No matching token found.</li>
-            ) : (
-              filtered.map((token) => (
-                <li key={token.id}>
-                  <button
-                    type="button"
-                    role="option"
-                    aria-selected={value.id === token.id}
-                    onClick={() => {
-                      onChange(token);
-                      setOpen(false);
-                      setQuery("");
-                    }}
-                    className={cn(
-                      "flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-muted",
-                      value.id === token.id && "bg-primary/10 text-primary"
-                    )}
-                  >
-                    <PayTokenAvatar symbol={token.symbol} />
-                    <div>
-                      <span className="font-medium">{token.symbol}</span>
-                      {token.address && (
-                        <p className="font-mono text-xs text-muted-foreground">
-                          {token.address.slice(0, 6)}…{token.address.slice(-4)}
-                        </p>
-                      )}
-                      {token.isNative && (
-                        <p className="text-xs text-muted-foreground">Native OPN</p>
-                      )}
-                    </div>
-                  </button>
-                </li>
-              ))
-            )}
-          </ul>
         </div>
-      )}
+
+        <ul className="space-y-2 overflow-y-auto p-3" role="listbox">
+          {isAddressQuery && resolvingAddress && (
+            <li className="flex items-center gap-2 px-2 py-3 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Searching…
+            </li>
+          )}
+          {isAddressQuery && !resolvingAddress && resolvedAddressOption && (
+            <li>
+              <PayTokenRow
+                token={resolvedAddressOption}
+                active={value.id === resolvedAddressOption.id}
+                balance={balanceFor(resolvedAddressOption)}
+                onPick={() => {
+                  onChange(resolvedAddressOption);
+                  close();
+                }}
+              />
+            </li>
+          )}
+
+          {filtered.length === 0 &&
+          (!isAddressQuery || (!resolvedAddressOption && !resolvingAddress)) ? (
+            <li className="px-2 py-4 text-center text-sm text-muted-foreground">
+              No matching token found.
+            </li>
+          ) : (
+            filtered.map((token) => (
+              <li key={token.id}>
+                <PayTokenRow
+                  token={token}
+                  active={value.id === token.id}
+                  balance={balanceFor(token)}
+                  onPick={() => {
+                    onChange(token);
+                    close();
+                  }}
+                />
+              </li>
+            ))
+          )}
+        </ul>
+      </SwapDropdownPortal>
     </div>
   );
 }

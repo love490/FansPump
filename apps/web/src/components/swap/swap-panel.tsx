@@ -318,7 +318,7 @@ export function SwapPanel({ initialToken = "", initialMode = "buy" }: SwapPanelP
 
   return (
     <div className="mx-auto w-full max-w-lg space-y-4">
-      <Card className="border-border shadow-sm">
+      <Card className="overflow-visible border-border shadow-sm">
         <CardHeader className="pb-4">
           <div className="flex items-start justify-between gap-3">
             <div>
@@ -365,7 +365,7 @@ export function SwapPanel({ initialToken = "", initialMode = "buy" }: SwapPanelP
           </div>
         </CardHeader>
 
-        <CardContent className="space-y-3">
+        <CardContent className="space-y-3 overflow-visible">
           {wrongNetwork && (
             <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
               <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
@@ -378,7 +378,7 @@ export function SwapPanel({ initialToken = "", initialMode = "buy" }: SwapPanelP
           )}
 
           {/* From */}
-          <div className="rounded-xl border border-border/60 bg-muted/20 p-4">
+          <div className="overflow-visible rounded-xl border border-border/60 bg-muted/20 p-4">
             <div className="mb-3 flex items-center justify-between text-sm">
               <span className="text-muted-foreground">From</span>
               {fromBalanceLabel && (
@@ -435,7 +435,7 @@ export function SwapPanel({ initialToken = "", initialMode = "buy" }: SwapPanelP
           </div>
 
           {/* To */}
-          <div className="rounded-xl border border-border/60 bg-muted/20 p-4">
+          <div className="overflow-visible rounded-xl border border-border/60 bg-muted/20 p-4">
             <div className="mb-3 flex items-center justify-between text-sm">
               <span className="text-muted-foreground">To</span>
               {toBalanceLabel && (
