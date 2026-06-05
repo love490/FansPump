@@ -61,7 +61,8 @@ export default function LiquidityModulePage() {
   const tokenAddress = (params.token as string) ?? "";
   const token = isAddress(tokenAddress) ? (tokenAddress as Address) : null;
   const pairId = parseLiquidityPairId(searchParams.get("pair"));
-  const pairMeta = getLiquidityPair(pairId);
+  const [resolvedPairId, setResolvedPairId] = useState<LiquidityPairId>(pairId);
+  const pairMeta = getLiquidityPair(resolvedPairId);
 
   const client = usePublicClient();
   const { address, isConnected } = useAccount();
@@ -106,25 +107,27 @@ export default function LiquidityModulePage() {
       const wopnExplicit = opnChainConfig.contracts.wopnExplicit;
       const usdt = opnChainConfig.contracts.usdt;
 
-      const quoteCandidatesSet = new Set<string>();
-      const addCandidate = (a: string | null | undefined) => {
-        if (!a) return;
-        const s = a.toLowerCase();
-        if (s && s !== "0x0000000000000000000000000000000000000000") quoteCandidatesSet.add(s);
+      const quoteCandidatesFor = (id: LiquidityPairId): Address[] => {
+        const quoteCandidatesSet = new Set<string>();
+        const addCandidate = (a: string | null | undefined) => {
+          if (!a) return;
+          const s = a.toLowerCase();
+          if (s && s !== "0x0000000000000000000000000000000000000000") quoteCandidatesSet.add(s);
+        };
+
+        if (id === "USDT") {
+          addCandidate(usdt);
+        } else if (id === "WOPN") {
+          addCandidate(wopnExplicit);
+          addCandidate(weth);
+        } else {
+          // OPN-native pair: try router wrapped token + explicit WOPN
+          addCandidate(weth);
+          addCandidate(wopnExplicit);
+        }
+
+        return [...quoteCandidatesSet].map((s) => s as Address);
       };
-
-      if (pairId === "USDT") {
-        addCandidate(usdt);
-      } else if (pairId === "WOPN") {
-        addCandidate(wopnExplicit);
-        addCandidate(weth);
-      } else {
-        // OPN-native pair: try router wrapped token + explicit WOPN
-        addCandidate(weth);
-        addCandidate(wopnExplicit);
-      }
-
-      const quoteCandidates = [...quoteCandidatesSet].map((s) => s as Address);
 
       const factory = await client.readContract({
         address: DEX_ROUTER_ADDRESS,
@@ -132,20 +135,30 @@ export default function LiquidityModulePage() {
         functionName: "factory",
       });
 
+      const orderedPairIds: LiquidityPairId[] = [
+        pairId,
+        ...LIQUIDITY_PAIR_OPTIONS.map((p) => p.id).filter((id) => id !== pairId),
+      ];
+
       let pairAddr: Address | null = null;
-      for (const quote of quoteCandidates) {
-        // UniswapV2 pair order-insensitive for getPair: (token0, token1) returned either way.
-        // We just need any quote that matches the LP minted by add-liquidity.
-        const p = await client.readContract({
-          address: factory as Address,
-          abi: uniswapV2FactoryAbi,
-          functionName: "getPair",
-          args: [token, quote],
-        });
-        if (p && !isZeroAddress(String(p))) {
-          pairAddr = p as Address;
-          break;
+      let foundPairId: LiquidityPairId | null = null;
+      for (const pid of orderedPairIds) {
+        const quoteCandidates = quoteCandidatesFor(pid);
+        for (const quote of quoteCandidates) {
+          // UniswapV2 pair order-insensitive for getPair.
+          const p = await client.readContract({
+            address: factory as Address,
+            abi: uniswapV2FactoryAbi,
+            functionName: "getPair",
+            args: [token, quote],
+          });
+          if (p && !isZeroAddress(String(p))) {
+            pairAddr = p as Address;
+            foundPairId = pid;
+            break;
+          }
         }
+        if (pairAddr) break;
       }
 
       if (!pairAddr) {
@@ -154,6 +167,7 @@ export default function LiquidityModulePage() {
       }
 
       setPair(pairAddr);
+      setResolvedPairId(foundPairId ?? pairId);
 
       const [decimals, total, myBal, burnedBal, lockedBal] = await Promise.all([
         client.readContract({ address: pairAddr, abi: uniswapV2PairAbi, functionName: "decimals" }),
