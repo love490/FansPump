@@ -56,12 +56,14 @@ export function MyLiquidityList({ refreshSeq = 0 }: { refreshSeq?: number }) {
                 </p>
                 <p className="font-mono text-xs text-muted-foreground">{shortenAddress(p.tokenAddress, 6)}</p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  LP balance: {formatUnits(p.lpBalance, p.lpDecimals)} LP
+                  {p.pending
+                    ? "Confirming on-chain…"
+                    : `LP balance: ${formatUnits(p.lpBalance, p.lpDecimals)} LP`}
                 </p>
               </div>
               <div className="flex shrink-0 flex-wrap gap-2">
                 <Button asChild size="sm">
-                  <Link href={`/liquidity/${p.tokenAddress}`}>
+                  <Link href={`/liquidity/${p.tokenAddress}?pair=${p.pairId}`}>
                     <Droplets className="mr-2 h-4 w-4" />
                     Manage LP
                   </Link>

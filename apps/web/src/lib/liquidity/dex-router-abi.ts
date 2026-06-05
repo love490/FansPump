@@ -56,4 +56,56 @@ export const dexRouterLiquidityAbi = [
     ],
     stateMutability: "nonpayable",
   },
+  {
+    type: "function",
+    name: "removeLiquidityOPN",
+    inputs: [
+      { name: "token", type: "address" },
+      { name: "liquidity", type: "uint256" },
+      { name: "amountTokenMin", type: "uint256" },
+      { name: "amountOPNMin", type: "uint256" },
+      { name: "to", type: "address" },
+      { name: "deadline", type: "uint256" },
+    ],
+    outputs: [
+      { name: "amountToken", type: "uint256" },
+      { name: "amountOPN", type: "uint256" },
+    ],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
+    name: "removeLiquidityETH",
+    inputs: [
+      { name: "token", type: "address" },
+      { name: "liquidity", type: "uint256" },
+      { name: "amountTokenMin", type: "uint256" },
+      { name: "amountETHMin", type: "uint256" },
+      { name: "to", type: "address" },
+      { name: "deadline", type: "uint256" },
+    ],
+    outputs: [
+      { name: "amountToken", type: "uint256" },
+      { name: "amountETH", type: "uint256" },
+    ],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
+    name: "removeLiquidity",
+    inputs: [
+      { name: "tokenA", type: "address" },
+      { name: "tokenB", type: "address" },
+      { name: "liquidity", type: "uint256" },
+      { name: "amountAMin", type: "uint256" },
+      { name: "amountBMin", type: "uint256" },
+      { name: "to", type: "address" },
+      { name: "deadline", type: "uint256" },
+    ],
+    outputs: [
+      { name: "amountA", type: "uint256" },
+      { name: "amountB", type: "uint256" },
+    ],
+    stateMutability: "nonpayable",
+  },
 ] as const;

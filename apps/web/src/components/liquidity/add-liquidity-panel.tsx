@@ -294,31 +294,29 @@ export function AddLiquidityPanel({
         deadline,
       });
 
-      let addHash: Hash;
-      if (tx.value > 0n) {
-        addHash = await submitTx(
-          {
-            address: DEX_ROUTER_ADDRESS,
-            abi: dexRouterLiquidityAbi,
-            functionName: tx.functionName,
-            args: [...tx.args],
-            value: tx.value,
-          },
-          `Final step — Add liquidity (${tokenSymbol}/${pair.symbol}) in your wallet`
-        );
-      } else {
-        addHash = await submitTx(
-          {
-            address: DEX_ROUTER_ADDRESS,
-            abi: dexRouterLiquidityAbi,
-            functionName: tx.functionName,
-            args: [...tx.args],
-          },
-          `Final step — Add liquidity (${tokenSymbol}/${pair.symbol}) in your wallet`
-        );
-      }
+      setStatus(`Final step — Add liquidity (${tokenSymbol}/${pair.symbol}) — confirm in your wallet…`);
+      const addRequest =
+        tx.value > 0n
+          ? {
+              address: DEX_ROUTER_ADDRESS,
+              abi: dexRouterLiquidityAbi,
+              functionName: tx.functionName,
+              args: [...tx.args],
+              value: tx.value,
+            }
+          : {
+              address: DEX_ROUTER_ADDRESS,
+              abi: dexRouterLiquidityAbi,
+              functionName: tx.functionName,
+              args: [...tx.args],
+            };
 
-      console.log("[liquidity] Transaction confirmed, saving position...");
+      const addHash = await writeContractAsync(
+        addRequest as Parameters<typeof writeContractAsync>[0]
+      );
+      setLastTxHash(addHash);
+
+      console.log("[liquidity] Transaction submitted, saving position…", addHash);
       saveLiquidityPosition({
         tokenAddress: tokenAddress.toLowerCase(),
         tokenSymbol,
@@ -327,18 +325,31 @@ export function AddLiquidityPanel({
         txHash: addHash,
         addedAt: new Date().toISOString(),
       });
-
-      setStatus(`Liquidity added (${tokenSymbol}/${pair.symbol}).`);
       onLiquidityAdded?.();
 
-      await Promise.all([
-        refetchTokenBalance(),
-        refetchPairBalance(),
-        refetchNativeBalance(),
-        refetchTokenAllowance(),
-        refetchPairAllowance(),
-        refreshWalletTokens(),
-      ]);
+      try {
+        await waitForTx(addHash);
+        setStatus(`Liquidity added (${tokenSymbol}/${pair.symbol}).`);
+        console.log("[liquidity] Transaction confirmed on-chain");
+      } catch (receiptError) {
+        console.warn("[liquidity] Receipt wait failed (tx may still succeed):", receiptError);
+        setStatus(
+          `Liquidity submitted — refresh My Liquidity in a moment if balance is not visible yet.`
+        );
+      }
+
+      try {
+        await Promise.all([
+          refetchTokenBalance(),
+          refetchPairBalance(),
+          refetchNativeBalance(),
+          refetchTokenAllowance(),
+          refetchPairAllowance(),
+          refreshWalletTokens(),
+        ]);
+      } catch (refreshError) {
+        console.warn("[liquidity] Balance refresh failed:", refreshError);
+      }
     } catch (e) {
       console.error("[liquidity] Error:", e);
       setError(parseError(e));
@@ -575,7 +586,7 @@ export function AddLiquidityPanel({
                   </Button>
                   {showManageLink && (
                     <Button asChild variant="ghost">
-                      <Link href={`/liquidity/${tokenAddress}`}>Manage LP</Link>
+                      <Link href={`/liquidity/${tokenAddress}?pair=${pairId}`}>Manage LP</Link>
                     </Button>
                   )}
                 </div>

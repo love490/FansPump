@@ -1,19 +1,37 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { useParams } from "next/navigation";
-import { useAccount, usePublicClient, useSignMessage, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useParams, useSearchParams } from "next/navigation";
+import Link from "next/link";
+import { useAccount, usePublicClient, useSignMessage, useWriteContract } from "wagmi";
 import type { Address } from "viem";
-import { formatUnits, isAddress, parseUnits } from "viem";
+import { formatUnits, isAddress, maxUint256, parseUnits } from "viem";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { shortenAddress } from "@/lib/utils";
+import { shortenAddress, cn } from "@/lib/utils";
 import { DEX_ROUTER_ADDRESS } from "@/lib/wagmi";
 import { DEAD_BURN_ADDRESS, LIQUIDITY_LOCKER_ADDRESS } from "@/lib/liquidity/constants";
 import { erc20Abi } from "@/lib/swap/abis";
-import { liquidityLockerAbi, uniswapV2FactoryAbi, uniswapV2PairAbi, uniswapV2RouterAbi } from "@/lib/liquidity/abis";
+import { dexRouterLiquidityAbi } from "@/lib/liquidity/dex-router-abi";
+import { simulateRemoveLiquidity } from "@/lib/liquidity/remove-liquidity-tx";
+import {
+  getLiquidityPair,
+  LIQUIDITY_DEADLINE_SECONDS,
+  LIQUIDITY_PAIR_OPTIONS,
+  parseLiquidityPairId,
+  quoteAddressForPairId,
+  type LiquidityPairId,
+} from "@/lib/liquidity/pair-tokens";
+import { readRouterWeth } from "@/lib/liquidity/router-weth";
+import {
+  liquidityLockerAbi,
+  uniswapV2FactoryAbi,
+  uniswapV2PairAbi,
+  uniswapV2RouterAbi,
+} from "@/lib/liquidity/abis";
+import { opnChainConfig } from "@/lib/chain-config/opn";
 
 type LiquiditySummary = {
   totals: { lockedAmount: string; burnedAmount: string; latestUnlockAt: string | null };
@@ -39,32 +57,137 @@ function isZeroAddress(a: string) {
 
 export default function LiquidityModulePage() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const tokenAddress = (params.token as string) ?? "";
   const token = isAddress(tokenAddress) ? (tokenAddress as Address) : null;
+  const pairId = parseLiquidityPairId(searchParams.get("pair"));
+  const pairMeta = getLiquidityPair(pairId);
 
   const client = usePublicClient();
   const { address, isConnected } = useAccount();
   const { signMessageAsync } = useSignMessage();
-  const { writeContractAsync, data: hash } = useWriteContract();
-  const { isLoading: confirming } = useWaitForTransactionReceipt({ hash });
+  const { writeContractAsync } = useWriteContract();
 
   const [tokenMeta, setTokenMeta] = useState<TokenDetail | null>(null);
   const [summary, setSummary] = useState<LiquiditySummary | null>(null);
-
   const [pair, setPair] = useState<Address | null>(null);
   const [lpDecimals, setLpDecimals] = useState<number>(18);
   const [lpTotalSupply, setLpTotalSupply] = useState<bigint>(0n);
   const [lpBalance, setLpBalance] = useState<bigint>(0n);
   const [lpBurned, setLpBurned] = useState<bigint>(0n);
   const [lpLocked, setLpLocked] = useState<bigint>(0n);
+  const [loadingPair, setLoadingPair] = useState(true);
 
   const [burnAmount, setBurnAmount] = useState("");
   const [lockAmount, setLockAmount] = useState("");
+  const [removeAmount, setRemoveAmount] = useState("");
   const [preset, setPreset] = useState<string>("30");
   const [customUnlockAt, setCustomUnlockAt] = useState<string>("");
+  const [busy, setBusy] = useState(false);
+  const [status, setStatus] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const canLock = token && !isZeroAddress(LIQUIDITY_LOCKER_ADDRESS);
-  const isCreator = !!address && !!tokenMeta && address.toLowerCase() === tokenMeta.creatorAddress.toLowerCase();
+  const isCreator =
+    !!address && !!tokenMeta && address.toLowerCase() === tokenMeta.creatorAddress.toLowerCase();
+
+  const loadPairData = useCallback(async () => {
+    if (!token || !client || isZeroAddress(DEX_ROUTER_ADDRESS)) {
+      setPair(null);
+      setLoadingPair(false);
+      return;
+    }
+
+    setLoadingPair(true);
+    try {
+      const weth = await readRouterWeth(client, DEX_ROUTER_ADDRESS);
+      // Quote token sometimes differs between routers (WOPN vs WETH). To avoid a blank page,
+      // try multiple candidates for the selected pairId.
+      const wopnExplicit = opnChainConfig.contracts.wopnExplicit;
+      const usdt = opnChainConfig.contracts.usdt;
+
+      const quoteCandidatesSet = new Set<string>();
+      const addCandidate = (a: string | null | undefined) => {
+        if (!a) return;
+        const s = a.toLowerCase();
+        if (s && s !== "0x0000000000000000000000000000000000000000") quoteCandidatesSet.add(s);
+      };
+
+      if (pairId === "USDT") {
+        addCandidate(usdt);
+      } else if (pairId === "WOPN") {
+        addCandidate(wopnExplicit);
+        addCandidate(weth);
+      } else {
+        // OPN-native pair: try router wrapped token + explicit WOPN
+        addCandidate(weth);
+        addCandidate(wopnExplicit);
+      }
+
+      const quoteCandidates = [...quoteCandidatesSet].map((s) => s as Address);
+
+      const factory = await client.readContract({
+        address: DEX_ROUTER_ADDRESS,
+        abi: uniswapV2RouterAbi,
+        functionName: "factory",
+      });
+
+      let pairAddr: Address | null = null;
+      for (const quote of quoteCandidates) {
+        // UniswapV2 pair order-insensitive for getPair: (token0, token1) returned either way.
+        // We just need any quote that matches the LP minted by add-liquidity.
+        const p = await client.readContract({
+          address: factory as Address,
+          abi: uniswapV2FactoryAbi,
+          functionName: "getPair",
+          args: [token, quote],
+        });
+        if (p && !isZeroAddress(String(p))) {
+          pairAddr = p as Address;
+          break;
+        }
+      }
+
+      if (!pairAddr) {
+        setPair(null);
+        return;
+      }
+
+      setPair(pairAddr);
+
+      const [decimals, total, myBal, burnedBal, lockedBal] = await Promise.all([
+        client.readContract({ address: pairAddr, abi: uniswapV2PairAbi, functionName: "decimals" }),
+        client.readContract({ address: pairAddr, abi: uniswapV2PairAbi, functionName: "totalSupply" }),
+        address
+          ? client.readContract({ address: pairAddr, abi: uniswapV2PairAbi, functionName: "balanceOf", args: [address] })
+          : Promise.resolve(0n),
+        client.readContract({
+          address: pairAddr,
+          abi: uniswapV2PairAbi,
+          functionName: "balanceOf",
+          args: [DEAD_BURN_ADDRESS],
+        }),
+        canLock
+          ? client.readContract({
+              address: pairAddr,
+              abi: uniswapV2PairAbi,
+              functionName: "balanceOf",
+              args: [LIQUIDITY_LOCKER_ADDRESS],
+            })
+          : Promise.resolve(0n),
+      ]);
+
+      setLpDecimals(Number(decimals));
+      setLpTotalSupply(total as bigint);
+      setLpBalance(myBal as bigint);
+      setLpBurned(burnedBal as bigint);
+      setLpLocked(lockedBal as bigint);
+    } catch {
+      setPair(null);
+    } finally {
+      setLoadingPair(false);
+    }
+  }, [token, client, address, canLock, pairId]);
 
   useEffect(() => {
     if (!token) return;
@@ -79,70 +202,8 @@ export default function LiquidityModulePage() {
   }, [token]);
 
   useEffect(() => {
-    if (!token || !client) return;
-    if (isZeroAddress(DEX_ROUTER_ADDRESS)) return;
-
-    let cancelled = false;
-    (async () => {
-      try {
-        const [weth, factory] = await Promise.all([
-          client.readContract({ address: DEX_ROUTER_ADDRESS as Address, abi: uniswapV2RouterAbi, functionName: "WETH" }),
-          client.readContract({ address: DEX_ROUTER_ADDRESS as Address, abi: uniswapV2RouterAbi, functionName: "factory" }),
-        ]);
-
-        const p = await client.readContract({
-          address: factory as Address,
-          abi: uniswapV2FactoryAbi,
-          functionName: "getPair",
-          args: [token, weth as Address],
-        });
-
-        if (cancelled) return;
-        if (!p || isZeroAddress(String(p))) {
-          setPair(null);
-          return;
-        }
-
-        const pairAddr = p as Address;
-        setPair(pairAddr);
-
-        const [decimals, total, myBal, burnedBal, lockedBal] = await Promise.all([
-          client.readContract({ address: pairAddr, abi: uniswapV2PairAbi, functionName: "decimals" }),
-          client.readContract({ address: pairAddr, abi: uniswapV2PairAbi, functionName: "totalSupply" }),
-          address
-            ? client.readContract({ address: pairAddr, abi: uniswapV2PairAbi, functionName: "balanceOf", args: [address] })
-            : Promise.resolve(0n),
-          client.readContract({
-            address: pairAddr,
-            abi: uniswapV2PairAbi,
-            functionName: "balanceOf",
-            args: [DEAD_BURN_ADDRESS],
-          }),
-          canLock
-            ? client.readContract({
-                address: pairAddr,
-                abi: uniswapV2PairAbi,
-                functionName: "balanceOf",
-                args: [LIQUIDITY_LOCKER_ADDRESS],
-              })
-            : Promise.resolve(0n),
-        ]);
-
-        if (cancelled) return;
-        setLpDecimals(Number(decimals));
-        setLpTotalSupply(total as bigint);
-        setLpBalance(myBal as bigint);
-        setLpBurned(burnedBal as bigint);
-        setLpLocked(lockedBal as bigint);
-      } catch {
-        if (!cancelled) setPair(null);
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [token, client, address, canLock]);
+    void loadPairData();
+  }, [loadPairData]);
 
   const lockedPct = useMemo(() => {
     if (lpTotalSupply === 0n) return 0;
@@ -159,6 +220,11 @@ export default function LiquidityModulePage() {
     const days = Number(preset);
     return Date.now() + days * 24 * 60 * 60 * 1000;
   }, [preset, customUnlockAt]);
+
+  async function waitForTx(hash: `0x${string}`) {
+    if (!client) return;
+    await client.waitForTransactionReceipt({ hash, timeout: 120_000 });
+  }
 
   async function recordLock(args: { lpToken: Address; amount: bigint; unlockAtMs: number; txHash?: string }) {
     if (!token || !tokenMeta || !address) return;
@@ -208,53 +274,147 @@ export default function LiquidityModulePage() {
 
   async function burnLp() {
     if (!pair || !isConnected || !address) return;
-    const amt = burnAmount.trim();
-    const parsed = parseUnits(amt || "0", lpDecimals);
+    const parsed = parseUnits(burnAmount.trim() || "0", lpDecimals);
     if (parsed <= 0n) return;
 
-    const txHash = await writeContractAsync({
-      address: pair,
-      abi: uniswapV2PairAbi,
-      functionName: "transfer",
-      args: [DEAD_BURN_ADDRESS, parsed],
-    });
-
-    await recordBurn({ lpToken: pair, amount: parsed, txHash: String(txHash) });
+    setBusy(true);
+    setError(null);
+    try {
+      const txHash = await writeContractAsync({
+        address: pair,
+        abi: uniswapV2PairAbi,
+        functionName: "transfer",
+        args: [DEAD_BURN_ADDRESS, parsed],
+      });
+      await waitForTx(txHash);
+      await recordBurn({ lpToken: pair, amount: parsed, txHash: String(txHash) });
+      setStatus("LP tokens burned.");
+      setBurnAmount("");
+      await loadPairData();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Burn failed");
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function lockLp() {
-    if (!pair || !canLock || !isConnected || !address) return;
-    if (!unlockAt) return;
-    const amt = lockAmount.trim();
-    const parsed = parseUnits(amt || "0", lpDecimals);
+    if (!pair || !canLock || !isConnected || !address || !unlockAt) return;
+    const parsed = parseUnits(lockAmount.trim() || "0", lpDecimals);
     if (parsed <= 0n) return;
 
-    await writeContractAsync({
-      address: pair,
-      abi: erc20Abi,
-      functionName: "approve",
-      args: [LIQUIDITY_LOCKER_ADDRESS, parsed],
-    });
+    setBusy(true);
+    setError(null);
+    try {
+      const approveHash = await writeContractAsync({
+        address: pair,
+        abi: erc20Abi,
+        functionName: "approve",
+        args: [LIQUIDITY_LOCKER_ADDRESS, parsed],
+      });
+      await waitForTx(approveHash);
 
-    const txHash = await writeContractAsync({
-      address: LIQUIDITY_LOCKER_ADDRESS,
-      abi: liquidityLockerAbi,
-      functionName: "lock",
-      args: [pair, parsed, BigInt(Math.floor(unlockAt / 1000))],
-    });
+      const txHash = await writeContractAsync({
+        address: LIQUIDITY_LOCKER_ADDRESS,
+        abi: liquidityLockerAbi,
+        functionName: "lock",
+        args: [pair, parsed, BigInt(Math.floor(unlockAt / 1000))],
+      });
+      await waitForTx(txHash);
+      await recordLock({ lpToken: pair, amount: parsed, unlockAtMs: unlockAt, txHash: String(txHash) });
+      setStatus("LP tokens locked.");
+      setLockAmount("");
+      await loadPairData();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Lock failed");
+    } finally {
+      setBusy(false);
+    }
+  }
 
-    await recordLock({ lpToken: pair, amount: parsed, unlockAtMs: unlockAt, txHash: String(txHash) });
+  async function removeLiquidity() {
+    if (!pair || !token || !client || !address || !isConnected) return;
+    const parsed = parseUnits(removeAmount.trim() || "0", lpDecimals);
+    if (parsed <= 0n || parsed > lpBalance) return;
+
+    setBusy(true);
+    setError(null);
+    try {
+      const allowance = await client.readContract({
+        address: pair,
+        abi: erc20Abi,
+        functionName: "allowance",
+        args: [address, DEX_ROUTER_ADDRESS],
+      });
+
+      if (allowance < parsed) {
+        const approveHash = await writeContractAsync({
+          address: pair,
+          abi: erc20Abi,
+          functionName: "approve",
+          args: [DEX_ROUTER_ADDRESS, maxUint256],
+        });
+        await waitForTx(approveHash);
+      }
+
+      const deadline = BigInt(Math.floor(Date.now() / 1000) + LIQUIDITY_DEADLINE_SECONDS);
+      const tx = await simulateRemoveLiquidity({
+        client,
+        router: DEX_ROUTER_ADDRESS,
+        account: address,
+        token,
+        pair: pairMeta,
+        liquidity: parsed,
+        deadline,
+      });
+
+      const removeHash = await writeContractAsync({
+        address: DEX_ROUTER_ADDRESS,
+        abi: dexRouterLiquidityAbi,
+        functionName: tx.functionName,
+        args: [...tx.args],
+      });
+      await waitForTx(removeHash);
+      setStatus(`Removed ${removeAmount} LP from ${tokenMeta?.symbol ?? "token"}/${pairMeta.symbol} pool.`);
+      setRemoveAmount("");
+      await loadPairData();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Remove liquidity failed");
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
     <div className="mx-auto max-w-3xl space-y-6 px-4 py-10 sm:px-6 lg:px-8">
-      <header>
-        <h1 className="text-2xl font-bold">Liquidity</h1>
-        <p className="mt-1 text-muted-foreground">
-          {tokenMeta ? `${tokenMeta.name} (${tokenMeta.symbol})` : "Token"} ·{" "}
-          <span className="font-mono">{token ? shortenAddress(token, 6) : tokenAddress}</span>
-        </p>
+      <header className="space-y-3">
+        <div>
+          <h1 className="text-2xl font-bold">Manage liquidity</h1>
+          <p className="mt-1 text-muted-foreground">
+            {tokenMeta ? `${tokenMeta.name} (${tokenMeta.symbol})` : "Token"} ·{" "}
+            <span className="font-mono">{token ? shortenAddress(token, 6) : tokenAddress}</span>
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {LIQUIDITY_PAIR_OPTIONS.map((opt) => (
+            <Link
+              key={opt.id}
+              href={`/liquidity/${tokenAddress}?pair=${opt.id}`}
+              className={cn(
+                "rounded-full border px-3 py-1 text-sm font-medium transition-colors",
+                pairId === opt.id
+                  ? "border-primary bg-primary/10 text-primary"
+                  : "border-border text-muted-foreground hover:bg-muted"
+              )}
+            >
+              {tokenMeta?.symbol ?? "Token"} / {opt.symbol}
+            </Link>
+          ))}
+        </div>
       </header>
+
+      {status && <p className="text-sm text-green-600 dark:text-green-400">{status}</p>}
+      {error && <p className="text-sm text-destructive">{error}</p>}
 
       {!token || !client ? (
         <p className="text-muted-foreground">Invalid token address.</p>
@@ -262,14 +422,22 @@ export default function LiquidityModulePage() {
         <Card>
           <CardHeader>
             <CardTitle>Router not configured</CardTitle>
-            <CardDescription>Set `NEXT_PUBLIC_DEX_ROUTER_ADDRESS` to show LP status and manage locks/burns.</CardDescription>
+            <CardDescription>Set `NEXT_PUBLIC_DEX_ROUTER_ADDRESS` to manage liquidity.</CardDescription>
           </CardHeader>
         </Card>
+      ) : loadingPair ? (
+        <div className="h-32 animate-pulse rounded-xl bg-muted" />
       ) : !pair ? (
         <Card>
           <CardHeader>
             <CardTitle>No LP pair found</CardTitle>
-            <CardDescription>Add liquidity first to create the token/OPN pair.</CardDescription>
+            <CardDescription>
+              No {tokenMeta?.symbol ?? "token"}/{pairMeta.symbol} pool yet. Add liquidity on{" "}
+              <Link href="/my-liquidity" className="text-primary hover:underline">
+                My Liquidity
+              </Link>
+              .
+            </CardDescription>
           </CardHeader>
         </Card>
       ) : (
@@ -303,12 +471,52 @@ export default function LiquidityModulePage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>LP token</CardTitle>
+              <CardTitle>
+                Your LP — {tokenMeta?.symbol ?? "Token"} / {pairMeta.symbol}
+              </CardTitle>
               <CardDescription className="font-mono">{pair}</CardDescription>
             </CardHeader>
-            <CardContent className="text-sm text-muted-foreground">
-              Your LP balance:{" "}
-              <span className="font-mono text-foreground">{formatUnits(lpBalance, lpDecimals)}</span>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Balance:{" "}
+                <span className="font-mono font-semibold text-foreground">
+                  {formatUnits(lpBalance, lpDecimals)} LP
+                </span>
+              </p>
+
+              {lpBalance > 0n && (
+                <div className="space-y-3 rounded-lg border border-border/60 bg-muted/20 p-4">
+                  <div>
+                    <p className="font-medium">Remove liquidity</p>
+                    <p className="text-xs text-muted-foreground">
+                      Withdraw your share of {tokenMeta?.symbol ?? "token"} and {pairMeta.symbol} from the pool.
+                    </p>
+                  </div>
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+                    <div className="grid flex-1 gap-2">
+                      <Label>LP amount</Label>
+                      <Input
+                        value={removeAmount}
+                        onChange={(e) => setRemoveAmount(e.target.value)}
+                        placeholder="0.0"
+                      />
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setRemoveAmount(formatUnits(lpBalance, lpDecimals))}
+                    >
+                      MAX
+                    </Button>
+                    <Button
+                      onClick={removeLiquidity}
+                      disabled={!isConnected || busy || !removeAmount}
+                    >
+                      Remove liquidity
+                    </Button>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -326,19 +534,12 @@ export default function LiquidityModulePage() {
             </CardContent>
           </Card>
 
-          {!isCreator ? (
-            <Card>
-              <CardHeader>
-                <CardTitle>Creator actions</CardTitle>
-                <CardDescription>Connect the creator wallet to lock or burn LP tokens.</CardDescription>
-              </CardHeader>
-            </Card>
-          ) : (
+          {isCreator ? (
             <div className="grid gap-4 md:grid-cols-2">
               <Card>
                 <CardHeader>
                   <CardTitle>Lock LP tokens</CardTitle>
-                  <CardDescription>Lock LP tokens in a time-lock contract.</CardDescription>
+                  <CardDescription>Creator only — lock LP in a time-lock contract.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   {!canLock ? (
@@ -365,14 +566,18 @@ export default function LiquidityModulePage() {
                       {preset === "custom" && (
                         <div className="grid gap-2">
                           <Label>Unlock date</Label>
-                          <Input type="datetime-local" value={customUnlockAt} onChange={(e) => setCustomUnlockAt(e.target.value)} />
+                          <Input
+                            type="datetime-local"
+                            value={customUnlockAt}
+                            onChange={(e) => setCustomUnlockAt(e.target.value)}
+                          />
                         </div>
                       )}
                       <div className="grid gap-2">
                         <Label>LP amount</Label>
                         <Input value={lockAmount} onChange={(e) => setLockAmount(e.target.value)} placeholder="0.0" />
                       </div>
-                      <Button onClick={lockLp} disabled={!isConnected || confirming || !lockAmount || !unlockAt}>
+                      <Button onClick={lockLp} disabled={!isConnected || busy || !lockAmount || !unlockAt}>
                         Lock liquidity
                       </Button>
                     </>
@@ -383,7 +588,7 @@ export default function LiquidityModulePage() {
               <Card>
                 <CardHeader>
                   <CardTitle>Burn LP tokens</CardTitle>
-                  <CardDescription>Transfer LP tokens permanently to the burn address.</CardDescription>
+                  <CardDescription>Creator only — permanently send LP to the burn address.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <div className="grid gap-2">
@@ -394,16 +599,25 @@ export default function LiquidityModulePage() {
                     <Label>LP amount</Label>
                     <Input value={burnAmount} onChange={(e) => setBurnAmount(e.target.value)} placeholder="0.0" />
                   </div>
-                  <Button variant="destructive" onClick={burnLp} disabled={!isConnected || confirming || !burnAmount}>
+                  <Button variant="destructive" onClick={burnLp} disabled={!isConnected || busy || !burnAmount}>
                     Burn LP
                   </Button>
                 </CardContent>
               </Card>
             </div>
+          ) : (
+            <Card>
+              <CardHeader>
+                <CardTitle>Creator actions</CardTitle>
+                <CardDescription>
+                  Lock and burn LP are only available to the token creator wallet. You can still remove your
+                  liquidity above.
+                </CardDescription>
+              </CardHeader>
+            </Card>
           )}
         </>
       )}
     </div>
   );
 }
-

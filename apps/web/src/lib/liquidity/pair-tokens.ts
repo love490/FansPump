@@ -49,4 +49,20 @@ export function pairConflictsWithToken(pair: LiquidityPair, tokenAddress: string
   return pair.address.toLowerCase() === tokenAddress.toLowerCase();
 }
 
+export function parseLiquidityPairId(value: string | null | undefined): LiquidityPairId {
+  if (value === "WOPN" || value === "USDT" || value === "OPN") return value;
+  return "OPN";
+}
+
+export function quoteAddressForPairId(
+  pairId: LiquidityPairId,
+  routerWeth: string,
+  wopnExplicit: string,
+  usdt: string
+): string {
+  if (pairId === "OPN") return routerWeth;
+  if (pairId === "WOPN") return wopnExplicit;
+  return usdt;
+}
+
 export const LIQUIDITY_DEADLINE_SECONDS = 600;
