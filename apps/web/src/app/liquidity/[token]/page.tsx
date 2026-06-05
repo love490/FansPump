@@ -129,11 +129,17 @@ export default function LiquidityModulePage() {
         return [...quoteCandidatesSet].map((s) => s as Address);
       };
 
-      const factory = await client.readContract({
-        address: DEX_ROUTER_ADDRESS,
-        abi: uniswapV2RouterAbi,
-        functionName: "factory",
-      });
+      let factory: Address;
+      try {
+        factory = (await client.readContract({
+          address: DEX_ROUTER_ADDRESS,
+          abi: uniswapV2RouterAbi,
+          functionName: "factory",
+        })) as Address;
+      } catch {
+        // Some router deployments don't expose `factory()`. Fall back to configured factory.
+        factory = opnChainConfig.contracts.factory;
+      }
 
       const orderedPairIds: LiquidityPairId[] = [
         pairId,
@@ -147,7 +153,7 @@ export default function LiquidityModulePage() {
         for (const quote of quoteCandidates) {
           // UniswapV2 pair order-insensitive for getPair.
           const p = await client.readContract({
-            address: factory as Address,
+            address: factory,
             abi: uniswapV2FactoryAbi,
             functionName: "getPair",
             args: [token, quote],
