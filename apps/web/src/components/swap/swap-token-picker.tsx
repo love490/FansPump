@@ -2,9 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
-import { ChevronDown, Loader2, Search, X } from "lucide-react";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { ChevronDown, Loader2, Search } from "lucide-react";
 import { shortenAddress, cn } from "@/lib/utils";
 import { isValidTokenAddress } from "@/lib/swap/routerAdapter";
 import { resolveTokenByAddress } from "@/lib/token-resolve";
@@ -18,7 +16,7 @@ import { usePublicClient } from "wagmi";
 import { erc20Abi } from "@/lib/swap/abis";
 import type { Address } from "viem";
 
-type SwapToken = {
+export type SwapToken = {
   contractAddress: string;
   name: string;
   symbol: string;
@@ -29,6 +27,9 @@ type SwapTokenPickerProps = {
   value: string;
   onChange: (address: string) => void;
   label?: string;
+  /** Compact pill for inline use in From/To rows */
+  variant?: "default" | "pill";
+  placeholder?: string;
 };
 
 function TokenAvatar({ token, size = "md" }: { token: SwapToken; size?: "sm" | "md" }) {
@@ -70,11 +71,11 @@ function TokenRow({
       type="button"
       onClick={onPick}
       className={cn(
-        "flex w-full items-center gap-3 px-3 py-2 text-left text-sm hover:bg-muted/60",
+        "flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm hover:bg-muted/60",
         active && "bg-primary/10"
       )}
     >
-      <TokenAvatar token={token} />
+      <TokenAvatar token={token} size="sm" />
       <div className="min-w-0 flex-1">
         <p className="truncate font-medium">
           {token.symbol}
@@ -88,120 +89,81 @@ function TokenRow({
   );
 }
 
-export function SwapTokenPicker({ value, onChange, label = "Token" }: SwapTokenPickerProps) {
+export function SwapTokenPicker({
+  value,
+  onChange,
+  label,
+  variant = "default",
+  placeholder = "Select token",
+}: SwapTokenPickerProps) {
+  const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const [pickerOpen, setPickerOpen] = useState(false);
-  const [quickOpen, setQuickOpen] = useState(false);
-  const [results, setResults] = useState<SwapToken[]>([]);
-  const [quickTokens, setQuickTokens] = useState<SwapToken[]>([]);
+  const [allTokens, setAllTokens] = useState<SwapToken[]>([]);
+  const [searchResults, setSearchResults] = useState<SwapToken[] | null>(null);
   const [loading, setLoading] = useState(false);
-  const [quickLoading, setQuickLoading] = useState(false);
+  const [listLoading, setListLoading] = useState(false);
   const [selected, setSelected] = useState<SwapToken | null>(null);
-  const [resolutionDone, setResolutionDone] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
+  const client = usePublicClient();
 
   const validAddress = isValidTokenAddress(value);
-  const client = usePublicClient();
-  const hasSelection = Boolean(value && validAddress && selected);
-
-  const showSearchResults = pickerOpen && !quickOpen && query.trim().length > 0;
-  const dropdownOpen = quickOpen || showSearchResults;
+  const activeAddress = value?.toLowerCase();
 
   useEffect(() => {
     if (!value || !validAddress) {
       setSelected(null);
-      setResolutionDone(false);
-      if (!value) setPickerOpen(true);
       return;
     }
     if (selected?.contractAddress.toLowerCase() === value.toLowerCase()) return;
 
-    setResolutionDone(false);
     let cancelled = false;
-
-    if (!client) {
-      setSelected(null);
-      setResolutionDone(true);
-      return;
-    }
-
-    fetch(`/api/tokens/${value}`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => {
-        if (cancelled) return;
-        if (d?.token) {
-          setSelected({
-            contractAddress: d.token.contractAddress,
-            name: d.token.name,
-            symbol: d.token.symbol,
-            logoUrl: d.token.logoUrl,
-          });
-          setResolutionDone(true);
-          setPickerOpen(false);
-          return;
-        }
-
-        (async () => {
-          try {
-            const addr = value.toLowerCase() as Address;
-            const symbol = await client.readContract({
-              address: addr,
-              abi: erc20Abi,
-              functionName: "symbol",
-            });
-            if (cancelled) return;
-            const sym = String(symbol);
-            setSelected({
-              contractAddress: addr,
-              name: sym,
-              symbol: sym,
-              logoUrl: null,
-            });
-            setPickerOpen(false);
-          } catch {
-            if (!cancelled) setSelected(null);
-          } finally {
-            if (!cancelled) setResolutionDone(true);
-          }
-        })();
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setSelected(null);
-          setResolutionDone(true);
-        }
-      });
-
+    resolveTokenByAddress(value, client ?? undefined).then((t) => {
+      if (!cancelled && t) setSelected(t);
+    });
     return () => {
       cancelled = true;
     };
   }, [value, validAddress, selected?.contractAddress, client]);
 
   useEffect(() => {
-    if (!quickOpen) return;
-    if (quickTokens.length > 0) return;
-    setQuickLoading(true);
+    if (!open) return;
+    if (allTokens.length > 0) return;
+
+    setListLoading(true);
     const popular = getPopularRegistryTokens()
       .map(registryToSwapToken)
       .filter((t): t is SwapToken => t !== null);
-    setQuickTokens(popular);
-    setQuickLoading(false);
-  }, [quickOpen, quickTokens.length]);
+
+    fetch("/api/tokens?section=new&limit=100")
+      .then((r) => r.json())
+      .then((d) => {
+        const fromApi = (d.tokens ?? []) as SwapToken[];
+        setAllTokens(mergeSwapTokenLists(popular, fromApi));
+      })
+      .catch(() => setAllTokens(popular))
+      .finally(() => setListLoading(false));
+  }, [open, allTokens.length]);
 
   useEffect(() => {
-    if (!pickerOpen || quickOpen || query.trim().length < 1) {
-      setResults([]);
+    if (!open) {
+      setSearchResults(null);
       setLoading(false);
       return;
     }
 
     const q = query.trim();
+    if (!q) {
+      setSearchResults(null);
+      setLoading(false);
+      return;
+    }
+
     const timer = setTimeout(async () => {
       setLoading(true);
       if (isValidTokenAddress(q)) {
         const resolved = await resolveTokenByAddress(q, client ?? undefined);
-        setResults(resolved ? [resolved] : []);
+        setSearchResults(resolved ? [resolved] : []);
         setLoading(false);
         return;
       }
@@ -214,65 +176,49 @@ export function SwapTokenPicker({ value, onChange, label = "Token" }: SwapTokenP
         .then((r) => r.json())
         .then((d) => {
           const fromApi = (d.tokens ?? []) as SwapToken[];
-          setResults(mergeSwapTokenLists(registryHits, fromApi));
+          setSearchResults(mergeSwapTokenLists(registryHits, fromApi));
         })
-        .catch(() => setResults(registryHits))
+        .catch(() => setSearchResults(registryHits))
         .finally(() => setLoading(false));
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [query, pickerOpen, quickOpen, client]);
+  }, [query, open, client]);
+
+  useEffect(() => {
+    if (!open) return;
+    const t = setTimeout(() => searchRef.current?.focus(), 50);
+    return () => clearTimeout(t);
+  }, [open]);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setPickerOpen(false);
-        setQuickOpen(false);
-        if (hasSelection) setQuery("");
+        setOpen(false);
+        setQuery("");
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [hasSelection]);
+  }, []);
 
-  useEffect(() => {
-    if (pickerOpen) {
-      const t = setTimeout(() => inputRef.current?.focus(), 50);
-      return () => clearTimeout(t);
-    }
-  }, [pickerOpen]);
-
-  const filteredQuick = useMemo(() => {
+  const displayedTokens = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return quickTokens;
-    return quickTokens.filter(
+    const base = searchResults ?? allTokens;
+    if (!q || searchResults) return base;
+    return base.filter(
       (t) =>
         t.name.toLowerCase().includes(q) ||
         t.symbol.toLowerCase().includes(q) ||
         t.contractAddress.toLowerCase().includes(q)
     );
-  }, [quickTokens, query]);
+  }, [allTokens, searchResults, query]);
 
   function pickToken(token: SwapToken) {
     onChange(token.contractAddress);
     setSelected(token);
+    setOpen(false);
     setQuery("");
-    setPickerOpen(false);
-    setQuickOpen(false);
-    setResolutionDone(true);
-  }
-
-  function openPicker() {
-    setPickerOpen(true);
-    setQuery("");
-  }
-
-  function clearSelection() {
-    onChange("");
-    setSelected(null);
-    setQuery("");
-    setResolutionDone(false);
-    setPickerOpen(true);
   }
 
   function applyManualAddress() {
@@ -280,158 +226,120 @@ export function SwapTokenPicker({ value, onChange, label = "Token" }: SwapTokenP
     if (!isValidTokenAddress(trimmed)) return;
     onChange(trimmed);
     setSelected(null);
-    setResolutionDone(false);
+    setOpen(false);
     setQuery("");
-    setPickerOpen(false);
-    setQuickOpen(false);
   }
 
   const showManualHint =
-    showSearchResults &&
     query.trim().length > 0 &&
     isValidTokenAddress(query.trim()) &&
-    results.length === 0 &&
-    !loading;
+    !loading &&
+    displayedTokens.length === 0;
 
-  const activeAddress = value?.toLowerCase();
+  const triggerClass =
+    variant === "pill"
+      ? "flex h-10 shrink-0 items-center gap-2 rounded-full border border-border bg-muted/40 px-3 text-sm font-semibold hover:bg-muted"
+      : "flex w-full items-center gap-2.5 rounded-lg border border-border/50 bg-transparent px-3 py-2.5 text-left transition-colors hover:border-border hover:bg-muted/30";
 
   return (
-    <div ref={containerRef} className="space-y-2">
-      <Label>{label}</Label>
+    <div ref={containerRef} className={cn("relative", variant === "default" && "space-y-2")}>
+      {label && variant === "default" && (
+        <p className="text-sm font-medium leading-none">{label}</p>
+      )}
 
-      {hasSelection && !pickerOpen ? (
-        <button
-          type="button"
-          onClick={openPicker}
-          className="flex w-full items-center gap-2.5 rounded-lg border border-border/50 bg-transparent px-3 py-2.5 text-left transition-colors hover:border-border hover:bg-muted/30"
-          aria-label={`Change token: ${selected!.symbol}`}
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className={triggerClass}
+        aria-expanded={open}
+        aria-haspopup="listbox"
+      >
+        {selected ? (
+          <>
+            <TokenAvatar token={selected} size="sm" />
+            <span className="truncate">{selected.symbol}</span>
+          </>
+        ) : (
+          <span className="text-muted-foreground">{placeholder}</span>
+        )}
+        <ChevronDown
+          className={cn(
+            "h-4 w-4 shrink-0 text-muted-foreground transition-transform",
+            open && "rotate-180"
+          )}
+        />
+      </button>
+
+      {open && (
+        <div
+          className={cn(
+            "z-50 overflow-hidden rounded-lg border border-border/60 bg-popover shadow-lg",
+            variant === "pill"
+              ? "absolute right-0 top-full mt-1 w-72"
+              : "absolute left-0 right-0 top-full mt-1"
+          )}
         >
-          <TokenAvatar token={selected!} size="sm" />
-          <span className="min-w-0 flex-1 truncate text-sm font-semibold">{selected!.symbol}</span>
-          <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
-        </button>
-      ) : (
-        <div className="relative">
-          <div className="flex gap-1">
-            <div className="relative min-w-0 flex-1">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                ref={inputRef}
+          <div className="border-b border-border/50 p-2">
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+              <input
+                ref={searchRef}
+                type="text"
                 value={query}
-                onChange={(e) => {
-                  setQuery(e.target.value);
-                  if (!quickOpen) setPickerOpen(true);
-                }}
-                onFocus={() => {
-                  if (!quickOpen) setPickerOpen(true);
-                }}
+                onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search name, symbol, or address…"
-                className="border-border/50 bg-transparent pl-9 pr-2 shadow-none focus-visible:ring-1"
-                aria-expanded={pickerOpen || quickOpen}
-                aria-autocomplete="list"
+                className="w-full rounded-md border bg-background py-2 pl-8 pr-2 text-sm outline-none focus:ring-1 focus:ring-primary"
               />
             </div>
-            {hasSelection && (
-              <button
-                type="button"
-                onClick={clearSelection}
-                className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-border/50 bg-transparent text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
-                aria-label="Clear token"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={() => {
-                setQuickOpen((v) => !v);
-                setPickerOpen(false);
-              }}
-              className={cn(
-                "inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-border/50 bg-transparent text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground",
-                quickOpen && "border-primary/50 text-primary"
-              )}
-              aria-label="Choose token from list"
-              aria-expanded={quickOpen}
-            >
-              <ChevronDown className={cn("h-4 w-4 transition-transform", quickOpen && "rotate-180")} />
-            </button>
           </div>
 
-          {dropdownOpen && (
-            <div className="absolute left-0 right-0 top-full z-50 mt-1 overflow-hidden rounded-lg border border-border/60 bg-popover/95 shadow-lg backdrop-blur-sm">
-              {quickOpen && (
-                <>
-                  <div className="border-b border-border/50 px-3 py-2 text-xs font-medium text-muted-foreground">
-                    Popular tokens
-                  </div>
-                  <div className="max-h-52 overflow-y-auto">
-                    {quickLoading ? (
-                      <div className="flex items-center gap-2 px-3 py-3 text-sm text-muted-foreground">
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        Loading tokens…
-                      </div>
-                    ) : filteredQuick.length === 0 ? (
-                      <p className="px-3 py-3 text-sm text-muted-foreground">No matching token found.</p>
-                    ) : (
-                      filteredQuick.map((token) => (
-                        <TokenRow
-                          key={`quick-${token.contractAddress}`}
-                          token={token}
-                          active={activeAddress === token.contractAddress.toLowerCase()}
-                          onPick={() => pickToken(token)}
-                        />
-                      ))
-                    )}
-                  </div>
-                </>
-              )}
-
-              {showSearchResults && (
-                <>
-                  {quickOpen && <div className="border-b border-border/50" />}
-                  <div className="max-h-52 overflow-y-auto">
-                    {loading && (
-                      <div className="flex items-center gap-2 px-3 py-3 text-sm text-muted-foreground">
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        Searching…
-                      </div>
-                    )}
-                    {!loading && results.length === 0 && !showManualHint && (
-                      <p className="px-3 py-3 text-sm text-muted-foreground">No matching token found.</p>
-                    )}
-                    {showManualHint && (
-                      <button
-                        type="button"
-                        onClick={applyManualAddress}
-                        className="flex w-full flex-col items-start px-3 py-2 text-left text-sm hover:bg-muted/60"
-                      >
-                        <span className="font-medium">Use contract address</span>
-                        <span className="font-mono text-xs text-muted-foreground">{query.trim()}</span>
-                      </button>
-                    )}
-                    {results.map((token) => (
-                      <TokenRow
-                        key={token.contractAddress}
-                        token={token}
-                        active={activeAddress === token.contractAddress.toLowerCase()}
-                        onPick={() => pickToken(token)}
-                      />
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
-          )}
+          <div className="max-h-56 overflow-y-auto py-1">
+            {listLoading && !query.trim() ? (
+              <div className="flex items-center gap-2 px-3 py-3 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Loading tokens…
+              </div>
+            ) : loading ? (
+              <div className="flex items-center gap-2 px-3 py-3 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Searching…
+              </div>
+            ) : displayedTokens.length === 0 && !showManualHint ? (
+              <p className="px-3 py-3 text-sm text-muted-foreground">No matching token found.</p>
+            ) : (
+              <>
+                {!query.trim() && (
+                  <p className="px-3 py-1.5 text-xs font-medium text-muted-foreground">All tokens</p>
+                )}
+                {showManualHint && (
+                  <button
+                    type="button"
+                    onClick={applyManualAddress}
+                    className="flex w-full flex-col items-start px-3 py-2 text-left text-sm hover:bg-muted/60"
+                  >
+                    <span className="font-medium">Use contract address</span>
+                    <span className="font-mono text-xs text-muted-foreground">{query.trim()}</span>
+                  </button>
+                )}
+                {displayedTokens.map((token) => (
+                  <TokenRow
+                    key={token.contractAddress}
+                    token={token}
+                    active={activeAddress === token.contractAddress.toLowerCase()}
+                    onPick={() => pickToken(token)}
+                  />
+                ))}
+              </>
+            )}
+          </div>
         </div>
       )}
 
-      {value && validAddress && !selected && resolutionDone && (
-        <p className="text-sm text-muted-foreground">No token found for this address.</p>
+      {value && validAddress && !selected && (
+        <p className="text-xs text-muted-foreground">Resolving token…</p>
       )}
-
-      {value && !validAddress && (
-        <p className="text-xs text-red-600">Invalid or unsupported token address</p>
+      {value && !validAddress && variant === "default" && (
+        <p className="text-xs text-red-600">Invalid token address</p>
       )}
     </div>
   );

@@ -25,23 +25,39 @@ type SwapPayTokenSelectProps = {
   value: PayToken;
   onChange: (token: PayToken) => void;
   excludeAddress?: string;
+  variant?: "default" | "pill";
 };
 
-export function SwapPayTokenSelect({ value, onChange, excludeAddress }: SwapPayTokenSelectProps) {
+function PayTokenAvatar({ symbol }: { symbol: string }) {
+  return (
+    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[10px] font-bold text-primary">
+      {symbol.slice(0, 2).toUpperCase()}
+    </div>
+  );
+}
+
+export function SwapPayTokenSelect({
+  value,
+  onChange,
+  excludeAddress,
+  variant = "default",
+}: SwapPayTokenSelectProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [listed, setListed] = useState<ListedToken[]>([]);
   const [resolvedAddressOption, setResolvedAddressOption] = useState<PayToken | null>(null);
   const [resolvingAddress, setResolvingAddress] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
   const client = usePublicClient();
 
   useEffect(() => {
+    if (!open) return;
     fetch("/api/tokens?section=new&limit=100")
       .then((r) => r.json())
       .then((d) => setListed(d.tokens ?? []))
       .catch(() => setListed([]));
-  }, []);
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -70,7 +86,6 @@ export function SwapPayTokenSelect({ value, onChange, excludeAddress }: SwapPayT
         return;
       }
 
-      // 1) Try the platform registry (DB)
       try {
         const r = await fetch(`/api/tokens/${addr}`);
         if (r.ok) {
@@ -88,10 +103,9 @@ export function SwapPayTokenSelect({ value, onChange, excludeAddress }: SwapPayT
           }
         }
       } catch {
-        // ignore and fall through
+        // fall through
       }
 
-      // 2) Fallback: read metadata from chain so any ERC20 works
       try {
         const [symbol, decimals] = await Promise.all([
           c.readContract({ address: addr, abi: erc20Abi, functionName: "symbol" }),
@@ -114,16 +128,22 @@ export function SwapPayTokenSelect({ value, onChange, excludeAddress }: SwapPayT
     }
 
     resolve();
-
     return () => {
       cancelled = true;
     };
   }, [query, open, client, excludeAddress]);
 
   useEffect(() => {
+    if (!open) return;
+    const t = setTimeout(() => searchRef.current?.focus(), 50);
+    return () => clearTimeout(t);
+  }, [open]);
+
+  useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
         setOpen(false);
+        setQuery("");
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -165,25 +185,42 @@ export function SwapPayTokenSelect({ value, onChange, excludeAddress }: SwapPayT
   const addressQuery = query.trim();
   const isAddressQuery = isValidTokenAddress(addressQuery);
 
+  const triggerClass =
+    variant === "pill"
+      ? "flex h-10 shrink-0 items-center gap-2 rounded-full border border-border bg-muted/40 px-3 text-sm font-semibold hover:bg-muted"
+      : "flex h-10 min-w-[7rem] items-center justify-between gap-2 rounded-lg border border-border bg-background px-3 text-sm font-semibold hover:bg-muted";
+
   return (
     <div ref={containerRef} className="relative">
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="flex h-10 min-w-[7rem] items-center justify-between gap-2 rounded-lg border border-border bg-background px-3 text-sm font-semibold hover:bg-muted"
+        className={triggerClass}
         aria-expanded={open}
         aria-haspopup="listbox"
       >
+        <PayTokenAvatar symbol={value.symbol} />
         <span>{value.symbol}</span>
-        <ChevronDown className={cn("h-4 w-4 shrink-0 text-muted-foreground transition-transform", open && "rotate-180")} />
+        <ChevronDown
+          className={cn(
+            "h-4 w-4 shrink-0 text-muted-foreground transition-transform",
+            open && "rotate-180"
+          )}
+        />
       </button>
 
       {open && (
-        <div className="absolute right-0 z-50 mt-1 w-64 overflow-hidden rounded-lg border bg-popover shadow-lg">
+        <div
+          className={cn(
+            "absolute z-50 mt-1 overflow-hidden rounded-lg border bg-popover shadow-lg",
+            variant === "pill" ? "right-0 w-72" : "right-0 w-64"
+          )}
+        >
           <div className="border-b p-2">
             <div className="relative">
               <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
               <input
+                ref={searchRef}
                 type="text"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
@@ -194,7 +231,7 @@ export function SwapPayTokenSelect({ value, onChange, excludeAddress }: SwapPayT
           </div>
           <ul className="max-h-56 overflow-y-auto py-1" role="listbox">
             {!query.trim() && (
-              <li className="px-3 py-1.5 text-xs font-medium text-muted-foreground">Popular · OPN ecosystem</li>
+              <li className="px-3 py-1.5 text-xs font-medium text-muted-foreground">All tokens</li>
             )}
             {isAddressQuery && (
               <>
@@ -213,15 +250,18 @@ export function SwapPayTokenSelect({ value, onChange, excludeAddress }: SwapPayT
                         setQuery("");
                       }}
                       className={cn(
-                        "flex w-full flex-col items-start px-3 py-2 text-left text-sm hover:bg-muted",
+                        "flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-muted",
                         value.id === resolvedAddressOption.id && "bg-primary/10 text-primary"
                       )}
                     >
-                      <span className="font-medium">{resolvedAddressOption.symbol}</span>
-                      <span className="font-mono text-xs text-muted-foreground">
-                        {resolvedAddressOption.address?.slice(0, 6)}…{resolvedAddressOption.address?.slice(-4)}
-                      </span>
-                      <span className="text-xs text-muted-foreground">ERC20 token</span>
+                      <PayTokenAvatar symbol={resolvedAddressOption.symbol} />
+                      <div>
+                        <span className="font-medium">{resolvedAddressOption.symbol}</span>
+                        <p className="font-mono text-xs text-muted-foreground">
+                          {resolvedAddressOption.address?.slice(0, 6)}…
+                          {resolvedAddressOption.address?.slice(-4)}
+                        </p>
+                      </div>
                     </button>
                   </li>
                 )}
@@ -243,19 +283,22 @@ export function SwapPayTokenSelect({ value, onChange, excludeAddress }: SwapPayT
                       setQuery("");
                     }}
                     className={cn(
-                      "flex w-full flex-col items-start px-3 py-2 text-left text-sm hover:bg-muted",
+                      "flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-muted",
                       value.id === token.id && "bg-primary/10 text-primary"
                     )}
                   >
-                    <span className="font-medium">{token.symbol}</span>
-                    {token.address && (
-                      <span className="font-mono text-xs text-muted-foreground">
-                        {token.address.slice(0, 6)}…{token.address.slice(-4)}
-                      </span>
-                    )}
-                    {token.isNative && (
-                      <span className="text-xs text-muted-foreground">Native OPN</span>
-                    )}
+                    <PayTokenAvatar symbol={token.symbol} />
+                    <div>
+                      <span className="font-medium">{token.symbol}</span>
+                      {token.address && (
+                        <p className="font-mono text-xs text-muted-foreground">
+                          {token.address.slice(0, 6)}…{token.address.slice(-4)}
+                        </p>
+                      )}
+                      {token.isNative && (
+                        <p className="text-xs text-muted-foreground">Native OPN</p>
+                      )}
+                    </div>
                   </button>
                 </li>
               ))

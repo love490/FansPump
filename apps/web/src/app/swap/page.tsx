@@ -7,9 +7,7 @@ export default function SwapPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Swap</h1>
-        <p className="text-muted-foreground">
-          Buy and sell tokens on OPNChain — OPN ↔ WOPN converts automatically at 1:1.
-        </p>
+        <p className="text-muted-foreground">Trade tokens instantly on OPNChain.</p>
       </div>
 
       <SwapPanel />
