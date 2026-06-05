@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState, type RefObject } from "react";
 import { createPortal } from "react-dom";
+import { cn } from "@/lib/utils";
 
 export type DropdownPosition = {
   top: number;
@@ -9,36 +10,39 @@ export type DropdownPosition = {
   width: number;
 };
 
+export type DropdownAnchorMode = "row" | "pill";
+
 export function useDropdownPosition(
   anchorRef: RefObject<HTMLElement | null>,
   open: boolean,
-  minWidth = 300
+  mode: DropdownAnchorMode = "row"
 ) {
-  const [position, setPosition] = useState<DropdownPosition>({ top: 0, left: 0, width: minWidth });
+  const [position, setPosition] = useState<DropdownPosition>({ top: 0, left: 0, width: 300 });
 
   const update = useCallback(() => {
     const el = anchorRef.current;
     if (!el) return;
 
     const rect = el.getBoundingClientRect();
-    const width = Math.max(rect.width, minWidth);
-    const margin = 6;
-    const panelMaxHeight = Math.min(window.innerHeight * 0.55, 380);
+    const margin = 4;
 
-    // Drop directly below the trigger button, right-aligned with the pill
+    if (mode === "row") {
+      // Full width of the From/To swap bar — drops directly below the card
+      setPosition({
+        top: rect.bottom,
+        left: rect.left,
+        width: rect.width,
+      });
+      return;
+    }
+
+    // Pill trigger fallback (non-swap contexts)
+    const width = Math.max(rect.width, 280);
     const top = rect.bottom + margin;
     let left = rect.right - width;
     left = Math.max(margin, Math.min(left, window.innerWidth - width - margin));
-
-    // Only flip above if there is not enough room below
-    let finalTop = top;
-    if (top + panelMaxHeight > window.innerHeight - margin) {
-      const above = rect.top - panelMaxHeight - margin;
-      if (above >= margin) finalTop = above;
-    }
-
-    setPosition({ top: finalTop, left, width });
-  }, [anchorRef, minWidth]);
+    setPosition({ top, left, width });
+  }, [anchorRef, mode]);
 
   useEffect(() => {
     if (!open) return;
@@ -60,7 +64,7 @@ type SwapDropdownPortalProps = {
   anchorRef: RefObject<HTMLElement | null>;
   panelRef: RefObject<HTMLDivElement | null>;
   children: React.ReactNode;
-  minWidth?: number;
+  anchorMode?: DropdownAnchorMode;
 };
 
 export function SwapDropdownPortal({
@@ -69,9 +73,9 @@ export function SwapDropdownPortal({
   anchorRef,
   panelRef,
   children,
-  minWidth = 300,
+  anchorMode = "row",
 }: SwapDropdownPortalProps) {
-  const position = useDropdownPosition(anchorRef, open, minWidth);
+  const position = useDropdownPosition(anchorRef, open, anchorMode);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -101,11 +105,18 @@ export function SwapDropdownPortal({
 
   if (!mounted || !open || typeof document === "undefined") return null;
 
+  const rowAnchored = anchorMode === "row";
+
   return createPortal(
     <div
       ref={panelRef}
       role="listbox"
-      className="fixed z-[200] flex max-h-[min(55vh,380px)] flex-col overflow-hidden rounded-xl border border-border bg-background shadow-xl"
+      className={cn(
+        "fixed z-[200] flex max-h-[min(50vh,360px)] flex-col overflow-hidden border border-border bg-background shadow-xl",
+        rowAnchored
+          ? "rounded-b-xl rounded-t-none border-t-0"
+          : "rounded-xl"
+      )}
       style={{
         top: position.top,
         left: position.left,

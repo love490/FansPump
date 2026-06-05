@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { ChevronDown, Loader2, Search } from "lucide-react";
 import { useAccount, useBalance, usePublicClient } from "wagmi";
 import { formatUnits, type Address } from "viem";
@@ -31,6 +31,7 @@ type SwapPayTokenSelectProps = {
   onChange: (token: PayToken) => void;
   excludeAddress?: string;
   variant?: "default" | "pill";
+  rowAnchorRef?: RefObject<HTMLElement | null>;
 };
 
 function PayTokenAvatar({ symbol }: { symbol: string }) {
@@ -97,6 +98,7 @@ export function SwapPayTokenSelect({
   onChange,
   excludeAddress,
   variant = "default",
+  rowAnchorRef,
 }: SwapPayTokenSelectProps) {
   const { address } = useAccount();
   const client = usePublicClient();
@@ -304,8 +306,9 @@ export function SwapPayTokenSelect({
       <SwapDropdownPortal
         open={open}
         onClose={close}
-        anchorRef={triggerRef}
+        anchorRef={rowAnchorRef ?? triggerRef}
         panelRef={panelRef}
+        anchorMode={rowAnchorRef ? "row" : "pill"}
       >
         <div className="border-b border-border/60 p-3">
           <div className="relative">

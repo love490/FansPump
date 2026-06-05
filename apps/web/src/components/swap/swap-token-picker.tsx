@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import Image from "next/image";
 import { ChevronDown, Loader2, Search } from "lucide-react";
 import { useAccount, usePublicClient } from "wagmi";
@@ -30,6 +30,8 @@ type SwapTokenPickerProps = {
   label?: string;
   variant?: "default" | "pill";
   placeholder?: string;
+  /** Anchor dropdown to the full From/To swap row (not the pill button) */
+  rowAnchorRef?: RefObject<HTMLElement | null>;
 };
 
 function TokenAvatar({ token, size = "md" }: { token: SwapToken; size?: "sm" | "md" }) {
@@ -103,6 +105,7 @@ export function SwapTokenPicker({
   label,
   variant = "default",
   placeholder = "Select token",
+  rowAnchorRef,
 }: SwapTokenPickerProps) {
   const { address } = useAccount();
   const client = usePublicClient();
@@ -310,8 +313,9 @@ export function SwapTokenPicker({
       <SwapDropdownPortal
         open={open}
         onClose={close}
-        anchorRef={triggerRef}
+        anchorRef={rowAnchorRef ?? triggerRef}
         panelRef={panelRef}
+        anchorMode={rowAnchorRef ? "row" : "pill"}
       >
         <div className="border-b border-border/60 p-3">
           <div className="relative">
