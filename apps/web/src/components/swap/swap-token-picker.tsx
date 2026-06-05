@@ -30,6 +30,8 @@ type SwapTokenPickerProps = {
   label?: string;
   variant?: "default" | "pill";
   placeholder?: string;
+  /** Show symbol while token metadata resolves (e.g. deep-linked swap) */
+  fallbackSymbol?: string;
   /** Anchor dropdown to the full swap card (same origin for From and To) */
   rowAnchorRef?: RefObject<HTMLElement | null>;
 };
@@ -105,6 +107,7 @@ export function SwapTokenPicker({
   label,
   variant = "default",
   placeholder = "Select token",
+  fallbackSymbol,
   rowAnchorRef,
 }: SwapTokenPickerProps) {
   const { address } = useAccount();
@@ -299,6 +302,8 @@ export function SwapTokenPicker({
             <TokenAvatar token={selected} size="sm" />
             <span className="truncate">{selected.symbol}</span>
           </>
+        ) : fallbackSymbol ? (
+          <span className="truncate">{fallbackSymbol}</span>
         ) : (
           <span className="text-muted-foreground">{placeholder}</span>
         )}
@@ -372,7 +377,7 @@ export function SwapTokenPicker({
         </div>
       </SwapDropdownPortal>
 
-      {value && validAddress && !selected && (
+      {value && validAddress && !selected && variant === "default" && (
         <p className="text-xs text-muted-foreground">Resolving token…</p>
       )}
       {value && !validAddress && variant === "default" && (

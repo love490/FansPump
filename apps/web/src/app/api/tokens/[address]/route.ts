@@ -42,7 +42,14 @@ export async function GET(
     });
   } catch (e) {
     console.error("[GET /api/tokens/:address]", e);
-    return NextResponse.json({ error: "Database error" }, { status: 500 });
+    const detail = e instanceof Error ? e.message : String(e);
+    return NextResponse.json(
+      {
+        error: "Database error",
+        ...(process.env.NODE_ENV !== "production" ? { detail } : {}),
+      },
+      { status: 500 }
+    );
   }
 }
 

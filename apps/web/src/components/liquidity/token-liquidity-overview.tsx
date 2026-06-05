@@ -9,6 +9,7 @@ import { tokenAbi } from "@/lib/abis/factory";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useTokenLiquidityStats } from "@/hooks/liquidity/useTokenLiquidityStats";
+import { LiquidityMetricBar } from "@/components/liquidity/liquidity-metric-bar";
 import { shortenAddress, cn } from "@/lib/utils";
 
 type TokenLiquidityOverviewProps = {
@@ -60,6 +61,14 @@ export function TokenLiquidityOverview({
 
   const maxLocked = Math.max(...stats.pairs.map((p) => p.lockedPct));
   const maxBurned = Math.max(...stats.pairs.map((p) => p.burnedPct));
+  const topBurnedPair = stats.pairs.reduce(
+    (best, p) => (p.burnedPct > best.burnedPct ? p : best),
+    stats.pairs[0]
+  );
+  const topLockedPair = stats.pairs.reduce(
+    (best, p) => (p.lockedPct > best.lockedPct ? p : best),
+    stats.pairs[0]
+  );
 
   return (
     <div className="space-y-4">
@@ -153,12 +162,44 @@ export function TokenLiquidityOverview({
             </button>
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-2 text-sm">
-          <p>
-            Locked: <span className="font-semibold">{maxLocked.toFixed(2)}%</span>
-            {" · "}
-            Burned: <span className="font-semibold">{maxBurned.toFixed(2)}%</span>
-          </p>
+        <CardContent className="space-y-4">
+          <LiquidityMetricBar
+            label="Burned liquidity"
+            amount={topBurnedPair.burnedLpAmount}
+            pct={topBurnedPair.burnedPct}
+            variant="burn"
+          />
+          <LiquidityMetricBar
+            label="Locked liquidity"
+            amount={topLockedPair.lockedLpAmount}
+            pct={topLockedPair.lockedPct}
+            variant="lock"
+          />
+
+          {stats.pairs.length > 1 && (
+            <div className="space-y-3 border-t border-border/60 pt-3">
+              {stats.pairs.map((p) => (
+                <div key={p.pairId} className="space-y-2">
+                  <p className="text-xs font-medium text-muted-foreground">
+                    {tokenSymbol} / {p.label}
+                  </p>
+                  <LiquidityMetricBar
+                    label="Burned"
+                    amount={p.burnedLpAmount}
+                    pct={p.burnedPct}
+                    variant="burn"
+                  />
+                  <LiquidityMetricBar
+                    label="Locked"
+                    amount={p.lockedLpAmount}
+                    pct={p.lockedPct}
+                    variant="lock"
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+
           {lockInfoOpen && (
             <p className="rounded-lg border border-border/60 bg-muted/30 p-3 text-muted-foreground">
               {stats.fullySecured

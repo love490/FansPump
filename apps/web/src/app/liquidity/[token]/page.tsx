@@ -33,6 +33,7 @@ import {
   uniswapV2RouterAbi,
 } from "@/lib/liquidity/abis";
 import { opnChainConfig } from "@/lib/chain-config/opn";
+import { LiquidityMetricBar } from "@/components/liquidity/liquidity-metric-bar";
 
 type LiquiditySummary = {
   totals: { lockedAmount: string; burnedAmount: string; latestUnlockAt: string | null };
@@ -245,6 +246,11 @@ export default function LiquidityModulePage() {
   useEffect(() => {
     void loadPairData();
   }, [loadPairData]);
+
+  useEffect(() => {
+    if (!pair || lpBalance === 0n) return;
+    setBurnAmount(formatUnits(lpBalance, lpDecimals));
+  }, [pair, lpBalance, lpDecimals]);
 
   const lockedPct = useMemo(() => {
     if (lpTotalSupply === 0n) return 0;
@@ -490,23 +496,24 @@ export default function LiquidityModulePage() {
                 <CardTitle className="text-lg font-mono">{formatUnits(lpTotalSupply, lpDecimals)}</CardTitle>
               </CardHeader>
             </Card>
-            <Card>
+            <Card className="sm:col-span-2">
               <CardHeader className="pb-2">
-                <CardDescription>Locked liquidity</CardDescription>
-                <CardTitle className="text-lg font-mono">
-                  {formatUnits(lpLocked, lpDecimals)}{" "}
-                  <span className="text-sm font-normal text-muted-foreground">({lockedPct.toFixed(2)}%)</span>
-                </CardTitle>
+                <CardDescription>Pool security</CardDescription>
               </CardHeader>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardDescription>LP burned</CardDescription>
-                <CardTitle className="text-lg font-mono">
-                  {formatUnits(lpBurned, lpDecimals)}{" "}
-                  <span className="text-sm font-normal text-muted-foreground">({burnedPct.toFixed(2)}%)</span>
-                </CardTitle>
-              </CardHeader>
+              <CardContent className="space-y-3 pt-0">
+                <LiquidityMetricBar
+                  label="Burned liquidity"
+                  amount={formatUnits(lpBurned, lpDecimals)}
+                  pct={burnedPct}
+                  variant="burn"
+                />
+                <LiquidityMetricBar
+                  label="Locked liquidity"
+                  amount={formatUnits(lpLocked, lpDecimals)}
+                  pct={lockedPct}
+                  variant="lock"
+                />
+              </CardContent>
             </Card>
           </div>
 
@@ -634,6 +641,18 @@ export default function LiquidityModulePage() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
+                  {lpBalance > 0n && (
+                    <LiquidityMetricBar
+                      label="Your LP to burn"
+                      amount={formatUnits(lpBalance, lpDecimals)}
+                      pct={
+                        lpTotalSupply > 0n
+                          ? Number((lpBalance * 10_000n) / lpTotalSupply) / 100
+                          : 0
+                      }
+                      variant="burn"
+                    />
+                  )}
                   <div className="grid gap-2">
                     <Label>Your burn wallet</Label>
                     <Input value={burnAddress} readOnly className="font-mono text-xs" />
@@ -642,7 +661,20 @@ export default function LiquidityModulePage() {
                     </p>
                   </div>
                   <div className="grid gap-2">
-                    <Label>LP amount</Label>
+                    <div className="flex items-center justify-between gap-2">
+                      <Label>LP amount</Label>
+                      {lpBalance > 0n && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-auto px-2 py-0 text-xs"
+                          onClick={() => setBurnAmount(formatUnits(lpBalance, lpDecimals))}
+                        >
+                          Use max
+                        </Button>
+                      )}
+                    </div>
                     <Input value={burnAmount} onChange={(e) => setBurnAmount(e.target.value)} placeholder="0.0" />
                   </div>
                   <Button variant="destructive" onClick={burnLp} disabled={!isConnected || busy || !burnAmount}>

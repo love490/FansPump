@@ -24,6 +24,9 @@ export type PairLiquidityStat = {
   tvlQuote: string;
   lockedPct: number;
   burnedPct: number;
+  totalLpSupply: string;
+  lockedLpAmount: string;
+  burnedLpAmount: string;
 };
 
 export type TokenLiquidityStats = {
@@ -62,10 +65,11 @@ async function readPairStat(
     ...extraBurnAddresses.filter((a) => a.toLowerCase() !== DEAD_BURN_ADDRESS.toLowerCase()),
   ];
 
-  const [token0, reserves, totalSupply, lockedBal, ...burnBals] = await Promise.all([
+  const [token0, reserves, totalSupply, lpDecimals, lockedBal, ...burnBals] = await Promise.all([
     client.readContract({ address: pair, abi: uniswapV2PairAbi, functionName: "token0" }),
     client.readContract({ address: pair, abi: uniswapV2PairAbi, functionName: "getReserves" }),
     client.readContract({ address: pair, abi: uniswapV2PairAbi, functionName: "totalSupply" }),
+    client.readContract({ address: pair, abi: uniswapV2PairAbi, functionName: "decimals" }),
     client.readContract({
       address: pair,
       abi: uniswapV2PairAbi,
@@ -92,6 +96,7 @@ async function readPairStat(
   const quoteDecimals = meta.decimals;
 
   const supply = totalSupply as bigint;
+  const decimals = Number(lpDecimals);
   const lockedPct = supply > 0n ? Number((lockedBal * 10_000n) / supply) / 100 : 0;
   const burnedPct = supply > 0n ? Number((burnedBal * 10_000n) / supply) / 100 : 0;
 
@@ -107,6 +112,9 @@ async function readPairStat(
     tvlQuote,
     lockedPct,
     burnedPct,
+    totalLpSupply: formatUnits(supply, decimals),
+    lockedLpAmount: formatUnits(lockedBal as bigint, decimals),
+    burnedLpAmount: formatUnits(burnedBal, decimals),
   };
 }
 

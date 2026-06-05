@@ -15,7 +15,6 @@ function TokenSwapContent() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Swap Token</h1>
-        <p className="font-mono text-sm text-muted-foreground">{tokenAddress}</p>
       </div>
       <SwapPanel initialToken={tokenAddress} initialMode={mode} />
     </div>

@@ -419,6 +419,7 @@ export function SwapPanel({ initialToken = "", initialMode = "buy" }: SwapPanelP
                   value={tokenAddress}
                   onChange={setTokenAddress}
                   placeholder="Token"
+                  fallbackSymbol={tokenSymbol !== "Token" ? tokenSymbol : undefined}
                   rowAnchorRef={swapCardRef}
                 />
               )}
@@ -453,6 +454,7 @@ export function SwapPanel({ initialToken = "", initialMode = "buy" }: SwapPanelP
                   value={tokenAddress}
                   onChange={setTokenAddress}
                   placeholder="Token"
+                  fallbackSymbol={tokenSymbol !== "Token" ? tokenSymbol : undefined}
                   rowAnchorRef={swapCardRef}
                 />
               ) : (

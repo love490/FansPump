@@ -34,6 +34,13 @@ export async function GET() {
     );
   } catch (e) {
     console.error("[GET /api/stats]", e);
-    return NextResponse.json({ error: "Failed to load stats" }, { status: 500 });
+    const detail = e instanceof Error ? e.message : String(e);
+    return NextResponse.json(
+      {
+        error: "Failed to load stats",
+        ...(process.env.NODE_ENV !== "production" ? { detail } : {}),
+      },
+      { status: 500 }
+    );
   }
 }

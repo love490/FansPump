@@ -59,4 +59,6 @@ DATABASE_URL="your-production-url" pnpm db:push
 - **Build fails on TypeScript** — run `pnpm --filter @iopn/web build` locally and fix errors before pushing.
 - **Prisma client missing** — build runs `pnpm db:generate`; ensure `DATABASE_URL` is set (any valid URL works for `generate`).
 - **500 on `/api/tokens`** — run `pnpm db:push` on production DB; check Railway logs for Prisma `detail` in API responses.
+- **"Database error" / stats show dashes** — Postgres credentials are wrong or stale. In Railway → Postgres → **Connect**, copy the current `DATABASE_URL`, paste it into the **web service** Variables (or use **Add reference** to link Postgres). Redeploy. Update GitHub secret `DATABASE_URL` for CI too.
+- **Local dev cannot connect** — do not use `postgres.railway.internal` in `.env.local`; use the **Public Network** URL from Railway.
 - **Workspace packages not found** — deploy from repo root, not `apps/web` alone.
