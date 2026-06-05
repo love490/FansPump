@@ -318,6 +318,7 @@ export function AddLiquidityPanel({
         );
       }
 
+      console.log("[liquidity] Transaction confirmed, saving position...");
       saveLiquidityPosition({
         tokenAddress: tokenAddress.toLowerCase(),
         tokenSymbol,
@@ -339,6 +340,7 @@ export function AddLiquidityPanel({
         refreshWalletTokens(),
       ]);
     } catch (e) {
+      console.error("[liquidity] Error:", e);
       setError(parseError(e));
       setStatus(null);
     } finally {
