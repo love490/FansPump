@@ -5,40 +5,45 @@ export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ address: string }> }
 ) {
-  const { address } = await params;
-  const token = await prisma.tokenProject.findUnique({
-    where: { contractAddress: address.toLowerCase() },
-    include: {
-      creator: { include: { verification: true } },
-      votes: true,
-    },
-  });
+  try {
+    const { address } = await params;
+    const token = await prisma.tokenProject.findUnique({
+      where: { contractAddress: address.toLowerCase() },
+      include: {
+        creator: { include: { verification: true } },
+        votes: true,
+      },
+    });
 
-  if (!token) {
-    return NextResponse.json({ error: "Token not found" }, { status: 404 });
+    if (!token) {
+      return NextResponse.json({ error: "Token not found" }, { status: 404 });
+    }
+
+    await prisma.tokenProject.update({
+      where: { id: token.id },
+      data: { viewCount: { increment: 1 } },
+    });
+
+    const voteCounts = token.votes.reduce(
+      (acc, v) => {
+        acc[v.voteType] = (acc[v.voteType] ?? 0) + 1;
+        return acc;
+      },
+      {} as Record<string, number>
+    );
+
+    return NextResponse.json({
+      token: {
+        ...token,
+        featureFlags: token.featureFlags.toString(),
+        creatorVerified: !!token.creator?.verification,
+        voteCounts,
+      },
+    });
+  } catch (e) {
+    console.error("[GET /api/tokens/:address]", e);
+    return NextResponse.json({ error: "Database error" }, { status: 500 });
   }
-
-  await prisma.tokenProject.update({
-    where: { id: token.id },
-    data: { viewCount: { increment: 1 } },
-  });
-
-  const voteCounts = token.votes.reduce(
-    (acc, v) => {
-      acc[v.voteType] = (acc[v.voteType] ?? 0) + 1;
-      return acc;
-    },
-    {} as Record<string, number>
-  );
-
-  return NextResponse.json({
-    token: {
-      ...token,
-      featureFlags: token.featureFlags.toString(),
-      creatorVerified: !!token.creator?.verification,
-      voteCounts,
-    },
-  });
 }
 
 export async function PATCH(

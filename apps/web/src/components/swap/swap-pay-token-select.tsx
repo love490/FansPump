@@ -308,7 +308,7 @@ export function SwapPayTokenSelect({
         onClose={close}
         anchorRef={rowAnchorRef ?? triggerRef}
         panelRef={panelRef}
-        anchorMode={rowAnchorRef ? "row" : "pill"}
+        anchorMode={rowAnchorRef ? "card" : "pill"}
       >
         <div className="border-b border-border/60 p-3">
           <div className="relative">

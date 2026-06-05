@@ -30,7 +30,7 @@ type SwapTokenPickerProps = {
   label?: string;
   variant?: "default" | "pill";
   placeholder?: string;
-  /** Anchor dropdown to the full From/To swap row (not the pill button) */
+  /** Anchor dropdown to the full swap card (same origin for From and To) */
   rowAnchorRef?: RefObject<HTMLElement | null>;
 };
 
@@ -315,7 +315,7 @@ export function SwapTokenPicker({
         onClose={close}
         anchorRef={rowAnchorRef ?? triggerRef}
         panelRef={panelRef}
-        anchorMode={rowAnchorRef ? "row" : "pill"}
+        anchorMode={rowAnchorRef ? "card" : "pill"}
       >
         <div className="border-b border-border/60 p-3">
           <div className="relative">

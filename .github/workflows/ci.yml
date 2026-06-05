@@ -52,7 +52,7 @@ jobs:
       - name: Generate Prisma Client
         run: pnpm db:generate
         env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/iopn_launch
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
       - name: Lint
         run: pnpm --filter @iopn/web lint
@@ -60,10 +60,10 @@ jobs:
       - name: Build
         run: pnpm --filter @iopn/web build
         env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/iopn_launch
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
           NEXT_PUBLIC_CHAIN_ID: "984"
           NEXT_PUBLIC_RPC_URL: "https://testnet-rpc2.iopn.tech/"
           NEXT_PUBLIC_BLOCK_EXPLORER_URL: "https://testnet.iopn.tech/"
-          NEXT_PUBLIC_FACTORY_ADDRESS: "0x0000000000000000000000000000000000000001"
-          NEXT_PUBLIC_LIQUIDITY_ROUTER_ADDRESS: "0x0000000000000000000000000000000000000002"
+          NEXT_PUBLIC_FACTORY_ADDRESS: "0xe93B7E9d8B5e6b4676d78693C24794A66F8Bb9AC"
+          NEXT_PUBLIC_LIQUIDITY_ROUTER_ADDRESS: "0xB489bce5c9c9364da2D1D1Bc5CE4274F63141885"
           NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID: "ci-placeholder"

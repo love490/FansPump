@@ -35,32 +35,33 @@ export function VoteButtons({
   }
 
   return (
-    <div className="flex gap-2">
+    <div className="flex flex-wrap gap-2">
       <Button
         variant={vote === "BULLISH" ? "default" : "outline"}
         size="sm"
         disabled={!walletAddress || loading}
         onClick={() => castVote("BULLISH")}
-        className={cn(vote === "BULLISH" && "bg-green-600 hover:bg-green-700")}
+        className={cn("min-w-0 flex-1 sm:flex-none", vote === "BULLISH" && "bg-green-600 hover:bg-green-700")}
       >
-        <TrendingUp className="h-4 w-4" /> Bullish
+        <TrendingUp className="h-4 w-4 shrink-0" /> Bullish
       </Button>
       <Button
         variant={vote === "NEUTRAL" ? "default" : "outline"}
         size="sm"
         disabled={!walletAddress || loading}
         onClick={() => castVote("NEUTRAL")}
+        className="min-w-0 flex-1 sm:flex-none"
       >
-        <Minus className="h-4 w-4" /> Neutral
+        <Minus className="h-4 w-4 shrink-0" /> Neutral
       </Button>
       <Button
         variant={vote === "BEARISH" ? "default" : "outline"}
         size="sm"
         disabled={!walletAddress || loading}
         onClick={() => castVote("BEARISH")}
-        className={cn(vote === "BEARISH" && "bg-red-600 hover:bg-red-700")}
+        className={cn("min-w-0 flex-1 sm:flex-none", vote === "BEARISH" && "bg-red-600 hover:bg-red-700")}
       >
-        <TrendingDown className="h-4 w-4" /> Bearish
+        <TrendingDown className="h-4 w-4 shrink-0" /> Bearish
       </Button>
     </div>
   );

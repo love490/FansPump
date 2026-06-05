@@ -84,8 +84,7 @@ export function SwapPanel({ initialToken = "", initialMode = "buy" }: SwapPanelP
   const [gasEstimate, setGasEstimate] = useState<bigint | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const settingsRef = useRef<HTMLDivElement>(null);
-  const fromRowRef = useRef<HTMLDivElement>(null);
-  const toRowRef = useRef<HTMLDivElement>(null);
+  const swapCardRef = useRef<HTMLDivElement>(null);
 
   const wrongNetwork = isConnected && chainId !== opnChain.id;
   const validToken = isValidTokenAddress(tokenAddress);
@@ -320,7 +319,7 @@ export function SwapPanel({ initialToken = "", initialMode = "buy" }: SwapPanelP
 
   return (
     <div className="mx-auto w-full max-w-lg space-y-4">
-      <Card className="overflow-visible border-border shadow-sm">
+      <Card ref={swapCardRef} className="overflow-visible border-border shadow-sm">
         <CardHeader className="pb-4">
           <div className="flex items-start justify-between gap-3">
             <div>
@@ -380,10 +379,7 @@ export function SwapPanel({ initialToken = "", initialMode = "buy" }: SwapPanelP
           )}
 
           {/* From */}
-          <div
-            ref={fromRowRef}
-            className="overflow-visible rounded-xl border border-border/60 bg-muted/20 p-4"
-          >
+          <div className="overflow-visible rounded-xl border border-border/60 bg-muted/20 p-4">
             <div className="mb-3 flex items-center justify-between text-sm">
               <span className="text-muted-foreground">From</span>
               {fromBalanceLabel && (
@@ -415,7 +411,7 @@ export function SwapPanel({ initialToken = "", initialMode = "buy" }: SwapPanelP
                   value={payToken}
                   onChange={setPayToken}
                   excludeAddress={tokenAddress}
-                  rowAnchorRef={fromRowRef}
+                  rowAnchorRef={swapCardRef}
                 />
               ) : (
                 <SwapTokenPicker
@@ -423,7 +419,7 @@ export function SwapPanel({ initialToken = "", initialMode = "buy" }: SwapPanelP
                   value={tokenAddress}
                   onChange={setTokenAddress}
                   placeholder="Token"
-                  rowAnchorRef={fromRowRef}
+                  rowAnchorRef={swapCardRef}
                 />
               )}
             </div>
@@ -442,10 +438,7 @@ export function SwapPanel({ initialToken = "", initialMode = "buy" }: SwapPanelP
           </div>
 
           {/* To */}
-          <div
-            ref={toRowRef}
-            className="overflow-visible rounded-xl border border-border/60 bg-muted/20 p-4"
-          >
+          <div className="overflow-visible rounded-xl border border-border/60 bg-muted/20 p-4">
             <div className="mb-3 flex items-center justify-between text-sm">
               <span className="text-muted-foreground">To</span>
               {toBalanceLabel && (
@@ -460,7 +453,7 @@ export function SwapPanel({ initialToken = "", initialMode = "buy" }: SwapPanelP
                   value={tokenAddress}
                   onChange={setTokenAddress}
                   placeholder="Token"
-                  rowAnchorRef={toRowRef}
+                  rowAnchorRef={swapCardRef}
                 />
               ) : (
                 <SwapPayTokenSelect
@@ -468,7 +461,7 @@ export function SwapPanel({ initialToken = "", initialMode = "buy" }: SwapPanelP
                   value={payToken}
                   onChange={setPayToken}
                   excludeAddress={tokenAddress}
-                  rowAnchorRef={toRowRef}
+                  rowAnchorRef={swapCardRef}
                 />
               )}
             </div>

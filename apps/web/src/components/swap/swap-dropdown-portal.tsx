@@ -10,12 +10,12 @@ export type DropdownPosition = {
   width: number;
 };
 
-export type DropdownAnchorMode = "row" | "pill";
+export type DropdownAnchorMode = "card" | "pill";
 
 export function useDropdownPosition(
   anchorRef: RefObject<HTMLElement | null>,
   open: boolean,
-  mode: DropdownAnchorMode = "row"
+  mode: DropdownAnchorMode = "card"
 ) {
   const [position, setPosition] = useState<DropdownPosition>({ top: 0, left: 0, width: 300 });
 
@@ -24,12 +24,12 @@ export function useDropdownPosition(
     if (!el) return;
 
     const rect = el.getBoundingClientRect();
-    const margin = 4;
+    const margin = 8;
 
-    if (mode === "row") {
-      // Full width of the From/To swap bar — drops directly below the card
+    if (mode === "card") {
+      // Full swap card — same origin for From and To, drops downward from the card top
       setPosition({
-        top: rect.bottom,
+        top: rect.top,
         left: rect.left,
         width: rect.width,
       });
@@ -73,7 +73,7 @@ export function SwapDropdownPortal({
   anchorRef,
   panelRef,
   children,
-  anchorMode = "row",
+  anchorMode = "card",
 }: SwapDropdownPortalProps) {
   const position = useDropdownPosition(anchorRef, open, anchorMode);
   const [mounted, setMounted] = useState(false);
@@ -105,22 +105,24 @@ export function SwapDropdownPortal({
 
   if (!mounted || !open || typeof document === "undefined") return null;
 
-  const rowAnchored = anchorMode === "row";
+  const cardAnchored = anchorMode === "card";
+  const maxHeight = cardAnchored
+    ? `min(calc(100vh - ${position.top}px - 16px), 480px)`
+    : "min(50vh, 360px)";
 
   return createPortal(
     <div
       ref={panelRef}
       role="listbox"
       className={cn(
-        "fixed z-[200] flex max-h-[min(50vh,360px)] flex-col overflow-hidden border border-border bg-background shadow-xl",
-        rowAnchored
-          ? "rounded-b-xl rounded-t-none border-t-0"
-          : "rounded-xl"
+        "fixed z-[200] flex flex-col overflow-hidden border border-border bg-background shadow-xl",
+        cardAnchored ? "rounded-xl" : "max-h-[min(50vh,360px)] rounded-xl"
       )}
       style={{
         top: position.top,
         left: position.left,
         width: position.width,
+        maxHeight: cardAnchored ? maxHeight : undefined,
       }}
     >
       {children}

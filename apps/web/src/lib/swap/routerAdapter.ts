@@ -145,10 +145,7 @@ export async function fetchSwapQuote(params: SwapQuoteParams): Promise<SwapQuote
     throw new Error(`${payToken.symbol} is not available on this network.`);
   }
 
-  if (
-    payToken.address &&
-    tokenAddress.toLowerCase() === payToken.address.toLowerCase()
-  ) {
+  if (payToken.address && tokenAddress.toLowerCase() === payToken.address.toLowerCase()) {
     throw new Error("Select a different token to swap — payment and target token cannot be the same.");
   }
 
@@ -195,11 +192,7 @@ export async function fetchSwapQuote(params: SwapQuoteParams): Promise<SwapQuote
   else swapKind = "erc20";
 
   const approvalToken =
-    mode === "buy"
-      ? payToken.isNative
-        ? null
-        : payToken.address
-      : tokenAddress;
+    mode === "buy" ? (payToken.isNative ? null : payToken.address) : tokenAddress;
 
   return {
     amountIn: parsedIn,
@@ -295,10 +288,7 @@ export function buildSwapTransaction(params: BuildSwapTxParams) {
   };
 }
 
-export function formatSwapAmount(
-  value: bigint,
-  decimals: number
-): string {
+export function formatSwapAmount(value: bigint, decimals: number): string {
   return decimals === 18 ? formatEther(value) : formatUnits(value, decimals);
 }
 

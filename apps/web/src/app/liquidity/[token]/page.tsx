@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { shortenAddress, cn } from "@/lib/utils";
 import { DEX_ROUTER_ADDRESS } from "@/lib/wagmi";
 import { DEAD_BURN_ADDRESS, LIQUIDITY_LOCKER_ADDRESS } from "@/lib/liquidity/constants";
+import { getOrCreateBurnAddress } from "@/lib/liquidity/burn-address";
 import { erc20Abi } from "@/lib/swap/abis";
 import { dexRouterLiquidityAbi } from "@/lib/liquidity/dex-router-abi";
 import { simulateRemoveLiquidity } from "@/lib/liquidity/remove-liquidity-tx";
@@ -91,6 +92,10 @@ export default function LiquidityModulePage() {
   const canLock = token && !isZeroAddress(LIQUIDITY_LOCKER_ADDRESS);
   const isCreator =
     !!address && !!tokenMeta && address.toLowerCase() === tokenMeta.creatorAddress.toLowerCase();
+  const burnAddress =
+    token && address && isCreator
+      ? getOrCreateBurnAddress(token, address)
+      : DEAD_BURN_ADDRESS;
 
   const loadPairData = useCallback(async () => {
     if (!token || !client || isZeroAddress(DEX_ROUTER_ADDRESS)) {
@@ -175,18 +180,28 @@ export default function LiquidityModulePage() {
       setPair(pairAddr);
       setResolvedPairId(foundPairId ?? pairId);
 
-      const [decimals, total, myBal, burnedBal, lockedBal] = await Promise.all([
+      const burnTargets = [
+        ...new Set(
+          [DEAD_BURN_ADDRESS, burnAddress]
+            .map((a) => a.toLowerCase())
+            .filter((a) => a !== "0x0000000000000000000000000000000000000000")
+        ),
+      ] as Address[];
+
+      const [decimals, total, myBal, ...burnAndLockBals] = await Promise.all([
         client.readContract({ address: pairAddr, abi: uniswapV2PairAbi, functionName: "decimals" }),
         client.readContract({ address: pairAddr, abi: uniswapV2PairAbi, functionName: "totalSupply" }),
         address
           ? client.readContract({ address: pairAddr, abi: uniswapV2PairAbi, functionName: "balanceOf", args: [address] })
           : Promise.resolve(0n),
-        client.readContract({
-          address: pairAddr,
-          abi: uniswapV2PairAbi,
-          functionName: "balanceOf",
-          args: [DEAD_BURN_ADDRESS],
-        }),
+        ...burnTargets.map((addr) =>
+          client.readContract({
+            address: pairAddr,
+            abi: uniswapV2PairAbi,
+            functionName: "balanceOf",
+            args: [addr],
+          })
+        ),
         canLock
           ? client.readContract({
               address: pairAddr,
@@ -196,6 +211,12 @@ export default function LiquidityModulePage() {
             })
           : Promise.resolve(0n),
       ]);
+
+      const burnedBal = (burnAndLockBals.slice(0, burnTargets.length) as bigint[]).reduce(
+        (sum, b) => sum + b,
+        0n
+      );
+      const lockedBal = burnAndLockBals[burnTargets.length] as bigint;
 
       setLpDecimals(Number(decimals));
       setLpTotalSupply(total as bigint);
@@ -207,7 +228,7 @@ export default function LiquidityModulePage() {
     } finally {
       setLoadingPair(false);
     }
-  }, [token, client, address, canLock, pairId]);
+  }, [token, client, address, canLock, pairId, burnAddress]);
 
   useEffect(() => {
     if (!token) return;
@@ -273,7 +294,7 @@ export default function LiquidityModulePage() {
   async function recordBurn(args: { lpToken: Address; amount: bigint; txHash?: string }) {
     if (!token || !tokenMeta || !address) return;
     const prefix = process.env.NEXT_PUBLIC_LIQUIDITY_MESSAGE_PREFIX ?? "FansPump Liquidity Action";
-    const message = `${prefix}\nAction: BURN\nToken: ${token}\nLP: ${args.lpToken}\nAmount: ${args.amount.toString()}\nBurnTo: ${DEAD_BURN_ADDRESS}\nWallet: ${address}\nTimestamp: ${Date.now()}`;
+    const message = `${prefix}\nAction: BURN\nToken: ${token}\nLP: ${args.lpToken}\nAmount: ${args.amount.toString()}\nBurnTo: ${burnAddress}\nWallet: ${address}\nTimestamp: ${Date.now()}`;
     const signature = await signMessageAsync({ message });
     await fetch("/api/liquidity/burn", {
       method: "POST",
@@ -283,7 +304,7 @@ export default function LiquidityModulePage() {
         lpToken: args.lpToken,
         creatorWallet: address,
         amount: args.amount.toString(),
-        burnAddress: DEAD_BURN_ADDRESS,
+        burnAddress,
         txHash: args.txHash,
         burnedAt: new Date().toISOString(),
         message,
@@ -304,7 +325,7 @@ export default function LiquidityModulePage() {
         address: pair,
         abi: uniswapV2PairAbi,
         functionName: "transfer",
-        args: [DEAD_BURN_ADDRESS, parsed],
+        args: [burnAddress, parsed],
       });
       await waitForTx(txHash);
       await recordBurn({ lpToken: pair, amount: parsed, txHash: String(txHash) });
@@ -608,12 +629,17 @@ export default function LiquidityModulePage() {
               <Card>
                 <CardHeader>
                   <CardTitle>Burn LP tokens</CardTitle>
-                  <CardDescription>Creator only — permanently send LP to the burn address.</CardDescription>
+                  <CardDescription>
+                    Creator only — permanently send LP to your unique burn wallet (key discarded).
+                  </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <div className="grid gap-2">
-                    <Label>Burn address</Label>
-                    <Input value={DEAD_BURN_ADDRESS} readOnly />
+                    <Label>Your burn wallet</Label>
+                    <Input value={burnAddress} readOnly className="font-mono text-xs" />
+                    <p className="text-xs text-muted-foreground">
+                      Generated once per token. LP sent here cannot be recovered.
+                    </p>
                   </div>
                   <div className="grid gap-2">
                     <Label>LP amount</Label>
