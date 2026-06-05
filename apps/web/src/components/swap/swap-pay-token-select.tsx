@@ -35,7 +35,7 @@ type SwapPayTokenSelectProps = {
 
 function PayTokenAvatar({ symbol }: { symbol: string }) {
   return (
-    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/15 text-xs font-bold text-primary">
+    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/15 text-[10px] font-bold text-primary">
       {symbol.slice(0, 2).toUpperCase()}
     </div>
   );
@@ -73,11 +73,11 @@ function PayTokenRow({
       aria-selected={active}
       onClick={onPick}
       className={cn(
-        "flex w-full items-center justify-between gap-3 rounded-xl border border-border/50 bg-muted/30 p-3 text-left transition-colors hover:bg-muted/60",
+        "flex w-full items-center justify-between gap-3 overflow-hidden rounded-xl border border-border/50 bg-muted/30 p-3 text-left transition-colors hover:bg-muted/60",
         active && "border-primary/50 bg-primary/10"
       )}
     >
-      <div className="flex min-w-0 items-center gap-3">
+      <div className="flex min-w-0 flex-1 items-center gap-3 overflow-hidden">
         <PayTokenAvatar symbol={token.symbol} />
         <div className="min-w-0">
           <p className="truncate font-semibold">{token.symbol}</p>

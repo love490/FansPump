@@ -12,7 +12,7 @@ export type DropdownPosition = {
 export function useDropdownPosition(
   anchorRef: RefObject<HTMLElement | null>,
   open: boolean,
-  minWidth = 320
+  minWidth = 300
 ) {
   const [position, setPosition] = useState<DropdownPosition>({ top: 0, left: 0, width: minWidth });
 
@@ -22,18 +22,22 @@ export function useDropdownPosition(
 
     const rect = el.getBoundingClientRect();
     const width = Math.max(rect.width, minWidth);
-    const margin = 8;
-    const maxHeight = Math.min(window.innerHeight * 0.7, 420);
+    const margin = 6;
+    const panelMaxHeight = Math.min(window.innerHeight * 0.55, 380);
 
-    let top = rect.bottom + margin;
-    let left = Math.min(rect.right - width, window.innerWidth - width - margin);
-    left = Math.max(margin, left);
+    // Drop directly below the trigger button, right-aligned with the pill
+    const top = rect.bottom + margin;
+    let left = rect.right - width;
+    left = Math.max(margin, Math.min(left, window.innerWidth - width - margin));
 
-    if (top + maxHeight > window.innerHeight - margin) {
-      top = Math.max(margin, rect.top - maxHeight - margin);
+    // Only flip above if there is not enough room below
+    let finalTop = top;
+    if (top + panelMaxHeight > window.innerHeight - margin) {
+      const above = rect.top - panelMaxHeight - margin;
+      if (above >= margin) finalTop = above;
     }
 
-    setPosition({ top, left, width });
+    setPosition({ top: finalTop, left, width });
   }, [anchorRef, minWidth]);
 
   useEffect(() => {
@@ -65,7 +69,7 @@ export function SwapDropdownPortal({
   anchorRef,
   panelRef,
   children,
-  minWidth = 320,
+  minWidth = 300,
 }: SwapDropdownPortalProps) {
   const position = useDropdownPosition(anchorRef, open, minWidth);
   const [mounted, setMounted] = useState(false);
@@ -83,29 +87,33 @@ export function SwapDropdownPortal({
     return () => document.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
+  useEffect(() => {
+    if (!open) return;
+    function handleClickOutside(e: MouseEvent) {
+      const target = e.target as Node;
+      if (anchorRef.current?.contains(target)) return;
+      if (panelRef.current?.contains(target)) return;
+      onClose();
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [open, onClose, anchorRef, panelRef]);
+
   if (!mounted || !open || typeof document === "undefined") return null;
 
   return createPortal(
-    <>
-      <div
-        className="fixed inset-0 z-[199] bg-black/50 backdrop-blur-[2px]"
-        aria-hidden
-        onClick={onClose}
-      />
-      <div
-        ref={panelRef}
-        role="dialog"
-        aria-modal="true"
-        className="fixed z-[200] flex max-h-[min(70vh,420px)] flex-col overflow-hidden rounded-xl border border-border bg-background shadow-2xl"
-        style={{
-          top: position.top,
-          left: position.left,
-          width: position.width,
-        }}
-      >
-        {children}
-      </div>
-    </>,
+    <div
+      ref={panelRef}
+      role="listbox"
+      className="fixed z-[200] flex max-h-[min(55vh,380px)] flex-col overflow-hidden rounded-xl border border-border bg-background shadow-xl"
+      style={{
+        top: position.top,
+        left: position.left,
+        width: position.width,
+      }}
+    >
+      {children}
+    </div>,
     document.body
   );
 }

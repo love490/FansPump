@@ -33,25 +33,23 @@ type SwapTokenPickerProps = {
 };
 
 function TokenAvatar({ token, size = "md" }: { token: SwapToken; size?: "sm" | "md" }) {
-  const dim = size === "sm" ? "h-10 w-10" : "h-8 w-8";
-  const text = size === "sm" ? "text-xs" : "text-xs";
+  const px = size === "sm" ? 32 : 28;
 
   if (token.logoUrl) {
     return (
-      <div className={cn("relative shrink-0 overflow-hidden rounded-full", dim)}>
-        <Image src={token.logoUrl} alt="" fill className="object-cover" unoptimized />
-      </div>
+      <Image
+        src={token.logoUrl}
+        alt=""
+        width={px}
+        height={px}
+        unoptimized
+        className="h-8 w-8 shrink-0 rounded-full object-cover"
+      />
     );
   }
 
   return (
-    <div
-      className={cn(
-        "flex shrink-0 items-center justify-center rounded-full bg-primary/15 font-bold text-primary",
-        dim,
-        text
-      )}
-    >
+    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/15 text-[10px] font-bold text-primary">
       {token.symbol.slice(0, 2).toUpperCase()}
     </div>
   );
@@ -80,11 +78,11 @@ function TokenRow({
       type="button"
       onClick={onPick}
       className={cn(
-        "flex w-full items-center justify-between gap-3 rounded-xl border border-border/50 bg-muted/30 p-3 text-left transition-colors hover:bg-muted/60",
+        "flex w-full items-center justify-between gap-3 overflow-hidden rounded-xl border border-border/50 bg-muted/30 p-3 text-left transition-colors hover:bg-muted/60",
         active && "border-primary/50 bg-primary/10"
       )}
     >
-      <div className="flex min-w-0 items-center gap-3">
+      <div className="flex min-w-0 flex-1 items-center gap-3 overflow-hidden">
         <TokenAvatar token={token} size="sm" />
         <div className="min-w-0">
           <p className="truncate font-semibold">{token.symbol}</p>
