@@ -1,10 +1,10 @@
 import { getDefaultConfig } from "@rainbow-me/rainbowkit";
 import { fallback, http } from "wagmi";
-import { defineChain } from "viem";
 
 import {
   getWopnAddress,
   getOpnRpcUrls,
+  opnChain,
   opnChainConfig,
   OPN_CHAIN_ID,
   OPN_EXPLORER_URL,
@@ -13,25 +13,13 @@ import {
 } from "./chain-config/opn";
 
 /** OPNChain Testnet — RPC via testnet-rpc2.iopn.tech */
-export { OPN_CHAIN_ID, OPN_RPC_URL, OPN_RPC_URLS, OPN_EXPLORER_URL };
-
-const rpcUrls = getOpnRpcUrls();
-const explorerUrl = opnChainConfig.explorerUrl;
-
-export const opnChain = defineChain({
-  id: opnChainConfig.id,
-  name: "OPNChain Testnet",
-  nativeCurrency: { name: "OPN", symbol: "OPN", decimals: 18 },
-  rpcUrls: {
-    default: { http: rpcUrls },
-  },
-  blockExplorers: {
-    default: { name: "OPNChain Testnet Explorer", url: explorerUrl },
-  },
-});
+export { OPN_CHAIN_ID, OPN_RPC_URL, OPN_RPC_URLS, OPN_EXPLORER_URL, opnChain };
 
 /** @deprecated Use `opnChain` */
 export const iopnChain = opnChain;
+
+const rpcUrls = getOpnRpcUrls();
+const explorerUrl = opnChainConfig.explorerUrl;
 
 const opnTransport = fallback(
   rpcUrls.map((url) =>

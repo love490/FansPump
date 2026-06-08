@@ -1,11 +1,16 @@
 import type { PublicClient } from "viem";
-import { decodeEventLog, type Address, type Hash } from "viem";
+import { parseAbiItem, type Address } from "viem";
 import { prisma } from "@iopn/database";
 import { opnChainConfig } from "@/lib/chain-config/opn";
 import { recordTradingFee } from "@/lib/analytics/record-fee";
 import { weiToOpnFloat } from "@/lib/analytics/fee-split";
 
-import { FEE_COLLECTED_TOPIC, SWAP_EXECUTED_TOPIC } from "@/lib/analytics/events";
+const FEE_COLLECTED_EVENT = parseAbiItem(
+  "event FeeCollected(address indexed token, address indexed creator, uint256 fee)"
+);
+const SWAP_EXECUTED_EVENT = parseAbiItem(
+  "event SwapExecuted(address indexed token, address indexed trader, uint256 amountIn, uint256 amountOut)"
+);
 
 export type IndexerSyncResult = {
   fromBlock: string;
@@ -28,126 +33,93 @@ export async function syncAnalyticsFromChain(
   let swapEvents = 0;
   let skipped = 0;
 
-  const logs = await client.getLogs({
-    fromBlock: start,
-    toBlock: latest,
-    topics: [[FEE_COLLECTED_TOPIC, SWAP_EXECUTED_TOPIC]],
-  });
+  const [feeLogs, swapLogs] = await Promise.all([
+    client.getLogs({ event: FEE_COLLECTED_EVENT, fromBlock: start, toBlock: latest }),
+    client.getLogs({ event: SWAP_EXECUTED_EVENT, fromBlock: start, toBlock: latest }),
+  ]);
 
-  for (const log of logs) {
+  for (const log of feeLogs) {
     try {
-      if (log.topics[0] === FEE_COLLECTED_TOPIC) {
-        const decoded = decodeEventLog({
-          abi: [
-            {
-              type: "event",
-              name: "FeeCollected",
-              inputs: [
-                { name: "token", type: "address", indexed: true },
-                { name: "creator", type: "address", indexed: true },
-                { name: "fee", type: "uint256", indexed: false },
-              ],
-            },
-          ],
-          data: log.data,
-          topics: log.topics,
-        });
+      const tokenAddress = log.args.token as Address;
+      let creatorAddress = log.args.creator as Address;
 
-        const tokenAddress = decoded.args.token as Address;
-        let creatorAddress = decoded.args.creator as Address;
+      if (creatorAddress === "0x0000000000000000000000000000000000000000") {
+        creatorAddress = (await readFactoryCreator(client, tokenAddress)) ?? creatorAddress;
+      }
 
-        if (creatorAddress === "0x0000000000000000000000000000000000000000") {
-          creatorAddress = (await readFactoryCreator(client, tokenAddress)) ?? creatorAddress;
-        }
+      const block = await client.getBlock({ blockHash: log.blockHash });
+      const ok = await recordTradingFee({
+        tokenAddress,
+        creatorAddress,
+        feeWei: log.args.fee as bigint,
+        txHash: log.transactionHash,
+        logIndex: log.logIndex,
+        blockNumber: log.blockNumber,
+        blockTime: new Date(Number(block.timestamp) * 1000),
+      });
+      if (ok.recorded) feeEvents++;
+      else skipped++;
+    } catch {
+      skipped++;
+    }
+  }
 
-        const block = await client.getBlock({ blockHash: log.blockHash });
-        const ok = await recordTradingFee({
-          tokenAddress,
-          creatorAddress,
-          feeWei: decoded.args.fee as bigint,
-          txHash: log.transactionHash,
-          logIndex: log.logIndex,
-          blockNumber: log.blockNumber,
-          blockTime: new Date(Number(block.timestamp) * 1000),
-        });
-        if (ok.recorded) feeEvents++;
-        else skipped++;
+  for (const log of swapLogs) {
+    try {
+      const tokenAddress = (log.args.token as Address).toLowerCase();
+      const token = await prisma.tokenProject.findUnique({
+        where: { contractAddress: tokenAddress },
+      });
+      if (!token) {
+        skipped++;
         continue;
       }
 
-      if (log.topics[0] === SWAP_EXECUTED_TOPIC) {
-        const decoded = decodeEventLog({
-          abi: [
-            {
-              type: "event",
-              name: "SwapExecuted",
-              inputs: [
-                { name: "token", type: "address", indexed: true },
-                { name: "trader", type: "address", indexed: true },
-                { name: "amountIn", type: "uint256", indexed: false },
-                { name: "amountOut", type: "uint256", indexed: false },
-              ],
-            },
-          ],
-          data: log.data,
-          topics: log.topics,
-        });
+      const existing = await prisma.swapActivity.findUnique({
+        where: {
+          txHash_logIndex: {
+            txHash: log.transactionHash,
+            logIndex: log.logIndex,
+          },
+        },
+      });
+      if (existing) {
+        skipped++;
+        continue;
+      }
 
-        const tokenAddress = (decoded.args.token as Address).toLowerCase();
-        const token = await prisma.tokenProject.findUnique({
-          where: { contractAddress: tokenAddress },
-        });
-        if (!token) {
-          skipped++;
-          continue;
-        }
+      const block = await client.getBlock({ blockHash: log.blockHash });
+      const volumeWei = log.args.amountIn as bigint;
 
-        const existing = await prisma.swapActivity.findUnique({
-          where: {
-            txHash_logIndex: {
-              txHash: log.transactionHash,
-              logIndex: log.logIndex,
-            },
+      await prisma.$transaction(async (tx) => {
+        await tx.swapActivity.create({
+          data: {
+            tokenId: token.id,
+            tokenAddress,
+            traderAddress: (log.args.trader as Address).toLowerCase(),
+            volumeWei: volumeWei.toString(),
+            txHash: log.transactionHash,
+            logIndex: log.logIndex,
+            blockNumber: log.blockNumber,
+            blockTime: new Date(Number(block.timestamp) * 1000),
           },
         });
-        if (existing) {
-          skipped++;
-          continue;
-        }
 
-        const block = await client.getBlock({ blockHash: log.blockHash });
-        const volumeWei = decoded.args.amountIn as bigint;
-
-        await prisma.$transaction(async (tx) => {
-          await tx.swapActivity.create({
-            data: {
-              tokenId: token.id,
-              tokenAddress,
-              traderAddress: (decoded.args.trader as Address).toLowerCase(),
-              volumeWei: volumeWei.toString(),
-              txHash: log.transactionHash,
-              logIndex: log.logIndex,
-              blockNumber: log.blockNumber,
-              blockTime: new Date(Number(block.timestamp) * 1000),
-            },
-          });
-
-          const volumeOpn = weiToOpnFloat(volumeWei);
-          await tx.tokenProject.update({
-            where: { id: token.id },
-            data: {
-              volumeTotal: { increment: volumeOpn },
-              volume24h: { increment: volumeOpn },
-              txCountTotal: { increment: 1 },
-              txCount24h: { increment: 1 },
-              lastActivity: new Date(Number(block.timestamp) * 1000),
-              trendingScore: Date.now(),
-            },
-          });
+        const volumeOpn = weiToOpnFloat(volumeWei);
+        await tx.tokenProject.update({
+          where: { id: token.id },
+          data: {
+            volumeTotal: { increment: volumeOpn },
+            volume24h: { increment: volumeOpn },
+            txCountTotal: { increment: 1 },
+            txCount24h: { increment: 1 },
+            lastActivity: new Date(Number(block.timestamp) * 1000),
+            trendingScore: Date.now(),
+          },
         });
+      });
 
-        swapEvents++;
-      }
+      swapEvents++;
     } catch {
       skipped++;
     }

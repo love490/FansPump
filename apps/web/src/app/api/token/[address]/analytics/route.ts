@@ -1,11 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createPublicClient, http } from "viem";
 import { prisma } from "@iopn/database";
-import { opnChainConfig } from "@/lib/chain-config/opn";
+import { opnChainConfig, opnChain } from "@/lib/chain-config/opn";
 import { refreshTokenHolderCount } from "@/lib/analytics/holder-count";
 import { getTokenAnalytics } from "@/lib/analytics/queries";
-import { opnChain } from "@/lib/wagmi";
-
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ address: string }> }

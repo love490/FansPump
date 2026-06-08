@@ -1,4 +1,5 @@
 import type { Address } from "viem";
+import { defineChain } from "viem";
 
 /** OPNChain Testnet — single source of truth for chain + ecosystem tokens. */
 export const OPN_CHAIN_ID = 984;
@@ -75,6 +76,19 @@ export const opnChainConfig = {
     usdt: Number(process.env.NEXT_PUBLIC_USDT_DECIMALS ?? 18),
   },
 } as const;
+
+/** Viem chain definition — safe for server routes (no RainbowKit). */
+export const opnChain = defineChain({
+  id: opnChainConfig.id,
+  name: opnChainConfig.name,
+  nativeCurrency: opnChainConfig.nativeCurrency,
+  rpcUrls: {
+    default: { http: getOpnRpcUrls() },
+  },
+  blockExplorers: {
+    default: { name: "OPNChain Testnet Explorer", url: opnChainConfig.explorerUrl },
+  },
+});
 
 export function getActiveChainId(): number {
   return opnChainConfig.id;

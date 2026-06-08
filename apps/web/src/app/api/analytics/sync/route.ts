@@ -1,10 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createPublicClient, http } from "viem";
-import { getActiveChainId, opnChainConfig } from "@/lib/chain-config/opn";
+import { getActiveChainId, opnChain, opnChainConfig } from "@/lib/chain-config/opn";
 import { refreshAllTokenHolderCounts } from "@/lib/analytics/holder-count";
 import { refreshRolling24hMetrics, syncAnalyticsFromChain } from "@/lib/analytics/indexer";
-import { opnChain } from "@/lib/wagmi";
-
 export async function POST(request: NextRequest) {
   const secret = process.env.ANALYTICS_SYNC_SECRET;
   const auth = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
