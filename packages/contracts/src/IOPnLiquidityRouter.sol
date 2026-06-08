@@ -25,6 +25,15 @@ interface IUniswapV2Router02 {
 contract IOPnLiquidityRouter is Ownable, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
+    /// @dev AMM migration prep — not used by current add-liquidity flows.
+    struct Pool {
+        uint256 reserveA;
+        uint256 reserveB;
+    }
+
+    /// @dev Off-chain estimate mirror for future AMM migration (does not affect swaps).
+    mapping(address => uint256) public poolReserveEstimate;
+
     address public iopnPrimaryRouter;
     address public uniswapCompatibleRouter;
 
@@ -51,6 +60,15 @@ contract IOPnLiquidityRouter is Ownable, ReentrancyGuard {
     function setUniswapCompatibleRouter(address router) external onlyOwner {
         uniswapCompatibleRouter = router;
         emit UniswapRouterUpdated(router);
+    }
+
+    /// @dev Future AMM migration hooks — intentionally empty, no swap logic yet.
+    function _beforeSwapHook() internal {}
+    function _afterSwapHook() internal {}
+
+    /// @notice Admin-only reserve estimate for AMM prep (does not move tokens).
+    function setPoolReserveEstimate(address token, uint256 estimate) external onlyOwner {
+        poolReserveEstimate[token] = estimate;
     }
 
     /// @notice Approve token spend then add liquidity via IOPn primary router.

@@ -5,7 +5,6 @@ import { usePathname } from "next/navigation";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
-import { AdminNavLink } from "@/components/layout/admin-nav-link";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { FansPumpLogo } from "@/components/brand/fans-pump-logo";
 
@@ -47,7 +46,6 @@ export function Header() {
               )}
             </Link>
           ))}
-          <AdminNavLink className="rounded-md px-3 py-2" />
         </nav>
 
         <div className="flex items-center gap-2">

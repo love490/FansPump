@@ -16,11 +16,15 @@ const ZERO = "0x0000000000000000000000000000000000000000" as Address;
 
 const PRIMARY_ROUTER = opnChainConfig.contracts.dexRouter;
 
-const UNISWAP_ROUTER = (process.env.NEXT_PUBLIC_UNISWAP_ROUTER_ADDRESS ?? ZERO) as Address;
+const UNISWAP_ROUTER = String(
+  process.env.NEXT_PUBLIC_UNISWAP_ROUTER_ADDRESS ?? ZERO
+) as Address;
 
-const WETH_OVERRIDE = (process.env.NEXT_PUBLIC_WETH_ADDRESS ??
+const WETH_OVERRIDE = String(
+  process.env.NEXT_PUBLIC_WETH_ADDRESS ??
   process.env.NEXT_PUBLIC_WOPN_ADDRESS ??
-  getWopnAddress()) as Address;
+  getWopnAddress()
+) as Address;
 
 export function getRouterAddress(type: RouterType = "primary"): Address {
   if (type === "uniswap" && UNISWAP_ROUTER !== ZERO) {

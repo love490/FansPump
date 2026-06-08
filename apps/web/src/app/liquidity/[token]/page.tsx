@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useParams, useSearchParams } from "next/navigation";
+import { useParams, useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAccount, usePublicClient, useSignMessage, useWriteContract } from "wagmi";
 import type { Address } from "viem";
@@ -60,6 +60,7 @@ function isZeroAddress(a: string) {
 export default function LiquidityModulePage() {
   const params = useParams();
   const searchParams = useSearchParams();
+  const router = useRouter();
   const tokenAddress = (params.token as string) ?? "";
   const token = isAddress(tokenAddress) ? (tokenAddress as Address) : null;
   const pairId = parseLiquidityPairId(searchParams.get("pair"));
@@ -246,6 +247,14 @@ export default function LiquidityModulePage() {
   useEffect(() => {
     void loadPairData();
   }, [loadPairData]);
+
+  // Non-creators without LP should use the read-only token liquidity page (View Liquidity).
+  useEffect(() => {
+    if (!token || loadingPair || !tokenMeta) return;
+    if (isCreator) return;
+    if (lpBalance > 0n) return;
+    router.replace(`/token/${tokenAddress}/liquidity`);
+  }, [token, loadingPair, tokenMeta, isCreator, lpBalance, tokenAddress, router]);
 
   useEffect(() => {
     if (!pair || lpBalance === 0n) return;
@@ -436,7 +445,9 @@ export default function LiquidityModulePage() {
     <div className="mx-auto max-w-3xl space-y-6 px-4 py-10 sm:px-6 lg:px-8">
       <header className="space-y-3">
         <div>
-          <h1 className="text-2xl font-bold">Manage liquidity</h1>
+          <h1 className="text-2xl font-bold">
+            {isCreator ? "Manage liquidity" : "Your liquidity position"}
+          </h1>
           <p className="mt-1 text-muted-foreground">
             {tokenMeta ? `${tokenMeta.name} (${tokenMeta.symbol})` : "Token"} ·{" "}
             <span className="font-mono">{token ? shortenAddress(token, 6) : tokenAddress}</span>
@@ -469,7 +480,7 @@ export default function LiquidityModulePage() {
         <Card>
           <CardHeader>
             <CardTitle>Router not configured</CardTitle>
-            <CardDescription>Set `NEXT_PUBLIC_DEX_ROUTER_ADDRESS` to manage liquidity.</CardDescription>
+            <CardDescription>Set `NEXT_PUBLIC_DEX_ROUTER_ADDRESS` to add or manage your liquidity.</CardDescription>
           </CardHeader>
         </Card>
       ) : loadingPair ? (

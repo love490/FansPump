@@ -8,6 +8,7 @@ import {
   registryToSwapToken,
   searchRegistryTokens,
 } from "@/lib/token-registry";
+import { initializeTokenAnalytics } from "@/lib/analytics/token-init";
 
 const emptyToNull = (v: unknown) => (v === "" ? null : v);
 
@@ -131,6 +132,12 @@ export async function GET(request: NextRequest) {
         isFeatured: true,
         featureFlags: true,
         createdAt: true,
+        volume24h: true,
+        volumeTotal: true,
+        txCount24h: true,
+        txCountTotal: true,
+        lastActivity: true,
+        poolStrength: true,
         creator: { select: { verification: { select: { id: true } } } },
       },
     });
@@ -139,7 +146,28 @@ export async function GET(request: NextRequest) {
       ...t,
       featureFlags: t.featureFlags.toString(),
       creatorVerified: !!t.creator?.verification,
+      createdAt: t.createdAt.toISOString(),
+      lastActivity: t.lastActivity?.toISOString() ?? null,
     }));
+
+    let responseTokens = enriched;
+
+    if (creatorNormalized && enriched.length > 0) {
+      const tokenIds = enriched.map((t) => t.id);
+      const earningRows = await prisma.creatorEarning.findMany({
+        where: { tokenId: { in: tokenIds }, creatorAddress: creatorNormalized },
+        select: { tokenId: true, amount: true },
+      });
+      const earningsMap = new Map<string, bigint>();
+      for (const row of earningRows) {
+        const prev = earningsMap.get(row.tokenId) ?? 0n;
+        earningsMap.set(row.tokenId, prev + BigInt(row.amount));
+      }
+      responseTokens = enriched.map((t) => ({
+        ...t,
+        creatorEarningsWei: (earningsMap.get(t.id) ?? 0n).toString(),
+      }));
+    }
 
     const cacheControl = creatorNormalized
       ? "private, max-age=5, stale-while-revalidate=15"
@@ -167,7 +195,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ tokens: merged.slice(0, limit) }, { headers: { "Cache-Control": cacheControl } });
     }
 
-    return NextResponse.json({ tokens: enriched }, { headers: { "Cache-Control": cacheControl } });
+    return NextResponse.json({ tokens: responseTokens }, { headers: { "Cache-Control": cacheControl } });
   } catch (e) {
     console.error("[GET /api/tokens] Prisma error:", e);
     return NextResponse.json({ error: "Database error", detail: String(e) }, { status: 500 });
@@ -229,6 +257,11 @@ export async function POST(request: NextRequest) {
     });
 
     console.log("[POST /api/tokens] Saved token:", token.contractAddress, "id:", token.id);
+
+    await initializeTokenAnalytics({
+      tokenId: token.id,
+      tokenAddress: token.contractAddress,
+    });
 
     return NextResponse.json({
       success: true,

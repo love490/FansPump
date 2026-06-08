@@ -1,63 +1,26 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { useAccount } from "wagmi";
-import { AddLiquidityPanel } from "@/components/liquidity/add-liquidity-panel";
-import { CreatorLpSecurityPanel } from "@/components/liquidity/creator-lp-security-panel";
 import { TokenLiquidityOverview } from "@/components/liquidity/token-liquidity-overview";
+import { useIsTokenCreator } from "@/hooks/use-is-token-creator";
 
-type TokenMeta = {
-  symbol: string;
-  creatorAddress: string;
-  featureFlags: number;
-  decimals?: number;
-};
-
-export default function LiquidityPage() {
+/** Read-only liquidity view — no manage / add / lock controls (all users). */
+export default function TokenLiquidityViewPage() {
   const params = useParams();
   const tokenAddress = (params.address as string) ?? "";
-  const { address } = useAccount();
-  const [token, setToken] = useState<TokenMeta | null>(null);
-
-  useEffect(() => {
-    if (!tokenAddress) return;
-    fetch(`/api/tokens/${tokenAddress}`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => {
-        const t = d?.token;
-        if (!t) return;
-        setToken({
-          symbol: t.symbol ?? "Token",
-          creatorAddress: t.creatorAddress,
-          featureFlags: Number(t.featureFlags ?? 0),
-          decimals: 18,
-        });
-      })
-      .catch(() => setToken(null));
-  }, [tokenAddress]);
-
-  const isCreator =
-    !!address &&
-    !!token &&
-    address.toLowerCase() === token.creatorAddress.toLowerCase();
+  const { token, loading } = useIsTokenCreator(tokenAddress);
 
   return (
     <div className="mx-auto max-w-3xl space-y-6 py-2 sm:py-4">
       <header>
-        <h1 className="text-2xl font-bold">{isCreator ? "Add Liquidity" : "Liquidity"}</h1>
+        <h1 className="text-2xl font-bold">Liquidity</h1>
         <p className="mt-1 text-muted-foreground">
-          {isCreator
-            ? "Pair your token with OPN, WOPN, or USDT on the OPNChain DEX."
-            : "View total pool liquidity and security status for this token."}
+          View total pool liquidity and security status for this token.
         </p>
       </header>
 
-      {isCreator ? (
-        <>
-          <AddLiquidityPanel initialToken={tokenAddress} />
-          <CreatorLpSecurityPanel tokenAddress={tokenAddress} />
-        </>
+      {loading ? (
+        <div className="h-48 animate-pulse rounded-xl bg-muted" />
       ) : (
         <TokenLiquidityOverview
           tokenAddress={tokenAddress}

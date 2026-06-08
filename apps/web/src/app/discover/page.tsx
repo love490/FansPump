@@ -9,8 +9,9 @@ import { fetchDiscoverTokens, tokenQueryKeys } from "@/lib/tokens-api";
 import { getActiveChainId } from "@/lib/chain-config/opn";
 
 const sections = [
-  { id: "new", label: "New Token" },
+  { id: "latest", label: "Latest" },
   { id: "trending", label: "Trending" },
+  { id: "new", label: "New Token" },
   { id: "views", label: "Most Viewed" },
   { id: "holders", label: "Most Holders" },
   { id: "updated", label: "Recently Updated" },
@@ -28,7 +29,7 @@ function DiscoverContent() {
   const initialSection =
     sectionParam && sectionIds.has(sectionParam as (typeof sections)[number]["id"])
       ? sectionParam
-      : "new";
+      : "latest";
 
   const [section, setSection] = useState(initialSection);
 

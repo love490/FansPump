@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { shortenAddress } from "@/lib/utils";
 import { motion } from "framer-motion";
-import { CheckCircle2, Eye, Users } from "lucide-react";
+import { CheckCircle2, Eye, Users, TrendingUp, Droplets, Coins } from "lucide-react";
 
 export interface TokenCardData {
   id: string;
@@ -19,6 +19,11 @@ export interface TokenCardData {
   holderCount: number;
   creatorVerified?: boolean;
   isFeatured?: boolean;
+  volume24h?: number;
+  volumeTotal?: number;
+  txCount24h?: number;
+  poolStrength?: number;
+  creatorEarningsWei?: string;
 }
 
 export function TokenCard({ token, index = 0 }: { token: TokenCardData; index?: number }) {
@@ -60,13 +65,28 @@ export function TokenCard({ token, index = 0 }: { token: TokenCardData; index?: 
             <p className="mb-3 font-mono text-xs text-muted-foreground">
               {shortenAddress(token.contractAddress)}
             </p>
-            <div className="flex gap-4 text-xs text-muted-foreground">
+            <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
               <span className="flex items-center gap-1">
                 <Eye className="h-3.5 w-3.5" /> {token.viewCount}
               </span>
               <span className="flex items-center gap-1">
                 <Users className="h-3.5 w-3.5" /> {token.holderCount}
               </span>
+              {typeof token.volume24h === "number" && token.volume24h > 0 && (
+                <span className="flex items-center gap-1">
+                  <TrendingUp className="h-3.5 w-3.5" /> {token.volume24h.toFixed(2)} vol
+                </span>
+              )}
+              {typeof token.poolStrength === "number" && token.poolStrength > 0 && (
+                <span className="flex items-center gap-1">
+                  <Droplets className="h-3.5 w-3.5" /> {token.poolStrength.toFixed(0)} pool
+                </span>
+              )}
+              {token.creatorEarningsWei && token.creatorEarningsWei !== "0" && (
+                <span className="flex items-center gap-1">
+                  <Coins className="h-3.5 w-3.5" /> earnings
+                </span>
+              )}
             </div>
           </CardContent>
         </Card>

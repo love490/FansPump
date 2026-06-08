@@ -6,7 +6,7 @@ import { TOKEN_FEATURES, hasFeature, FEATURE_LABELS, FEATURE_DESCRIPTIONS } from
 import { tokenAbi } from "@/lib/abis/factory";
 import { Badge } from "@/components/ui/badge";
 import { FeatureInfo } from "@/components/ui/feature-info";
-import { Check } from "lucide-react";
+import { InfoTickButton } from "@/components/ui/info-tick-button";
 import { cn } from "@/lib/utils";
 import { TokenTaxBadge } from "@/components/token/token-tax-badge";
 
@@ -70,14 +70,11 @@ export function TokenFeatureBadges({
             <span className={cn("font-semibold", tradingEnabled ? "text-green-600" : "text-amber-600")}>
               {tradingEnabled ? "Yes" : "No"}
             </span>
-            <button
-              type="button"
-              onClick={() => setTradableInfoOpen((o) => !o)}
-              className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-border bg-background text-muted-foreground hover:bg-muted"
+            <InfoTickButton
               aria-label="Tradable info"
-            >
-              <Check className="h-3 w-3" />
-            </button>
+              variant={tradingEnabled ? "success" : "warning"}
+              onClick={() => setTradableInfoOpen((o) => !o)}
+            />
           </span>
           {tradableInfoOpen && (
             <span className="text-xs text-muted-foreground">

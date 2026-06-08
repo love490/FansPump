@@ -21,6 +21,25 @@ export async function fetchDiscoverTokens(
   limit = 24
 ): Promise<TokenCardData[]> {
   const chainId = getActiveChainId();
+
+  if (section === "trending") {
+    const res = await fetch(
+      `/api/tokens/trending?limit=${limit}&chainId=${chainId}`
+    );
+    if (!res.ok) throw new Error("Failed to load trending tokens");
+    const data = (await res.json()) as { tokens: TokenCardData[] };
+    return data.tokens ?? [];
+  }
+
+  if (section === "latest" || section === "new") {
+    const res = await fetch(
+      `/api/tokens/latest?limit=${limit}&chainId=${chainId}`
+    );
+    if (!res.ok) throw new Error("Failed to load latest tokens");
+    const data = (await res.json()) as { tokens: TokenCardData[] };
+    return data.tokens ?? [];
+  }
+
   const res = await fetch(`/api/tokens?section=${encodeURIComponent(section)}&limit=${limit}&chainId=${chainId}`);
   if (!res.ok) throw new Error("Failed to load tokens");
   const data = (await res.json()) as { tokens: TokenCardData[] };

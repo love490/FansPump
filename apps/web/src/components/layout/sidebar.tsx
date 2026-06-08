@@ -7,7 +7,6 @@ import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { FansPumpTagline } from "@/components/brand/fans-pump-brand";
 import { FansPumpLogo } from "@/components/brand/fans-pump-logo";
-import { AdminNavLink } from "@/components/layout/admin-nav-link";
 import { SidebarWallet } from "@/components/layout/sidebar-wallet";
 import { SidebarToggle } from "@/components/layout/sidebar-toggle";
 import { useSidebar } from "@/components/layout/sidebar-context";
@@ -25,7 +24,6 @@ function NavSection({
   pathname,
   searchParams,
   onNavigate,
-  showAdmin,
   collapsed,
 }: {
   title?: string;
@@ -33,7 +31,6 @@ function NavSection({
   pathname: string;
   searchParams: URLSearchParams;
   onNavigate?: () => void;
-  showAdmin?: boolean;
   collapsed?: boolean;
 }) {
   return (
@@ -66,11 +63,6 @@ function NavSection({
             </Link>
           );
         })}
-        {showAdmin && !collapsed && (
-          <div className="px-3">
-            <AdminNavLink className="flex items-center gap-3 rounded-lg px-0 py-2" />
-          </div>
-        )}
       </nav>
     </div>
   );
@@ -121,7 +113,6 @@ function SidebarContent({
           pathname={pathname}
           searchParams={searchParams}
           onNavigate={onNavigate}
-          showAdmin
           collapsed={collapsed}
         />
         <NavSection

@@ -61,4 +61,5 @@ DATABASE_URL="your-production-url" pnpm db:push
 - **500 on `/api/tokens`** — run `pnpm db:push` on production DB; check Railway logs for Prisma `detail` in API responses.
 - **"Database error" / stats show dashes** — Postgres credentials are wrong or stale. In Railway → Postgres → **Connect**, copy the current `DATABASE_URL`, paste it into the **web service** Variables (or use **Add reference** to link Postgres). Redeploy. Update GitHub secret `DATABASE_URL` for CI too.
 - **Local dev cannot connect** — do not use `postgres.railway.internal` in `.env.local`; use the **Public Network** URL from Railway.
+- **Analytics sync** — after deploy run `pnpm db:push`, set `ANALYTICS_SYNC_SECRET`, and schedule `POST /api/analytics/sync` with `Authorization: Bearer <secret>` (indexes future `SwapExecuted` / `FeeCollected` events when emitted).
 - **Workspace packages not found** — deploy from repo root, not `apps/web` alone.

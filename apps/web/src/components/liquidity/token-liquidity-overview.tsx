@@ -1,15 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { useReadContract } from "wagmi";
-import { KeyRound, Loader2, Check } from "lucide-react";
+import { KeyRound, Loader2 } from "lucide-react";
 import { TOKEN_FEATURES, hasFeature } from "@iopn/shared";
 import { tokenAbi } from "@/lib/abis/factory";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { useTokenLiquidityStats } from "@/hooks/liquidity/useTokenLiquidityStats";
 import { LiquidityMetricBar } from "@/components/liquidity/liquidity-metric-bar";
+import { InfoTickButton } from "@/components/ui/info-tick-button";
 import { shortenAddress, cn } from "@/lib/utils";
 
 type TokenLiquidityOverviewProps = {
@@ -89,9 +88,6 @@ export function TokenLiquidityOverview({
                 <p className="font-semibold">
                   {tokenSymbol} / {p.label}
                 </p>
-                <Button asChild variant="outline" size="sm">
-                  <Link href={`/liquidity/${tokenAddress}?pair=${p.pairId}`}>Manage</Link>
-                </Button>
               </div>
               <p className="mt-1 font-mono text-xs text-muted-foreground">
                 {shortenAddress(p.pairAddress, 6)}
@@ -128,14 +124,12 @@ export function TokenLiquidityOverview({
               <span className={cn("text-base font-semibold", tradingEnabled ? "text-green-600" : "text-amber-600")}>
                 {tradingEnabled ? "Yes" : "No"}
               </span>
-              <button
-                type="button"
-                onClick={() => setTradableInfoOpen((o) => !o)}
-                className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-border bg-muted/40 text-muted-foreground hover:bg-muted"
+              <InfoTickButton
                 aria-label="Tradable info"
-              >
-                <Check className="h-4 w-4" />
-              </button>
+                size="md"
+                variant={tradingEnabled ? "success" : "warning"}
+                onClick={() => setTradableInfoOpen((o) => !o)}
+              />
             </CardTitle>
           </CardHeader>
           {tradableInfoOpen && (

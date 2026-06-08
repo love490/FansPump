@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAccount, useChainId, usePublicClient, useReadContract, useWaitForTransactionReceipt, useWriteContract } from "wagmi";
-import { isAddress, parseEther, zeroAddress } from "viem";
+import { isAddress, parseEther, zeroAddress } from "@iopn/shared";
 import {
   TOKEN_FEATURES,
   TAX_WALLETS,
@@ -684,7 +684,7 @@ export function TokenCreateForm() {
                   </a>
                 </Button>
                 <Button asChild variant="outline">
-                  <Link href={`/token/${deployedToken}/liquidity`}>Add liquidity</Link>
+                  <Link href={`/token/${deployedToken}/liquidity/add`}>Add liquidity</Link>
                 </Button>
                 <Button asChild variant="outline">
                   <Link href={`/token/${deployedToken}/ownership`}>Manage ownership</Link>
@@ -887,6 +887,7 @@ export function TokenCreateForm() {
                   <div className="flex flex-wrap items-center gap-3">
                     <label className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground">
                       <Checkbox
+                        tickVariant="success"
                         checked={allTaxWalletsEnabled ? true : someTaxWalletsEnabled ? "indeterminate" : false}
                         onCheckedChange={(checked) => toggleAllTaxWallets(checked === true)}
                       />
@@ -904,7 +905,7 @@ export function TokenCreateForm() {
                       <div className="flex items-center justify-between gap-3">
                         <Label className="mb-0">{TAX_WALLET_LABELS[w]}</Label>
                         <label className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground">
-                          <Checkbox checked={enabled} onCheckedChange={() => toggleTaxWallet(w)} />
+                          <Checkbox tickVariant="success" checked={enabled} onCheckedChange={() => toggleTaxWallet(w)} />
                           Enable
                         </label>
                       </div>

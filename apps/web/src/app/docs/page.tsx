@@ -27,11 +27,6 @@ export default function DocsPage() {
             Security model
           </Link>
         </li>
-        <li>
-          <Link href="/admin" className="text-iopn-600 hover:underline">
-            Admin dashboard
-          </Link>
-        </li>
       </ul>
     </div>
   );

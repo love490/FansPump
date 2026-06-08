@@ -62,7 +62,7 @@ function parseError(e: unknown): string {
 
 export function AddLiquidityPanel({
   initialToken = "",
-  showManageLink = true,
+  showManageLink = false,
   onLiquidityAdded,
 }: AddLiquidityPanelProps) {
   const { address, isConnected } = useAccount();

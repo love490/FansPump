@@ -6,6 +6,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useAccount } from "wagmi";
 import { TokenFeatureBadges } from "@/components/token/token-feature-badges";
+import { TokenAnalyticsSection } from "@/components/token/token-analytics-section";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -88,7 +89,7 @@ export default function TokenPage() {
   }
 
   const featureFlags = Number(token.featureFlags);
-  const isCreator = wallet?.toLowerCase() === token.creatorAddress;
+  const isCreator = wallet?.toLowerCase() === token.creatorAddress?.toLowerCase();
 
   async function toggleWatchlist() {
     if (!wallet || !token?.id) return;
@@ -147,7 +148,7 @@ export default function TokenPage() {
             </Link>
           </Button>
           <Button asChild variant="outline" size="sm">
-            <Link href={`/token/${address}/liquidity`}>
+            <Link href={isCreator ? `/token/${address}/liquidity/add` : `/token/${address}/liquidity`}>
               <Droplets className="h-4 w-4" /> {isCreator ? "Add Liquidity" : "View Liquidity"}
             </Link>
           </Button>
@@ -183,6 +184,10 @@ export default function TokenPage() {
           buyTaxBps={token.buyTaxBps}
           sellTaxBps={token.sellTaxBps}
         />
+      </div>
+
+      <div className="mt-8">
+        <TokenAnalyticsSection tokenAddress={address} />
       </div>
 
       <Card className="mt-8 overflow-hidden">

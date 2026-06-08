@@ -14,6 +14,10 @@ enum VoteType {
   BEARISH
 }
 
+enum EarningType {
+  TRADING_FEE
+}
+
 model User {
   id            String   @id @default(cuid())
   walletAddress String   @unique @map("wallet_address")
@@ -60,6 +64,13 @@ model TokenProject {
   isFeatured      Boolean  @default(false) @map("is_featured")
   trendingScore   Float    @default(0) @map("trending_score")
 
+  volume24h       Float    @default(0) @map("volume_24h")
+  volumeTotal     Float    @default(0) @map("volume_total")
+  txCount24h      Int      @default(0) @map("tx_count_24h")
+  txCountTotal    Int      @default(0) @map("tx_count_total")
+  lastActivity    DateTime? @map("last_activity")
+  poolStrength    Float    @default(0) @map("pool_strength")
+
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
 
@@ -69,8 +80,15 @@ model TokenProject {
   metadataHistory MetadataUpdate[]
   liquidityLocks  LiquidityLock[]
   lpBurns         LpBurn[]
+  creatorEarnings CreatorEarning[]
+  poolStats       TokenPoolStats?
+  swapActivities  SwapActivity[]
 
   @@index([createdAt])
+  @@index([volume24h])
+  @@index([txCount24h])
+  @@index([lastActivity])
+  @@index([poolStrength])
   @@index([chainId])
   @@index([creatorAddress])
   @@index([chainId, creatorAddress])
@@ -174,4 +192,75 @@ model MetadataUpdate {
   token     TokenProject @relation(fields: [tokenId], references: [id], onDelete: Cascade)
 
   @@map("metadata_updates")
+}
+
+/// Off-chain creator trading fee ledger (event-indexed, not on-chain yet).
+model CreatorEarning {
+  id             String      @id @default(cuid())
+  creatorAddress String      @map("creator_address")
+  tokenId        String      @map("token_id")
+  tokenAddress   String      @map("token_address")
+  amount         String
+  earningType    EarningType @default(TRADING_FEE) @map("earning_type")
+  txHash         String?     @map("tx_hash")
+  logIndex       Int?        @map("log_index")
+  blockNumber    BigInt?     @map("block_number")
+  createdAt      DateTime    @default(now()) @map("created_at")
+
+  token TokenProject @relation(fields: [tokenId], references: [id], onDelete: Cascade)
+
+  @@unique([txHash, logIndex])
+  @@index([creatorAddress])
+  @@index([tokenAddress])
+  @@index([tokenId])
+  @@index([createdAt])
+  @@map("creator_earnings")
+}
+
+/// Simulated pool share accumulator (AMM migration prep — off-chain only).
+model TokenPoolStats {
+  id                   String   @id @default(cuid())
+  tokenId              String   @unique @map("token_id")
+  tokenAddress         String   @unique @map("token_address")
+  accumulatedPoolValue String   @default("0") @map("accumulated_pool_value")
+  poolReserveEstimate  String   @default("0") @map("pool_reserve_estimate")
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
+
+  token TokenProject @relation(fields: [tokenId], references: [id], onDelete: Cascade)
+
+  @@index([tokenAddress])
+  @@map("token_pool_stats")
+}
+
+/// Indexed swap activity for analytics (deduped by tx + log index).
+model SwapActivity {
+  id            String   @id @default(cuid())
+  tokenId       String   @map("token_id")
+  tokenAddress  String   @map("token_address")
+  traderAddress String   @map("trader_address")
+  volumeWei     String   @map("volume_wei")
+  txHash        String   @map("tx_hash")
+  logIndex      Int      @map("log_index")
+  blockNumber   BigInt   @map("block_number")
+  blockTime     DateTime @map("block_time")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  token TokenProject @relation(fields: [tokenId], references: [id], onDelete: Cascade)
+
+  @@unique([txHash, logIndex])
+  @@index([tokenAddress])
+  @@index([traderAddress])
+  @@index([blockTime])
+  @@index([tokenId])
+  @@map("swap_activities")
+}
+
+/// Platform-wide treasury fee accumulator (off-chain ledger).
+model PlatformTreasuryLedger {
+  id        String      @id @default("global")
+  totalWei  String      @default("0") @map("total_wei")
+  updatedAt DateTime    @updatedAt @map("updated_at")
+
+  @@map("platform_treasury_ledger")
 }
