@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAccount, useChainId, usePublicClient, useReadContract, useWaitForTransactionReceipt, useWriteContract } from "wagmi";
-import { isAddress, parseEther, zeroAddress } from "@iopn/shared";
+import { isAddress, parseEther, zeroAddress } from "viem";
 import {
   TOKEN_FEATURES,
   TAX_WALLETS,
