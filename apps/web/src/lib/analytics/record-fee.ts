@@ -1,5 +1,6 @@
 import { prisma } from "@iopn/database";
 import { splitTradingFee, addWeiStrings, weiToOpnFloat } from "@/lib/analytics/fee-split";
+import { platformSettings } from "@/lib/admin/platform-settings";
 
 export type RecordFeeInput = {
   tokenAddress: string;
@@ -35,7 +36,12 @@ export async function recordTradingFee(input: RecordFeeInput): Promise<{ recorde
     if (existing) return { recorded: false };
   }
 
-  const { creatorWei, treasuryWei, poolWei } = splitTradingFee(input.feeWei);
+  const tradingFees = await platformSettings.getTradingFees();
+  const { creatorWei, treasuryWei, poolWei } = splitTradingFee(input.feeWei, {
+    creatorBps: tradingFees.creatorShareBps,
+    treasuryBps: tradingFees.treasuryShareBps,
+    poolBps: tradingFees.poolShareBps,
+  });
   const blockTime = input.blockTime ?? new Date();
   const volumeOpn = weiToOpnFloat(input.feeWei);
 

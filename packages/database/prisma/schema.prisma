@@ -18,6 +18,26 @@ enum EarningType {
   TRADING_FEE
 }
 
+enum AdminRole {
+  SUPER_ADMIN
+  MODERATOR
+  SUPPORT
+  VIEWER
+}
+
+enum TokenVerificationStatus {
+  NONE
+  PENDING
+  APPROVED
+  REJECTED
+  REVOKED
+}
+
+enum TreasuryWalletType {
+  EOA
+  SAFE_MULTISIG
+}
+
 model User {
   id            String   @id @default(cuid())
   walletAddress String   @unique @map("wallet_address")
@@ -63,6 +83,10 @@ model TokenProject {
   holderCount     Int      @default(0) @map("holder_count")
   isFeatured      Boolean  @default(false) @map("is_featured")
   trendingScore   Float    @default(0) @map("trending_score")
+  verificationStatus TokenVerificationStatus @default(NONE) @map("verification_status")
+  verificationSubmittedAt DateTime? @map("verification_submitted_at")
+  isHidden        Boolean  @default(false) @map("is_hidden")
+  isScam          Boolean  @default(false) @map("is_scam")
 
   volume24h       Float    @default(0) @map("volume_24h")
   volumeTotal     Float    @default(0) @map("volume_total")
@@ -263,4 +287,39 @@ model PlatformTreasuryLedger {
   updatedAt DateTime    @updatedAt @map("updated_at")
 
   @@map("platform_treasury_ledger")
+}
+
+model AdminProfile {
+  id            String    @id @default(cuid())
+  walletAddress String    @unique @map("wallet_address")
+  role          AdminRole @default(SUPER_ADMIN)
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  @@map("admin_profiles")
+}
+
+model AdminActivityLog {
+  id          String   @id @default(cuid())
+  adminWallet String   @map("admin_wallet")
+  action      String
+  details     Json?
+  ipAddress   String?  @map("ip_address")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([adminWallet])
+  @@index([createdAt])
+  @@index([action])
+  @@map("admin_activity_logs")
+}
+
+/// Key-value platform configuration (fees, treasury, discovery weights, etc.).
+model PlatformSetting {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     Json
+  updatedBy String?  @map("updated_by")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("platform_settings")
 }

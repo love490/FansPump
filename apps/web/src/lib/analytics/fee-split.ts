@@ -11,9 +11,12 @@ export type FeeSplitAmounts = {
   poolWei: bigint;
 };
 
-export function splitTradingFee(feeWei: bigint): FeeSplitAmounts {
-  const creatorWei = (feeWei * BigInt(FEE_SPLIT.creatorBps)) / 10_000n;
-  const treasuryWei = (feeWei * BigInt(FEE_SPLIT.treasuryBps)) / 10_000n;
+export function splitTradingFee(
+  feeWei: bigint,
+  bps: { creatorBps: number; treasuryBps: number; poolBps: number } = FEE_SPLIT
+): FeeSplitAmounts {
+  const creatorWei = (feeWei * BigInt(bps.creatorBps)) / 10_000n;
+  const treasuryWei = (feeWei * BigInt(bps.treasuryBps)) / 10_000n;
   const poolWei = feeWei - creatorWei - treasuryWei;
   return { creatorWei, treasuryWei, poolWei };
 }

@@ -1,0 +1,620 @@
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
+import { adminFetch } from "@/lib/admin-session";
+import { useAdmin } from "@/components/admin/admin-context";
+import { FactoryControls } from "@/components/admin/factory-controls";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Star, Download, AlertTriangle } from "lucide-react";
+import { useAccount } from "wagmi";
+
+function SaveButton({ saving, onClick }: { saving: boolean; onClick: () => void }) {
+  return (
+    <Button onClick={onClick} disabled={saving} size="sm">
+      {saving ? "Saving..." : "Save changes"}
+    </Button>
+  );
+}
+
+function FeeInput({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  onChange: (v: number) => void;
+}) {
+  return (
+    <div>
+      <Label>{label}</Label>
+      <Input
+        type="number"
+        step="0.1"
+        min={0}
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className="mt-1"
+      />
+    </div>
+  );
+}
+
+export function OverviewSection() {
+  const [data, setData] = useState<Record<string, unknown> | null>(null);
+  useEffect(() => {
+    adminFetch("/api/admin/overview").then((r) => r.json()).then((d) => setData(d.overview));
+  }, []);
+
+  if (!data) return <p className="text-muted-foreground">Loading overview...</p>;
+
+  const stats: [string, unknown][] = [
+    ["Total Tokens", data.totalTokensCreated],
+    ["Verified Tokens", data.totalVerifiedTokens],
+    ["Platform Revenue (OPN)", data.totalPlatformRevenue],
+    ["Trading Volume", data.totalTradingVolume],
+    ["Active Users (24h)", data.totalActiveUsers],
+    ["Creator Earnings (OPN)", data.totalCreatorEarnings],
+  ];
+
+  return (
+    <div className="space-y-6">
+      <h2 className="text-2xl font-bold">Dashboard Overview</h2>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {stats.map(([label, value]) => (
+          <Card key={label}>
+            <CardContent className="pt-6">
+              <p className="text-xs text-muted-foreground">{label}</p>
+              <p className="text-2xl font-bold">{String(value)}</p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Card>
+          <CardHeader><CardTitle>Latest Token Creations</CardTitle></CardHeader>
+          <CardContent className="space-y-2 text-sm">
+            {(data.latestTokenCreations as { name: string; symbol: string; contractAddress: string }[])?.map((t) => (
+              <div key={t.contractAddress} className="flex justify-between border-b py-2">
+                <Link href={`/token/${t.contractAddress}`} className="font-medium hover:text-primary">
+                  {t.name} ({t.symbol})
+                </Link>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader><CardTitle>Latest Transactions</CardTitle></CardHeader>
+          <CardContent className="space-y-2 text-sm">
+            {(data.latestTransactions as { txHash: string; volumeOpn: number; tokenAddress: string }[])?.map((t) => (
+              <div key={t.txHash} className="border-b py-2 font-mono text-xs">
+                {t.tokenAddress.slice(0, 10)}… · {t.volumeOpn.toFixed(4)} OPN
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+export function CreationFeesSection() {
+  const [fees, setFees] = useState<Record<string, number> | null>(null);
+  const [saving, setSaving] = useState(false);
+  const load = useCallback(() => {
+    adminFetch("/api/admin/settings/creation-fees").then((r) => r.json()).then((d) => setFees(d.fees));
+  }, []);
+  useEffect(() => { load(); }, [load]);
+  if (!fees) return null;
+  const save = async () => {
+    setSaving(true);
+    await adminFetch("/api/admin/settings/creation-fees", { method: "PATCH", body: JSON.stringify({ fees }) });
+    setSaving(false);
+  };
+  return (
+    <div className="space-y-4">
+      <h2 className="text-2xl font-bold">Creation Fees</h2>
+      <p className="text-sm text-muted-foreground">Changes apply to future deployments only. Existing tokens unchanged.</p>
+      <Card>
+        <CardContent className="grid gap-4 pt-6 sm:grid-cols-2 lg:grid-cols-3">
+          {Object.entries(fees).map(([key, val]) => (
+            <FeeInput key={key} label={key.replace(/([A-Z])/g, " $1")} value={val} onChange={(v) => setFees({ ...fees, [key]: v })} />
+          ))}
+        </CardContent>
+      </Card>
+      <SaveButton saving={saving} onClick={save} />
+    </div>
+  );
+}
+
+export function TradingFeesSection() {
+  const [fees, setFees] = useState<Record<string, number> | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  useEffect(() => {
+    adminFetch("/api/admin/settings/trading-fees").then((r) => r.json()).then((d) => setFees(d.fees));
+  }, []);
+  if (!fees) return null;
+  const sum = (fees.creatorShareBps ?? 0) + (fees.treasuryShareBps ?? 0) + (fees.poolShareBps ?? 0);
+  const save = async () => {
+    if (sum !== 10000) { setError("Creator + Treasury + Pool must equal 100%"); return; }
+    setSaving(true);
+    const res = await adminFetch("/api/admin/settings/trading-fees", { method: "PATCH", body: JSON.stringify({ fees }) });
+    if (!res.ok) setError("Save failed");
+    else setError("");
+    setSaving(false);
+  };
+  return (
+    <div className="space-y-4">
+      <h2 className="text-2xl font-bold">Trading Fees</h2>
+      <Card>
+        <CardContent className="grid gap-4 pt-6 sm:grid-cols-2">
+          <FeeInput label="Total Trading Fee (bps)" value={fees.totalTradingFeeBps} onChange={(v) => setFees({ ...fees, totalTradingFeeBps: v })} />
+          <FeeInput label="Creator Share (bps)" value={fees.creatorShareBps} onChange={(v) => setFees({ ...fees, creatorShareBps: v })} />
+          <FeeInput label="Treasury Share (bps)" value={fees.treasuryShareBps} onChange={(v) => setFees({ ...fees, treasuryShareBps: v })} />
+          <FeeInput label="Pool Share (bps)" value={fees.poolShareBps} onChange={(v) => setFees({ ...fees, poolShareBps: v })} />
+        </CardContent>
+      </Card>
+      <p className="text-sm">Split total: {(sum / 100).toFixed(2)}% {sum !== 10000 && <span className="text-destructive">(must be 100%)</span>}</p>
+      {error && <p className="text-sm text-destructive">{error}</p>}
+      <SaveButton saving={saving} onClick={save} />
+    </div>
+  );
+}
+
+export function TreasurySection() {
+  const [treasury, setTreasury] = useState<Record<string, string> | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [confirm, setConfirm] = useState(false);
+  useEffect(() => {
+    adminFetch("/api/admin/settings/treasury").then((r) => r.json()).then((d) => setTreasury(d.treasury));
+  }, []);
+  if (!treasury) return null;
+  const save = async () => {
+    if (!confirm) { setConfirm(true); return; }
+    setSaving(true);
+    await adminFetch("/api/admin/settings/treasury", { method: "PATCH", body: JSON.stringify({ treasury }) });
+    setSaving(false);
+    setConfirm(false);
+  };
+  return (
+    <div className="space-y-4">
+      <h2 className="text-2xl font-bold">Treasury Settings</h2>
+      <div className="flex items-start gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
+        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+        <span>Wallet changes affect future revenue routing. EOA supported now; Safe Multisig ready for future migration.</span>
+      </div>
+      <Card>
+        <CardContent className="space-y-4 pt-6">
+          {["treasuryWallet", "revenueWallet", "emergencyWallet"].map((key) => (
+            <div key={key}>
+              <Label>{key.replace(/([A-Z])/g, " $1")}</Label>
+              <Input className="mt-1 font-mono" value={treasury[key] ?? ""} onChange={(e) => setTreasury({ ...treasury, [key]: e.target.value })} placeholder="0x..." />
+            </div>
+          ))}
+          <div>
+            <Label>Wallet Type</Label>
+            <select
+              className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm"
+              value={treasury.walletType ?? "EOA"}
+              onChange={(e) => setTreasury({ ...treasury, walletType: e.target.value })}
+            >
+              <option value="EOA">EOA</option>
+              <option value="SAFE_MULTISIG">Safe Multisig (future)</option>
+            </select>
+          </div>
+        </CardContent>
+      </Card>
+      <Button variant={confirm ? "destructive" : "default"} onClick={save} disabled={saving}>
+        {confirm ? "Confirm wallet change" : saving ? "Saving..." : "Save treasury settings"}
+      </Button>
+    </div>
+  );
+}
+
+export function VerificationSection() {
+  const [rows, setRows] = useState<{ tokenId: string; token: string; wallet: string; status: string; submittedAt: string }[]>([]);
+  const load = useCallback(() => {
+    adminFetch("/api/admin/verification").then((r) => r.json()).then((d) => setRows(d.submissions ?? []));
+  }, []);
+  useEffect(() => { load(); }, [load]);
+  const act = async (tokenId: string, action: string) => {
+    await adminFetch("/api/admin/verification", { method: "PATCH", body: JSON.stringify({ tokenId, action }) });
+    load();
+  };
+  return (
+    <div className="space-y-4">
+      <h2 className="text-2xl font-bold">Verification Center</h2>
+      <div className="overflow-x-auto rounded-lg border">
+        <table className="w-full text-sm">
+          <thead className="border-b bg-muted/50">
+            <tr>
+              <th className="p-3 text-left">Token</th>
+              <th className="p-3 text-left">Wallet</th>
+              <th className="p-3 text-left">Status</th>
+              <th className="p-3 text-left">Submitted</th>
+              <th className="p-3 text-left">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.length === 0 ? (
+              <tr><td colSpan={5} className="p-6 text-center text-muted-foreground">No verification submissions</td></tr>
+            ) : rows.map((r) => (
+              <tr key={r.tokenId} className="border-b">
+                <td className="p-3">{r.token}</td>
+                <td className="p-3 font-mono text-xs">{r.wallet}</td>
+                <td className="p-3"><Badge>{r.status}</Badge></td>
+                <td className="p-3 text-xs">{new Date(r.submittedAt).toLocaleDateString()}</td>
+                <td className="p-3 space-x-1">
+                  <Button size="sm" variant="outline" onClick={() => act(r.tokenId, "approve")}>Approve</Button>
+                  <Button size="sm" variant="outline" onClick={() => act(r.tokenId, "reject")}>Reject</Button>
+                  <Button size="sm" variant="outline" onClick={() => act(r.tokenId, "revoke")}>Revoke</Button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+export function DiscoverySection() {
+  const [discovery, setDiscovery] = useState<Record<string, number> | null>(null);
+  const [tokens, setTokens] = useState<{ id: string; name: string; symbol: string; contractAddress: string; isFeatured: boolean; isHidden?: boolean; isScam?: boolean }[]>([]);
+  const [query, setQuery] = useState("");
+  const [saving, setSaving] = useState(false);
+  const loadTokens = useCallback(() => {
+    adminFetch(`/api/admin/tokens${query ? `?q=${encodeURIComponent(query)}` : ""}`).then((r) => r.json()).then((d) => setTokens(d.tokens ?? []));
+  }, [query]);
+  useEffect(() => {
+    adminFetch("/api/admin/settings/discovery").then((r) => r.json()).then((d) => setDiscovery(d.discovery));
+    loadTokens();
+  }, [loadTokens]);
+  const patchToken = async (id: string, data: Record<string, boolean>) => {
+    await adminFetch(`/api/admin/tokens/${id}`, { method: "PATCH", body: JSON.stringify(data) });
+    loadTokens();
+  };
+  if (!discovery) return null;
+  return (
+    <div className="space-y-6">
+      <h2 className="text-2xl font-bold">Discovery Management</h2>
+      <Card>
+        <CardHeader><CardTitle>Algorithm Weights</CardTitle></CardHeader>
+        <CardContent className="grid gap-4 sm:grid-cols-2">
+          {Object.entries(discovery).map(([key, val]) => (
+            <FeeInput key={key} label={key} value={val} onChange={(v) => setDiscovery({ ...discovery, [key]: v })} />
+          ))}
+        </CardContent>
+      </Card>
+      <SaveButton saving={saving} onClick={async () => {
+        setSaving(true);
+        await adminFetch("/api/admin/settings/discovery", { method: "PATCH", body: JSON.stringify({ discovery }) });
+        setSaving(false);
+      }} />
+      <Card>
+        <CardHeader><CardTitle>Token Curation</CardTitle></CardHeader>
+        <CardContent className="space-y-4">
+          <Input placeholder="Search tokens..." value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => e.key === "Enter" && loadTokens()} />
+          <div className="overflow-x-auto rounded-lg border">
+            <table className="w-full text-sm">
+              <thead className="border-b bg-muted/50"><tr>
+                <th className="p-3 text-left">Token</th><th className="p-3 text-left">Featured</th><th className="p-3 text-left">Actions</th>
+              </tr></thead>
+              <tbody>
+                {tokens.map((t) => (
+                  <tr key={t.id} className="border-b">
+                    <td className="p-3">{t.name} ({t.symbol})</td>
+                    <td className="p-3">{t.isFeatured ? <Badge>Featured</Badge> : "—"}</td>
+                    <td className="p-3 flex flex-wrap gap-1">
+                      <Button size="sm" variant="outline" onClick={() => patchToken(t.id, { isFeatured: !t.isFeatured })}><Star className="h-3 w-3" />{t.isFeatured ? "Unfeature" : "Feature"}</Button>
+                      <Button size="sm" variant="outline" onClick={() => patchToken(t.id, { isHidden: !t.isHidden })}>{t.isHidden ? "Unhide" : "Hide Spam"}</Button>
+                      <Button size="sm" variant="destructive" onClick={() => patchToken(t.id, { isScam: !t.isScam })}>{t.isScam ? "Restore" : "Remove Scam"}</Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+export function AnalyticsSection() {
+  const [analytics, setAnalytics] = useState<Record<string, unknown> | null>(null);
+  useEffect(() => {
+    adminFetch("/api/admin/analytics").then((r) => r.json()).then((d) => setAnalytics(d.analytics));
+  }, []);
+  const exportCsv = async () => {
+    const session = (await import("@/lib/admin-session")).getAdminSession();
+    if (!session) return;
+    const u = new URL("/api/admin/analytics", window.location.origin);
+    u.searchParams.set("format", "csv");
+    u.searchParams.set("walletAddress", session.walletAddress);
+    u.searchParams.set("signature", session.signature);
+    u.searchParams.set("message", session.message);
+    window.open(u.toString(), "_blank");
+  };
+  if (!analytics) return null;
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-2xl font-bold">Analytics</h2>
+        <Button variant="outline" size="sm" onClick={exportCsv}><Download className="h-4 w-4" /> Export CSV</Button>
+      </div>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {(
+          [
+            ["Total Volume", analytics.totalVolume],
+            ["24h Volume", analytics.volume24h],
+            ["7d Volume", analytics.volume7d],
+            ["24h Trades", analytics.trades24h],
+          ] as [string, unknown][]
+        ).map(([l, v]) => (
+          <Card key={l}>
+            <CardContent className="pt-6">
+              <p className="text-xs text-muted-foreground">{l}</p>
+              <p className="text-xl font-bold">{String(v)}</p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+      <Card>
+        <CardHeader><CardTitle>Revenue Breakdown</CardTitle></CardHeader>
+        <CardContent className="text-sm">
+          <p>Platform Treasury: {(analytics.revenueBreakdown as { platformTreasuryOpn: number })?.platformTreasuryOpn} OPN</p>
+          <p>Creator Earnings: {(analytics.revenueBreakdown as { creatorEarningsOpn: number })?.creatorEarningsOpn} OPN</p>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+export function CreatorEarningsSection() {
+  const [rows, setRows] = useState<{ creator: string; token: string; accumulatedEarnings: number; pendingEarnings: number }[]>([]);
+  useEffect(() => {
+    adminFetch("/api/admin/creator-earnings").then((r) => r.json()).then((d) => setRows(d.earnings ?? []));
+  }, []);
+  return (
+    <div className="space-y-4">
+      <h2 className="text-2xl font-bold">Creator Earnings</h2>
+      <p className="text-sm text-muted-foreground">Read-only monitoring. Admins cannot withdraw or edit creator balances.</p>
+      <div className="overflow-x-auto rounded-lg border">
+        <table className="w-full text-sm">
+          <thead className="border-b bg-muted/50"><tr>
+            <th className="p-3 text-left">Creator</th><th className="p-3 text-left">Token</th>
+            <th className="p-3 text-left">Accumulated</th><th className="p-3 text-left">Pending</th>
+          </tr></thead>
+          <tbody>
+            {rows.map((r, i) => (
+              <tr key={i} className="border-b">
+                <td className="p-3 font-mono text-xs">{r.creator}</td>
+                <td className="p-3">{r.token}</td>
+                <td className="p-3">{r.accumulatedEarnings.toFixed(4)} OPN</td>
+                <td className="p-3">{r.pendingEarnings.toFixed(4)} OPN</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+export function PoolShareSection() {
+  const [poolShare, setPoolShare] = useState<Record<string, unknown> | null>(null);
+  const [saving, setSaving] = useState(false);
+  useEffect(() => {
+    adminFetch("/api/admin/settings/pool-share").then((r) => r.json()).then((d) => setPoolShare(d.poolShare));
+  }, []);
+  if (!poolShare) return null;
+  return (
+    <div className="space-y-4">
+      <h2 className="text-2xl font-bold">Pool Share</h2>
+      <p className="text-sm text-muted-foreground">Tracking only — no automatic liquidity injection yet.</p>
+      <Card><CardContent className="grid gap-4 pt-6 sm:grid-cols-2">
+        <FeeInput label="Pool Share %" value={Number(poolShare.poolSharePercentage)} onChange={(v) => setPoolShare({ ...poolShare, poolSharePercentage: v })} />
+        <div><Label>Pool Reserve Target</Label><Input className="mt-1" value={String(poolShare.poolReserveTarget ?? "")} onChange={(e) => setPoolShare({ ...poolShare, poolReserveTarget: e.target.value })} /></div>
+      </CardContent></Card>
+      <SaveButton saving={saving} onClick={async () => {
+        setSaving(true);
+        await adminFetch("/api/admin/settings/pool-share", { method: "PATCH", body: JSON.stringify({ poolShare }) });
+        setSaving(false);
+      }} />
+    </div>
+  );
+}
+
+export function BridgeSection() {
+  const [bridge, setBridge] = useState<Record<string, unknown> | null>(null);
+  useEffect(() => {
+    adminFetch("/api/admin/settings/bridge").then((r) => r.json()).then((d) => setBridge(d.bridge));
+  }, []);
+  if (!bridge) return null;
+  return (
+    <div className="space-y-4 opacity-60">
+      <h2 className="text-2xl font-bold">Bridge Settings (Future)</h2>
+      <Card>
+        <CardHeader><CardDescription>Configuration only — execution disabled until bridge is implemented.</CardDescription></CardHeader>
+        <CardContent className="space-y-4 pt-0">
+          <FeeInput label="Bridge Fee (bps)" value={Number(bridge.bridgeFeeBps)} onChange={(v) => setBridge({ ...bridge, bridgeFeeBps: v })} />
+          <div><Label>Bridge Treasury Wallet</Label><Input className="mt-1 font-mono" value={String(bridge.bridgeTreasuryWallet ?? "")} disabled /></div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+export function SecuritySection() {
+  const [security, setSecurity] = useState<Record<string, boolean> | null>(null);
+  const [confirmAction, setConfirmAction] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  useEffect(() => {
+    adminFetch("/api/admin/settings/security").then((r) => r.json()).then((d) => setSecurity(d.security));
+  }, []);
+  if (!security) return null;
+  const toggle = (key: string) => {
+    if (confirmAction !== key) { setConfirmAction(key); return; }
+    setSecurity({ ...security, [key]: !security[key] });
+    setConfirmAction(null);
+  };
+  const save = async () => {
+    setSaving(true);
+    await adminFetch("/api/admin/settings/security", { method: "PATCH", body: JSON.stringify({ security }) });
+    setSaving(false);
+  };
+  const items = [
+    { key: "tokenCreationPaused", label: "Pause Token Creation", resume: "Resume Token Creation" },
+    { key: "tradingPaused", label: "Pause Trading", resume: "Resume Trading" },
+    { key: "claimsPaused", label: "Pause Claims", resume: "Resume Claims" },
+  ];
+  return (
+    <div className="space-y-4">
+      <h2 className="text-2xl font-bold">Protocol Security</h2>
+      <Card><CardContent className="space-y-3 pt-6">
+        {items.map(({ key, label, resume }) => (
+          <div key={key} className="flex items-center justify-between rounded-lg border p-3">
+            <span className="text-sm font-medium">{security[key] ? resume : label}</span>
+            <Button size="sm" variant={security[key] ? "default" : "destructive"} onClick={() => toggle(key)}>
+              {confirmAction === key ? "Confirm?" : security[key] ? "Resume" : "Pause"}
+            </Button>
+          </div>
+        ))}
+      </CardContent></Card>
+      <SaveButton saving={saving} onClick={save} />
+    </div>
+  );
+}
+
+export function SystemSection() {
+  const [system, setSystem] = useState<Record<string, unknown> | null>(null);
+  const [saving, setSaving] = useState(false);
+  useEffect(() => {
+    adminFetch("/api/admin/settings/system").then((r) => r.json()).then((d) => setSystem(d.system));
+  }, []);
+  if (!system) return null;
+  return (
+    <div className="space-y-4">
+      <h2 className="text-2xl font-bold">System Settings</h2>
+      <Card><CardContent className="space-y-4 pt-6">
+        {["platformName", "platformDescription", "announcementBanner", "supportEmail", "supportUrl"].map((key) => (
+          <div key={key}><Label>{key}</Label><Input className="mt-1" value={String(system[key] ?? "")} onChange={(e) => setSystem({ ...system, [key]: e.target.value })} /></div>
+        ))}
+        <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={!!system.maintenanceMode} onChange={(e) => setSystem({ ...system, maintenanceMode: e.target.checked })} /> Maintenance Mode</label>
+      </CardContent></Card>
+      <SaveButton saving={saving} onClick={async () => {
+        setSaving(true);
+        await adminFetch("/api/admin/settings/system", { method: "PATCH", body: JSON.stringify({ system }) });
+        setSaving(false);
+      }} />
+    </div>
+  );
+}
+
+export function FactorySection() {
+  const { address } = useAccount();
+  const [isFactoryAdmin, setIsFactoryAdmin] = useState(false);
+  useEffect(() => {
+    if (!address) return;
+    fetch(`/api/admin/factory-admin?wallet=${address}`).then((r) => r.json()).then((d) => setIsFactoryAdmin(d.isFactoryAdmin));
+  }, [address]);
+  return (
+    <div className="space-y-4">
+      <h2 className="text-2xl font-bold">On-chain Factory Controls</h2>
+      <p className="text-sm text-muted-foreground">Existing factory admin controls — pause factory, update on-chain creation fee and recipient.</p>
+      <FactoryControls isFactoryAdmin={isFactoryAdmin} />
+    </div>
+  );
+}
+
+export function ActivityLogsSection() {
+  const [logs, setLogs] = useState<{ admin: string; action: string; timestamp: string; ipAddress: string | null }[]>([]);
+  useEffect(() => {
+    adminFetch("/api/admin/activity-logs").then((r) => r.json()).then((d) => setLogs(d.logs ?? []));
+  }, []);
+  return (
+    <div className="space-y-4">
+      <h2 className="text-2xl font-bold">Activity Logs</h2>
+      <div className="overflow-x-auto rounded-lg border">
+        <table className="w-full text-sm">
+          <thead className="border-b bg-muted/50"><tr>
+            <th className="p-3 text-left">Admin</th><th className="p-3 text-left">Action</th>
+            <th className="p-3 text-left">Time</th><th className="p-3 text-left">IP</th>
+          </tr></thead>
+          <tbody>
+            {logs.map((l, i) => (
+              <tr key={i} className="border-b">
+                <td className="p-3 font-mono text-xs">{l.admin}</td>
+                <td className="p-3">{l.action}</td>
+                <td className="p-3 text-xs">{new Date(l.timestamp).toLocaleString()}</td>
+                <td className="p-3 text-xs">{l.ipAddress ?? "—"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+export function RolesSection() {
+  const { role } = useAdmin();
+  const [admins, setAdmins] = useState<{ walletAddress: string; role: string }[]>([]);
+  useEffect(() => {
+    if (role === "SUPER_ADMIN") {
+      adminFetch("/api/admin/roles").then((r) => r.json()).then((d) => setAdmins(d.admins ?? []));
+    }
+  }, [role]);
+  if (role !== "SUPER_ADMIN") return <p className="text-muted-foreground">Super admin access required.</p>;
+  return (
+    <div className="space-y-4">
+      <h2 className="text-2xl font-bold">Admin Roles</h2>
+      <div className="overflow-x-auto rounded-lg border">
+        <table className="w-full text-sm">
+          <thead className="border-b bg-muted/50"><tr><th className="p-3 text-left">Wallet</th><th className="p-3 text-left">Role</th></tr></thead>
+          <tbody>
+            {admins.map((a) => (
+              <tr key={a.walletAddress} className="border-b">
+                <td className="p-3 font-mono text-xs">{a.walletAddress}</td>
+                <td className="p-3"><Badge>{a.role}</Badge></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="text-xs text-muted-foreground">Set roles via ADMIN_ROLE_MAP env (wallet:ROLE) or database. Super Admin has full access.</p>
+    </div>
+  );
+}
+
+export function AdminSectionRouter({ section }: { section: string }) {
+  const { can } = useAdmin();
+  const map: Record<string, { perm: Parameters<typeof can>[0]; Component: React.ComponentType }> = {
+    overview: { perm: "overview", Component: OverviewSection },
+    "creation-fees": { perm: "creation_fees", Component: CreationFeesSection },
+    "trading-fees": { perm: "trading_fees", Component: TradingFeesSection },
+    treasury: { perm: "treasury", Component: TreasurySection },
+    verification: { perm: "verification", Component: VerificationSection },
+    discovery: { perm: "discovery", Component: DiscoverySection },
+    analytics: { perm: "analytics", Component: AnalyticsSection },
+    "creator-earnings": { perm: "creator_earnings", Component: CreatorEarningsSection },
+    "pool-share": { perm: "pool_share", Component: PoolShareSection },
+    bridge: { perm: "bridge", Component: BridgeSection },
+    security: { perm: "security", Component: SecuritySection },
+    system: { perm: "system", Component: SystemSection },
+    factory: { perm: "factory", Component: FactorySection },
+    "activity-logs": { perm: "activity_logs", Component: ActivityLogsSection },
+    roles: { perm: "roles", Component: RolesSection },
+  };
+  const entry = map[section] ?? map.overview;
+  if (!can(entry.perm)) return <p className="text-muted-foreground">You do not have permission to view this section.</p>;
+  const Comp = entry.Component;
+  return <Comp />;
+}

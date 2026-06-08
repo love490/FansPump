@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense } from "react";
+import { usePathname } from "next/navigation";
 import { Sidebar } from "@/components/layout/sidebar";
 import { TopBar } from "@/components/layout/top-bar";
 import { SidebarProvider, useSidebar } from "@/components/layout/sidebar-context";
@@ -27,7 +28,11 @@ function MainColumn({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function AppShell({ children }: { children: React.ReactNode }) {
+function ShellRouter({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  if (pathname?.startsWith("/admin")) {
+    return <>{children}</>;
+  }
   return (
     <SidebarProvider>
       <div className="flex min-h-screen bg-background">
@@ -38,4 +43,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </div>
     </SidebarProvider>
   );
+}
+
+export function AppShell({ children }: { children: React.ReactNode }) {
+  return <ShellRouter>{children}</ShellRouter>;
 }

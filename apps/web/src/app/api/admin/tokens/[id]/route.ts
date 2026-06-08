@@ -9,6 +9,8 @@ const patchSchema = z.object({
   message: z.string(),
   isFeatured: z.boolean().optional(),
   trendingScore: z.number().optional(),
+  isHidden: z.boolean().optional(),
+  isScam: z.boolean().optional(),
 });
 
 export async function PATCH(
@@ -20,9 +22,16 @@ export async function PATCH(
     const body = patchSchema.parse(await request.json());
     await requireAdminAuth(body);
 
-    const data: { isFeatured?: boolean; trendingScore?: number } = {};
+    const data: {
+      isFeatured?: boolean;
+      trendingScore?: number;
+      isHidden?: boolean;
+      isScam?: boolean;
+    } = {};
     if (body.isFeatured !== undefined) data.isFeatured = body.isFeatured;
     if (body.trendingScore !== undefined) data.trendingScore = body.trendingScore;
+    if (body.isHidden !== undefined) data.isHidden = body.isHidden;
+    if (body.isScam !== undefined) data.isScam = body.isScam;
 
     if (Object.keys(data).length === 0) {
       return NextResponse.json({ error: "No updates provided" }, { status: 400 });
