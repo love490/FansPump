@@ -48,11 +48,24 @@ See `apps/web/.env.example` for the full list.
 
 ## After first deploy
 
-Run schema sync against the production database:
+Run schema sync against the production database (PowerShell on Windows):
 
-```bash
-DATABASE_URL="your-production-url" pnpm db:push
+```powershell
+cd packages/database
+# Copy .env.example → .env and paste Railway PUBLIC URL (*.proxy.rlwy.net)
+pnpm db:push
 ```
+
+Or from repo root:
+
+```powershell
+$env:DATABASE_URL = "postgresql://postgres:PASSWORD@HOST.proxy.rlwy.net:PORT/railway"
+pnpm db:push
+```
+
+Do **not** use `postgres.railway.internal` from your PC — that hostname only works inside Railway.
+
+`railway.json` also runs `pnpm db:push` before each deploy start so schema stays in sync automatically.
 
 ## Troubleshooting
 
