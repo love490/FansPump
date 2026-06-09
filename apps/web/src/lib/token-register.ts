@@ -41,12 +41,19 @@ export async function fetchMyTokens(walletAddress: string): Promise<TokenCardDat
 
 /** Persist token metadata after on-chain deployment. */
 export async function registerTokenMetadata(payload: Record<string, unknown>): Promise<RegisterTokenResponse> {
-  console.log("[deploy] Saving to DB… contract:", payload.contractAddress);
+  const body = { ...payload };
+  delete body.tokenAddress;
+
+  if (typeof body.contractAddress !== "string" || !body.contractAddress) {
+    throw new Error("contractAddress is required from deployment");
+  }
+
+  console.log("[deploy] Saving to DB… contract:", body.contractAddress);
 
   const res = await fetch("/api/tokens", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
+    body: JSON.stringify(body),
   });
 
   const data = await res.json().catch(() => null);

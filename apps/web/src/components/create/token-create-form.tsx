@@ -46,7 +46,7 @@ import {
   isFactoryConfigured,
   opnChain,
 } from "@/lib/wagmi";
-import { isReceiptSuccess, resolveDeployedTokenAddress } from "@/lib/token-deploy";
+import { isReceiptSuccess, resolveDeployedTokenAddress, waitForDeployReceipt } from "@/lib/token-deploy";
 import { registerTokenMetadata } from "@/lib/token-register";
 import { tokenQueryKeys } from "@/lib/tokens-api";
 import { getActiveChainId } from "@/lib/chain-config/opn";
@@ -520,21 +520,30 @@ export function TokenCreateForm() {
 
     console.log("[deploy] Waiting for confirmation… receipt received for:", txHash);
 
-    resolveDeployedTokenAddress(publicClient, receipt, FACTORY_ADDRESS, address)
-      .then((token) => {
+    void (async () => {
+      try {
+        const confirmedReceipt =
+          publicClient && txHash
+            ? await waitForDeployReceipt(publicClient, txHash)
+            : receipt;
+        const token = await resolveDeployedTokenAddress(
+          publicClient,
+          confirmedReceipt,
+          FACTORY_ADDRESS,
+          address
+        );
         if (cancelled) return;
         console.log("[deploy] Contract address:", token);
-        setDeployedToken(token);
-      })
-      .catch((err) => {
+        setDeployedToken(token.toLowerCase());
+      } catch (err) {
         if (cancelled) return;
         const msg = err instanceof Error ? err.message : "Could not extract contract address";
         console.error("[deploy] Address extraction failed:", msg);
         setExtractFailed(true);
-      })
-      .finally(() => {
+      } finally {
         if (!cancelled) setResolvingAddress(false);
-      });
+      }
+    })();
 
     return () => {
       cancelled = true;
@@ -554,8 +563,11 @@ export function TokenCreateForm() {
         setRegistered(true);
         console.log("[deploy] Registered token id:", result.token.id);
         const chainId = getActiveChainId();
-        void queryClient.invalidateQueries({ queryKey: tokenQueryKeys.myTokens(address, chainId) });
+        const myTokensKey = tokenQueryKeys.myTokens(address, chainId);
+        void queryClient.invalidateQueries({ queryKey: myTokensKey });
+        void queryClient.refetchQueries({ queryKey: myTokensKey });
         void queryClient.invalidateQueries({ queryKey: tokenQueryKeys.discover("new", chainId) });
+        void queryClient.invalidateQueries({ queryKey: tokenQueryKeys.discover("latest", chainId) });
         void queryClient.invalidateQueries({ queryKey: tokenQueryKeys.discover("trending", chainId) });
         void queryClient.invalidateQueries({ queryKey: tokenQueryKeys.stats(chainId) });
       })

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { isAddress, getAddress } from "viem";
 import { useParams } from "next/navigation";
 import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
 import { tokenAbi } from "@/lib/abis/factory";
@@ -67,15 +68,17 @@ export default function OwnershipPage() {
                 <Input value={newOwner} onChange={(e) => setNewOwner(e.target.value)} placeholder="0x..." />
               </div>
               <Button
-                disabled={!isOwner || !newOwner || isPending || isLoading}
-                onClick={() =>
+                disabled={!isOwner || !isAddress(newOwner.trim()) || isPending || isLoading}
+                onClick={() => {
+                  const nextOwner = newOwner.trim();
+                  if (!isAddress(nextOwner)) return;
                   writeContract({
                     address: tokenAddress,
                     abi: tokenAbi,
                     functionName: "transferOwnership",
-                    args: [newOwner as `0x${string}`],
-                  })
-                }
+                    args: [getAddress(nextOwner)],
+                  });
+                }}
               >
                 Transfer ownership
               </Button>

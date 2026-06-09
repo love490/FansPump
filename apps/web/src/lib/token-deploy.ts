@@ -18,10 +18,12 @@ export class TokenAddressNotFoundError extends Error {
 /** Extract deployed token address from a confirmed factory transaction receipt. */
 export function extractTokenAddressFromReceipt(
   receipt: TransactionReceipt,
-  factoryAddress: Address
+  factoryAddress: Address,
+  creatorAddress?: Address
 ): Address {
   const factory = factoryAddress.toLowerCase();
   const factoryLogs = receipt.logs.filter((log) => log.address.toLowerCase() === factory);
+  const creator = creatorAddress?.toLowerCase();
 
   console.log("[deploy] Parsing receipt logs for TokenCreated…", {
     txHash: receipt.transactionHash,
@@ -29,18 +31,16 @@ export function extractTokenAddressFromReceipt(
     factoryLogCount: factoryLogs.length,
   });
 
-  const tokenCreated = parseEventLogs({
-    abi: factoryAbi,
-    logs: factoryLogs,
-    eventName: "TokenCreated",
-  });
+  const fromFactoryLogs = parseTokenCreatedFromLogs(factoryLogs, creator);
+  if (fromFactoryLogs) {
+    console.log("[deploy] TokenCreated event — contract address:", fromFactoryLogs);
+    return fromFactoryLogs;
+  }
 
-  for (const event of tokenCreated) {
-    const token = event.args.token;
-    if (token && isAddress(token)) {
-      console.log("[deploy] TokenCreated event — contract address:", token);
-      return token;
-    }
+  const fromAllLogs = parseTokenCreatedFromLogs(receipt.logs, creator);
+  if (fromAllLogs) {
+    console.log("[deploy] TokenCreated event (all logs) — contract address:", fromAllLogs);
+    return fromAllLogs;
   }
 
   // Some deployments may only surface the interface event in traces.
@@ -69,6 +69,29 @@ export function extractTokenAddressFromReceipt(
   }
 
   throw new TokenAddressNotFoundError();
+}
+
+function parseTokenCreatedFromLogs(
+  logs: TransactionReceipt["logs"],
+  creatorAddress?: string
+): Address | null {
+  const tokenCreated = parseEventLogs({
+    abi: factoryAbi,
+    logs,
+    eventName: "TokenCreated",
+  });
+
+  for (const event of tokenCreated) {
+    const token = event.args.token;
+    const creator = event.args.creator;
+    if (!token || !isAddress(token)) continue;
+    if (creatorAddress && creator && creator.toLowerCase() !== creatorAddress.toLowerCase()) {
+      continue;
+    }
+    return token;
+  }
+
+  return null;
 }
 
 /** On-chain fallback: read the latest token from the factory for this creator. */
@@ -126,7 +149,7 @@ export async function resolveDeployedTokenAddress(
   creatorAddress: Address
 ): Promise<Address> {
   try {
-    return extractTokenAddressFromReceipt(receipt, factoryAddress);
+    return extractTokenAddressFromReceipt(receipt, factoryAddress, creatorAddress);
   } catch (err) {
     console.warn("[deploy] Event extraction failed:", err instanceof Error ? err.message : err);
   }
@@ -153,8 +176,8 @@ export async function waitForDeployReceipt(
   txHash: Hash
 ): Promise<TransactionReceipt> {
   console.log("[deploy] Waiting for confirmation… tx hash:", txHash);
-  const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash });
-  console.log("[deploy] Receipt status:", receipt.status);
+  const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash, confirmations: 1 });
+  console.log("[deploy] Receipt status:", receipt.status, "logs:", receipt.logs.length);
   if (!isReceiptSuccess(receipt)) {
     throw new Error("Transaction reverted on-chain");
   }
