@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { Rocket } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { BRAND_BLUE } from "@/lib/brand";
 
 const heroBtnBase =
   "h-7 shrink-0 rounded-md px-2 text-[10px] font-semibold leading-none sm:h-11 sm:px-6 sm:text-sm sm:leading-normal";
@@ -29,7 +30,11 @@ export function LandingHero() {
             Launch and grow your community on OPN.
           </p>
           <div className="mt-2 flex flex-row flex-nowrap items-center gap-1 sm:mt-4 sm:flex-wrap sm:gap-2">
-            <Button asChild className={`${heroBtnBase} bg-primary hover:bg-primary/90`}>
+            <Button
+              asChild
+              className={`${heroBtnBase} text-white hover:opacity-90`}
+              style={{ backgroundColor: BRAND_BLUE }}
+            >
               <Link href="/create" className="inline-flex items-center gap-0.5 sm:gap-2">
                 <span className="whitespace-nowrap">Create Token</span>
                 <Rocket className="h-2.5 w-2.5 shrink-0 sm:h-4 sm:w-4" />
