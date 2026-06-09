@@ -38,13 +38,13 @@ export type SidebarNavItem = {
 };
 
 export const platformLinks: SidebarNavItem[] = [
-  { id: "home", href: "/", label: "Home", icon: Home },
+  { id: "home", href: "/app", label: "Home", icon: Home },
   { id: "create", href: "/create", label: "Create Token", icon: Rocket },
   { id: "explore", href: "/discover?section=new", label: "Explore", icon: Compass },
   { id: "featured", href: "/discover?section=featured", label: "Featured", icon: Star },
   { id: "how-it-works", href: "/docs/how-it-works", label: "How It Works", icon: HelpCircle },
-  { id: "docs", href: "/docs", label: "Docs", icon: BookOpen },
   { id: "swap", href: "/swap", label: "Swap", icon: ArrowLeftRight },
+  { id: "docs", href: "/docs", label: "Docs", icon: BookOpen },
 ];
 
 export const userLinks: SidebarNavItem[] = [
@@ -71,7 +71,7 @@ export function isSidebarNavActive(
 
   switch (id) {
     case "home":
-      return pathname === "/";
+      return pathname === "/app";
     case "create":
       return pathname === "/create";
     case "explore":

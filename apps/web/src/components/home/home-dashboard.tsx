@@ -1,10 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Rocket, TrendingUp, Users, Shield } from "lucide-react";
-import { motion } from "framer-motion";
 import { TokenCard } from "@/components/tokens/token-card";
 import { useQuery } from "@tanstack/react-query";
 import { fetchDiscoverTokens, fetchPlatformStats, tokenQueryKeys } from "@/lib/tokens-api";
@@ -46,48 +44,24 @@ export function HomeDashboard() {
 
   return (
     <div className="space-y-8">
-      <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="relative min-h-[240px] overflow-hidden rounded-2xl shadow-lg sm:min-h-[260px] md:min-h-[280px]"
-      >
-        <Image
-          src="/images/hero-banner.png"
-          alt=""
-          fill
-          priority
-          className="object-cover object-[92%_center] md:object-[68%_center]"
-          sizes="(max-width: 1024px) 100vw, 1100px"
-        />
-        <div className="absolute inset-0 bg-gradient-to-r from-[#0a1628] from-45% via-[#0a1628]/80 via-65% to-transparent md:from-[#0a1628]/92 md:via-[#0a1628]/55 md:from-0% md:via-50%" />
-        <div className="relative z-10 flex min-h-[240px] flex-col justify-center p-5 sm:min-h-[260px] sm:p-8 md:min-h-[280px] md:p-12">
-          <div className="max-w-[12rem] min-[400px]:max-w-[14rem] sm:max-w-md md:max-w-xl">
-            <h1 className="text-xl font-extrabold leading-tight text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.85)] sm:text-2xl md:text-4xl md:font-bold md:drop-shadow-none">
-              Create Your Token.
-              <br />
-              Grow Your Community.
-            </h1>
-            <p className="mt-2 text-xs font-semibold leading-snug text-white drop-shadow-[0_1px_6px_rgba(0,0,0,0.9)] sm:mt-3 sm:text-sm sm:font-medium sm:text-white/90 md:mt-3 md:text-base md:font-normal md:text-white/80 md:drop-shadow-none">
-              FansPump makes it easy to create tokens, build your project and grow your community.
-            </p>
-            <div className="mt-4 flex flex-col gap-2 sm:mt-6 sm:flex-row sm:flex-wrap sm:gap-3">
-              <Button asChild size="default" className="bg-primary hover:bg-primary/90 sm:h-11 sm:px-8">
-                <Link href="/create">
-                  Create Token <Rocket className="ml-2 h-4 w-4" />
-                </Link>
-              </Button>
-              <Button
-                asChild
-                size="default"
-                variant="outline"
-                className="border-white/30 bg-white/10 text-white hover:bg-white/20 hover:text-white sm:h-11 sm:px-8"
-              >
-                <Link href="/discover?section=new">Explore Tokens</Link>
-              </Button>
-            </div>
-          </div>
+      <header className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold">Dashboard</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Platform activity and newly created tokens.
+          </p>
         </div>
-      </motion.div>
+        <div className="flex flex-wrap gap-2">
+          <Button asChild size="sm">
+            <Link href="/create">
+              Create Token <Rocket className="ml-2 h-4 w-4" />
+            </Link>
+          </Button>
+          <Button asChild variant="outline" size="sm">
+            <Link href="/discover?section=new">Explore Tokens</Link>
+          </Button>
+        </div>
+      </header>
 
       <div className="space-y-2">
         {statsError && (
