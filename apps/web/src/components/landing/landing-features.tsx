@@ -8,9 +8,7 @@ import {
   TrendingUp,
   Users,
 } from "lucide-react";
-
-/** Matches the brand logo background blue. */
-const BRAND_BLUE = "#1666DB";
+import { BRAND_BLUE } from "@/lib/brand";
 
 const features = [
   { icon: Rocket, label: "Create Tokens", href: "/create" },
@@ -40,7 +38,7 @@ export function LandingFeatures() {
               className="group flex flex-col items-center rounded-xl bg-white/10 p-4 text-center ring-1 ring-white/15 transition-colors hover:bg-white/20 sm:p-5"
             >
               <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-xl bg-white shadow-md transition-shadow group-hover:shadow-lg sm:h-16 sm:w-16">
-                <Icon className="h-7 w-7 text-[#1666DB] sm:h-8 sm:w-8" strokeWidth={1.75} />
+                <Icon className="h-7 w-7 sm:h-8 sm:w-8" style={{ color: BRAND_BLUE }} strokeWidth={1.75} />
               </div>
               <span className="text-sm font-bold text-white sm:text-base">{label}</span>
             </Link>

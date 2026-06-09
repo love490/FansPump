@@ -24,6 +24,7 @@ interface TokenDetail {
   symbol: string;
   featureFlags: string;
   creatorAddress: string;
+  creatorUsername?: string | null;
   creatorVerified?: boolean;
   category?: string;
   liquidityLocked?: boolean;
@@ -143,8 +144,11 @@ export default function TokenPage() {
             {token.creatorAddress && (
               <p className="mt-2 text-sm text-muted-foreground">
                 Creator{" "}
-                <Link href={`/creator/${token.creatorAddress}`} className="font-mono text-primary hover:underline">
-                  {shortenAddress(token.creatorAddress, 4)}
+                <Link
+                  href={`/creator/${token.creatorAddress}`}
+                  className={`text-primary hover:underline ${token.creatorUsername ? "font-medium" : "font-mono"}`}
+                >
+                  {token.creatorUsername ?? shortenAddress(token.creatorAddress, 4)}
                 </Link>
               </p>
             )}

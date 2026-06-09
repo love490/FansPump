@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { CheckCircle2, Flame } from "lucide-react";
+import { CheckCircle2, Flame, Sparkles } from "lucide-react";
 import { TokenGridCarousel } from "@/components/tokens/token-grid-carousel";
 import { fetchDiscoverTokens, tokenQueryKeys, type DiscoverFilters } from "@/lib/tokens-api";
 import { getActiveChainId } from "@/lib/chain-config/opn";
@@ -53,7 +53,7 @@ export function LandingNewlyCreatedPreview() {
   return (
     <TokenGridCarousel
       title="Newly Created"
-      icon={<span className="text-xl">🆕</span>}
+      icon={<Sparkles className="h-6 w-6 text-emerald-500" />}
       tokens={tokens}
       isLoading={isLoading}
       viewAllHref="/discover?section=new"

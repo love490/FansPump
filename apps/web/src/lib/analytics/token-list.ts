@@ -1,4 +1,5 @@
 import type { Prisma } from "@iopn/database";
+import { weiToOpnFloat } from "@/lib/analytics/fee-split";
 
 /** Shared token select for discovery / list APIs (backward compatible). */
 export const tokenListSelect = {
@@ -14,6 +15,7 @@ export const tokenListSelect = {
   isFeatured: true,
   featureFlags: true,
   createdAt: true,
+  creatorAddress: true,
   volume24h: true,
   volumeTotal: true,
   txCount24h: true,
@@ -22,10 +24,25 @@ export const tokenListSelect = {
   poolStrength: true,
   category: true,
   ownershipRenounced: true,
-  creator: { select: { verification: { select: { id: true } } } },
+  creator: { select: { username: true, verification: { select: { id: true } } } },
   liquidityLocks: { select: { id: true }, take: 1 },
   lpBurns: { select: { id: true }, take: 1 },
+  poolStats: { select: { accumulatedPoolValue: true } },
 } satisfies Prisma.TokenProjectSelect;
+
+function estimateMarketCap(
+  poolValueWei: string | undefined | null,
+  volumeTotal: number
+): number | null {
+  if (poolValueWei && poolValueWei !== "0") {
+    try {
+      return weiToOpnFloat(BigInt(poolValueWei)) * 2;
+    } catch {
+      /* invalid wei string */
+    }
+  }
+  return volumeTotal > 0 ? volumeTotal : null;
+}
 
 export function mapTokenListRow(t: {
   id: string;
@@ -40,6 +57,7 @@ export function mapTokenListRow(t: {
   isFeatured: boolean;
   featureFlags: bigint;
   createdAt: Date;
+  creatorAddress: string;
   volume24h: number;
   volumeTotal: number;
   txCount24h: number;
@@ -48,9 +66,10 @@ export function mapTokenListRow(t: {
   poolStrength: number;
   category?: string;
   ownershipRenounced?: boolean;
-  creator?: { verification: { id: string } | null } | null;
+  creator?: { username: string | null; verification: { id: string } | null } | null;
   liquidityLocks?: { id: string }[];
   lpBurns?: { id: string }[];
+  poolStats?: { accumulatedPoolValue: string } | null;
 }) {
   return {
     id: t.id,
@@ -65,12 +84,15 @@ export function mapTokenListRow(t: {
     isFeatured: t.isFeatured,
     featureFlags: t.featureFlags.toString(),
     createdAt: t.createdAt.toISOString(),
+    creatorAddress: t.creatorAddress,
+    creatorUsername: t.creator?.username ?? null,
     volume24h: t.volume24h,
     volumeTotal: t.volumeTotal,
     txCount24h: t.txCount24h,
     txCountTotal: t.txCountTotal,
     lastActivity: t.lastActivity?.toISOString() ?? null,
     poolStrength: t.poolStrength,
+    marketCap: estimateMarketCap(t.poolStats?.accumulatedPoolValue, t.volumeTotal),
     category: t.category ?? "OTHER",
     ownershipRenounced: t.ownershipRenounced ?? false,
     liquidityLocked:

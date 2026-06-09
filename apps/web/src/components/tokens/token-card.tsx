@@ -28,6 +28,10 @@ export interface TokenCardData {
   category?: string;
   liquidityLocked?: boolean;
   ownershipRenounced?: boolean;
+  createdAt?: string;
+  creatorAddress?: string;
+  creatorUsername?: string | null;
+  marketCap?: number | null;
 }
 
 export function TokenCard({ token, index = 0 }: { token: TokenCardData; index?: number }) {

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Rocket, TrendingUp, Users, Shield } from "lucide-react";
-import { TokenCard } from "@/components/tokens/token-card";
+import { TokenPreviewCard } from "@/components/tokens/token-preview-card";
 import { useQuery } from "@tanstack/react-query";
 import { fetchDiscoverTokens, fetchPlatformStats, tokenQueryKeys } from "@/lib/tokens-api";
 import { getActiveChainId } from "@/lib/chain-config/opn";
@@ -103,9 +103,9 @@ export function HomeDashboard() {
             No tokens yet — be the first to launch on FansPump.
           </p>
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {newTokens.map((t, i) => (
-              <TokenCard key={t.id} token={t} index={i} />
+              <TokenPreviewCard key={t.id} token={t} index={i} />
             ))}
           </div>
         )}

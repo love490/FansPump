@@ -4,7 +4,8 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { TokenCard, type TokenCardData } from "@/components/tokens/token-card";
+import { TokenPreviewCard } from "@/components/tokens/token-preview-card";
+import type { TokenCardData } from "@/components/tokens/token-card";
 import { cn } from "@/lib/utils";
 
 export function useResponsivePerPage(preset: "trending" | "grid") {
@@ -137,9 +138,9 @@ export function TokenGridCarousel({
       </div>
 
       {isLoading ? (
-        <div className={cn("grid gap-4", gridColsClass(perPage, variant))}>
+        <div className={cn("grid gap-3", gridColsClass(perPage, variant))}>
           {[...Array(Math.min(perPage, 4))].map((_, i) => (
-            <div key={i} className="h-52 animate-pulse rounded-xl bg-muted" />
+            <div key={i} className="h-[88px] animate-pulse rounded-xl bg-muted sm:h-[96px]" />
           ))}
         </div>
       ) : tokens.length === 0 ? (
@@ -148,18 +149,11 @@ export function TokenGridCarousel({
         </p>
       ) : (
         <>
-          <div className={cn("grid gap-4", gridColsClass(perPage, variant))}>
+          <div className={cn("grid gap-3", gridColsClass(perPage, variant))}>
             {visible.map((t, i) => (
-              <TokenCard key={t.id} token={t} index={i} />
+              <TokenPreviewCard key={t.id} token={t} index={i} />
             ))}
           </div>
-          {tokens.length > perPage && (
-            <p className="text-xs text-muted-foreground">
-              {safePage * perPage + 1}–{Math.min(safePage * perPage + visible.length, tokens.length)} of{" "}
-              {Math.min(tokens.length, fetchLimit)}
-              {maxPage > 0 && ` · Page ${safePage + 1} / ${maxPage + 1}`}
-            </p>
-          )}
         </>
       )}
     </section>

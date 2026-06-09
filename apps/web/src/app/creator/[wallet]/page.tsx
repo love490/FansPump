@@ -13,6 +13,7 @@ import { CheckCircle2, Coins, BarChart3, Layers } from "lucide-react";
 
 type CreatorProfile = {
   walletAddress: string;
+  username: string | null;
   walletVerified: boolean;
   verifiedAt: string | null;
   tokensCreated: number;
@@ -67,9 +68,16 @@ export default function CreatorProfilePage() {
     <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6 lg:px-8">
       <header className="mb-8">
         <div className="flex flex-wrap items-center gap-3">
-          <h1 className="text-2xl font-bold font-mono">{shortenAddress(profile.walletAddress, 6)}</h1>
+          <h1 className="text-2xl font-bold">
+            {profile.username ?? shortenAddress(profile.walletAddress, 6)}
+          </h1>
           {profile.walletVerified && <VerifiedCreatorBadge />}
         </div>
+        {profile.username && (
+          <p className="mt-1 font-mono text-sm text-muted-foreground">
+            {shortenAddress(profile.walletAddress, 6)}
+          </p>
+        )}
         {profile.verifiedAt && (
           <p className="mt-1 flex items-center gap-1 text-sm text-muted-foreground">
             <CheckCircle2 className="h-3.5 w-3.5 text-green-600" />

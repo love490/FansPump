@@ -18,8 +18,12 @@ export async function GET(
   const chainId = getActiveChainId();
 
   try {
-    const [verification, tokens, earnings, swapStats, announcementCount] = await Promise.all([
+    const [verification, user, tokens, earnings, swapStats, announcementCount] = await Promise.all([
       prisma.creatorVerification.findUnique({ where: { walletAddress: wallet } }),
+      prisma.user.findUnique({
+        where: { walletAddress: wallet },
+        select: { username: true },
+      }),
       prisma.tokenProject.findMany({
         where: { creatorAddress: wallet, chainId },
         orderBy: { createdAt: "desc" },
@@ -47,6 +51,7 @@ export async function GET(
     return NextResponse.json({
       profile: {
         walletAddress: wallet,
+        username: user?.username ?? null,
         walletVerified: !!verification,
         verifiedAt: verification?.verifiedAt?.toISOString() ?? null,
         tokensCreated: tokens.length,

@@ -41,6 +41,7 @@ export async function GET(
         ...tokenFields,
         featureFlags: token.featureFlags.toString(),
         creatorVerified: !!token.creator?.verification,
+        creatorUsername: token.creator?.username ?? null,
         liquidityLocked: liquidityLocks.length > 0 || lpBurns.length > 0,
         voteCounts,
       },
