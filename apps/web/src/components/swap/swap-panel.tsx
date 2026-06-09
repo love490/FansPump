@@ -195,6 +195,13 @@ export function SwapPanel({ initialToken = "", initialMode = "buy" }: SwapPanelP
   }, [approved, refetch]);
 
   useEffect(() => {
+    if (status === "success" || wrapStatus === "success") {
+      setAmountIn("");
+      setGasEstimate(null);
+    }
+  }, [status, wrapStatus]);
+
+  useEffect(() => {
     if (!settingsOpen) return;
     function handleClickOutside(e: MouseEvent) {
       if (settingsRef.current && !settingsRef.current.contains(e.target as Node)) {

@@ -6,7 +6,10 @@ import Link from "next/link";
 import Image from "next/image";
 import { useAccount } from "wagmi";
 import { TokenFeatureBadges } from "@/components/token/token-feature-badges";
+import { TokenTrustPanel } from "@/components/token/token-trust-panel";
+import { AnnouncementsSection } from "@/components/token/announcements-section";
 import { TokenAnalyticsSection } from "@/components/token/token-analytics-section";
+import { TOKEN_CATEGORY_LABELS, type TokenCategoryId } from "@iopn/shared";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,6 +25,9 @@ interface TokenDetail {
   featureFlags: string;
   creatorAddress: string;
   creatorVerified?: boolean;
+  category?: string;
+  liquidityLocked?: boolean;
+  ownershipRenounced?: boolean;
   logoUrl?: string | null;
   bannerUrl?: string | null;
   description?: string | null;
@@ -129,6 +135,19 @@ export default function TokenPage() {
               )}
             </h1>
             <p className="text-muted-foreground font-mono text-sm">{shortenAddress(address, 6)}</p>
+            {token.category && token.category !== "OTHER" && (
+              <Badge variant="outline" className="mt-2">
+                {TOKEN_CATEGORY_LABELS[token.category as TokenCategoryId]}
+              </Badge>
+            )}
+            {token.creatorAddress && (
+              <p className="mt-2 text-sm text-muted-foreground">
+                Creator{" "}
+                <Link href={`/creator/${token.creatorAddress}`} className="font-mono text-primary hover:underline">
+                  {shortenAddress(token.creatorAddress, 4)}
+                </Link>
+              </p>
+            )}
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -186,9 +205,21 @@ export default function TokenPage() {
         />
       </div>
 
+      <div className="mt-6">
+        <TokenTrustPanel
+          tokenAddress={address}
+          featureFlags={featureFlags}
+          creatorVerified={!!token.creatorVerified}
+          liquidityLocked={token.liquidityLocked}
+          ownershipRenouncedDb={token.ownershipRenounced}
+        />
+      </div>
+
       <div className="mt-8">
         <TokenAnalyticsSection tokenAddress={address} />
       </div>
+
+      <AnnouncementsSection tokenAddress={address} creatorAddress={token.creatorAddress} />
 
       <Card className="mt-8 overflow-hidden">
         <CardHeader>

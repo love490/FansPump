@@ -1,6 +1,7 @@
 import type { LiquidityPairId } from "@/lib/liquidity/pair-tokens";
 
 export type StoredLiquidityPosition = {
+  walletAddress: string;
   tokenAddress: string;
   tokenSymbol: string;
   pairId: LiquidityPairId;
@@ -12,27 +13,58 @@ export type StoredLiquidityPosition = {
 
 const STORAGE_KEY = "fanspump:my-liquidity";
 
-export function loadStoredLiquidityPositions(): StoredLiquidityPosition[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw) as StoredLiquidityPosition[];
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
+function storageKey(wallet?: string): string {
+  if (!wallet) return STORAGE_KEY;
+  return `${STORAGE_KEY}:${wallet.toLowerCase()}`;
 }
 
-export function saveLiquidityPosition(entry: StoredLiquidityPosition) {
+export function loadStoredLiquidityPositions(wallet?: string): StoredLiquidityPosition[] {
+  if (typeof window === "undefined") return [];
+  const keys = wallet
+    ? [storageKey(wallet), STORAGE_KEY]
+    : [STORAGE_KEY];
+
+  const merged = new Map<string, StoredLiquidityPosition>();
+
+  for (const key of keys) {
+    try {
+      const raw = localStorage.getItem(key);
+      if (!raw) continue;
+      const parsed = JSON.parse(raw) as StoredLiquidityPosition[];
+      if (!Array.isArray(parsed)) continue;
+      for (const entry of parsed) {
+        const walletAddress = (entry.walletAddress ?? wallet ?? "").toLowerCase();
+        if (wallet && walletAddress && walletAddress !== wallet.toLowerCase()) continue;
+        const posKey = `${entry.tokenAddress.toLowerCase()}:${entry.pairId}`;
+        merged.set(posKey, {
+          ...entry,
+          walletAddress: walletAddress || wallet?.toLowerCase() || "",
+          tokenAddress: entry.tokenAddress.toLowerCase(),
+        });
+      }
+    } catch {
+      // skip corrupt entry
+    }
+  }
+
+  return [...merged.values()];
+}
+
+export function saveLiquidityPosition(
+  entry: Omit<StoredLiquidityPosition, "walletAddress"> & { walletAddress: string }
+) {
   if (typeof window === "undefined") return;
-  const existing = loadStoredLiquidityPositions();
-  const key = `${entry.tokenAddress.toLowerCase()}:${entry.pairId}`;
+  const wallet = entry.walletAddress.toLowerCase();
+  const normalized: StoredLiquidityPosition = {
+    ...entry,
+    walletAddress: wallet,
+    tokenAddress: entry.tokenAddress.toLowerCase(),
+  };
+  const existing = loadStoredLiquidityPositions(wallet);
+  const posKey = `${normalized.tokenAddress}:${normalized.pairId}`;
   const next = [
-    entry,
-    ...existing.filter(
-      (p) => `${p.tokenAddress.toLowerCase()}:${p.pairId}` !== key
-    ),
+    normalized,
+    ...existing.filter((p) => `${p.tokenAddress}:${p.pairId}` !== posKey),
   ].slice(0, 50);
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+  localStorage.setItem(storageKey(wallet), JSON.stringify(next));
 }

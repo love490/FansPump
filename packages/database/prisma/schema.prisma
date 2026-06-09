@@ -38,6 +38,33 @@ enum TreasuryWalletType {
   SAFE_MULTISIG
 }
 
+enum TokenCategory {
+  MEME
+  GAMING
+  AI
+  DEFI
+  INFRASTRUCTURE
+  NFT
+  COMMUNITY
+  UTILITY
+  OTHER
+}
+
+enum AnnouncementType {
+  VERSION_RELEASE
+  PARTNERSHIP
+  LIQUIDITY_ADDED
+  EXCHANGE_LISTING
+  MARKETING_UPDATE
+  COMMUNITY_UPDATE
+  GENERAL
+}
+
+enum StakingAssetType {
+  OPN
+  LP_TOKEN
+}
+
 model User {
   id            String   @id @default(cuid())
   walletAddress String   @unique @map("wallet_address")
@@ -94,6 +121,8 @@ model TokenProject {
   txCountTotal    Int      @default(0) @map("tx_count_total")
   lastActivity    DateTime? @map("last_activity")
   poolStrength    Float    @default(0) @map("pool_strength")
+  category        TokenCategory @default(OTHER)
+  ownershipRenounced Boolean @default(false) @map("ownership_renounced")
 
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
@@ -107,6 +136,9 @@ model TokenProject {
   creatorEarnings CreatorEarning[]
   poolStats       TokenPoolStats?
   swapActivities  SwapActivity[]
+  announcements   TokenAnnouncement[]
+
+  @@index([category])
 
   @@index([createdAt])
   @@index([volume24h])
@@ -311,6 +343,44 @@ model AdminActivityLog {
   @@index([createdAt])
   @@index([action])
   @@map("admin_activity_logs")
+}
+
+model TokenAnnouncement {
+  id            String           @id @default(cuid())
+  tokenId       String           @map("token_id")
+  tokenAddress  String           @map("token_address")
+  creatorWallet String           @map("creator_wallet")
+  title         String
+  content       String           @db.Text
+  type          AnnouncementType
+  isHidden      Boolean          @default(false) @map("is_hidden")
+  createdAt     DateTime         @default(now()) @map("created_at")
+
+  token         TokenProject     @relation(fields: [tokenId], references: [id], onDelete: Cascade)
+
+  @@index([tokenId])
+  @@index([tokenAddress])
+  @@index([creatorWallet])
+  @@index([createdAt])
+  @@map("token_announcements")
+}
+
+/// Off-chain stake position tracking (no reward distribution yet).
+model StakingPosition {
+  id         String           @id @default(cuid())
+  wallet     String
+  assetType  StakingAssetType @map("asset_type")
+  asset      String
+  amount     String
+  tier       String?
+  stakedAt   DateTime         @default(now()) @map("staked_at")
+  unstakedAt DateTime?        @map("unstaked_at")
+  isActive   Boolean          @default(true) @map("is_active")
+
+  @@index([wallet])
+  @@index([asset])
+  @@index([isActive])
+  @@map("staking_positions")
 }
 
 /// Key-value platform configuration (fees, treasury, discovery weights, etc.).

@@ -321,6 +321,7 @@ export function AddLiquidityPanel({
 
       console.log("[liquidity] Transaction submitted, saving position…", addHash);
       saveLiquidityPosition({
+        walletAddress: address.toLowerCase(),
         tokenAddress: tokenAddress.toLowerCase(),
         tokenSymbol,
         pairId,
@@ -352,6 +353,7 @@ export function AddLiquidityPanel({
             );
             if (pairAddr) {
               saveLiquidityPosition({
+                walletAddress: address.toLowerCase(),
                 tokenAddress: tokenAddress.toLowerCase(),
                 tokenSymbol,
                 pairId,

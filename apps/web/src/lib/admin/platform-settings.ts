@@ -145,6 +145,18 @@ export const DEFAULT_SYSTEM: SystemConfig = {
   socialLinks: {},
 };
 
+export async function getPlatformSetting<T>(key: string, defaults: T): Promise<T> {
+  return getSetting(key, defaults);
+}
+
+export async function setPlatformSetting<T extends object>(
+  key: string,
+  value: T,
+  updatedBy?: string
+) {
+  return setSetting(key, value, updatedBy);
+}
+
 async function getSetting<T>(key: string, defaults: T): Promise<T> {
   const row = await prisma.platformSetting.findUnique({ where: { key } });
   if (!row?.value || typeof row.value !== "object") return defaults;

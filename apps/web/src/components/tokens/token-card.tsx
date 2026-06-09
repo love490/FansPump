@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { shortenAddress } from "@/lib/utils";
 import { motion } from "framer-motion";
+import { TOKEN_CATEGORY_LABELS, type TokenCategoryId } from "@iopn/shared";
 import { CheckCircle2, Eye, Users, TrendingUp, Droplets, Coins } from "lucide-react";
 
 export interface TokenCardData {
@@ -24,6 +25,9 @@ export interface TokenCardData {
   txCount24h?: number;
   poolStrength?: number;
   creatorEarningsWei?: string;
+  category?: string;
+  liquidityLocked?: boolean;
+  ownershipRenounced?: boolean;
 }
 
 export function TokenCard({ token, index = 0 }: { token: TokenCardData; index?: number }) {
@@ -52,6 +56,11 @@ export function TokenCard({ token, index = 0 }: { token: TokenCardData; index?: 
                 {token.creatorVerified && (
                   <Badge variant="verified" className="gap-1">
                     <CheckCircle2 className="h-3 w-3" /> Verified
+                  </Badge>
+                )}
+                {token.category && token.category !== "OTHER" && (
+                  <Badge variant="outline">
+                    {TOKEN_CATEGORY_LABELS[token.category as TokenCategoryId] ?? token.category}
                   </Badge>
                 )}
               </div>

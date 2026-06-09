@@ -22,6 +22,10 @@ const ALL_PERMISSIONS: AdminPermission[] = [
   "activity_logs",
   "roles",
   "factory",
+  "categories",
+  "announcements",
+  "staking",
+  "trust_panel",
   "write",
 ];
 
@@ -33,6 +37,8 @@ const ROLE_PERMISSIONS: Record<AdminRole, AdminPermission[]> = {
     "discovery",
     "analytics",
     "creator_earnings",
+    "categories",
+    "announcements",
     "activity_logs",
     "write",
   ],

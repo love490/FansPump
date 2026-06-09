@@ -16,6 +16,9 @@ import {
   getFeatureExtraFee,
   TOKEN_CREATION_FEE_SYMBOL,
   MAX_TAX_BPS,
+  TOKEN_CATEGORIES,
+  TOKEN_CATEGORY_LABELS,
+  type TokenCategoryId,
 } from "@iopn/shared";
 import { Button } from "@/components/ui/button";
 import { DismissibleAlert } from "@/components/ui/dismissible-alert";
@@ -113,6 +116,7 @@ export function TokenCreateForm() {
     maxLaunchWalletValue: "50000",
     protectionDuration: "3600",
   });
+  const [category, setCategory] = useState<TokenCategoryId>("OTHER");
   const [metadata, setMetadata] = useState({
     logoUrl: "",
     bannerUrl: "",
@@ -501,9 +505,10 @@ export function TokenCreateForm() {
         sellTaxBps: hasTax ? sellTax : null,
         maxWallet: maxWallet || null,
         maxTx: maxTx || null,
+        category,
       });
     },
-    [address, buyTax, hasTax, maxTx, maxWallet, metadata, name, selectedFeatures, sellTax, supply, symbol, txHash]
+    [address, buyTax, category, hasTax, maxTx, maxWallet, metadata, name, selectedFeatures, sellTax, supply, symbol, txHash]
   );
 
   useEffect(() => {
@@ -1042,6 +1047,20 @@ export function TokenCreateForm() {
                 />
               </div>
             ))}
+            <div className="sm:col-span-2">
+              <Label>Category</Label>
+              <select
+                className="mt-1 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                value={category}
+                onChange={(e) => setCategory(e.target.value as TokenCategoryId)}
+              >
+                {TOKEN_CATEGORIES.map((cat) => (
+                  <option key={cat} value={cat}>
+                    {TOKEN_CATEGORY_LABELS[cat]}
+                  </option>
+                ))}
+              </select>
+            </div>
             <div className="sm:col-span-2">
               <Label>Description</Label>
               <textarea

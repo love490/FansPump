@@ -40,14 +40,15 @@ export function MyLiquidityList({ refreshSeq = 0 }: { refreshSeq?: number }) {
         </div>
       ) : positions.length === 0 ? (
         <p className="rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">
-          No LP tokens found yet. Add liquidity below — your position will appear here after a successful
-          transaction.
+          No LP tokens found for this wallet yet. Add liquidity below with the same connected wallet — your
+          position will appear here after a successful transaction. If you added liquidity before, click
+          Refresh or confirm you are on the wallet that holds the LP tokens.
         </p>
       ) : (
         <div className="space-y-2">
           {positions.map((p) => (
             <div
-              key={`${p.tokenAddress}:${p.pairId}`}
+              key={`${p.tokenAddress}:${p.pairId}:${p.lpToken || "pending"}`}
               className="flex flex-col gap-3 rounded-xl border p-4 sm:flex-row sm:items-center sm:justify-between"
             >
               <div>

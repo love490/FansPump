@@ -14,6 +14,10 @@ export type AdminPermission =
   | "activity_logs"
   | "roles"
   | "factory"
+  | "categories"
+  | "announcements"
+  | "staking"
+  | "trust_panel"
   | "write";
 
 export type AdminRole = "SUPER_ADMIN" | "MODERATOR" | "SUPPORT" | "VIEWER";

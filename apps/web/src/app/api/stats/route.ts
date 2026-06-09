@@ -6,7 +6,7 @@ export async function GET() {
   try {
     const chainId = getActiveChainId();
 
-    const [tokenCount, verificationCount, voteCount, creatorGroups] = await Promise.all([
+    const [tokenCount, verificationCount, voteCount, creatorGroups, announcementCount] = await Promise.all([
       prisma.tokenProject.count({ where: { chainId } }),
       prisma.creatorVerification.count(),
       prisma.tokenVote.count(),
@@ -14,6 +14,7 @@ export async function GET() {
         by: ["creatorAddress"],
         where: { chainId },
       }),
+      prisma.tokenAnnouncement.count({ where: { isHidden: false } }),
     ]);
 
     return NextResponse.json(
@@ -21,8 +22,10 @@ export async function GET() {
         stats: {
           tokenCount,
           verificationCount,
+          verifiedCreatorCount: verificationCount,
           voteCount,
           creatorCount: creatorGroups.length,
+          announcementCount,
           chainId,
         },
       },

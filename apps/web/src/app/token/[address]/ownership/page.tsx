@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { isAddress, getAddress } from "viem";
 import { useParams } from "next/navigation";
 import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
@@ -35,6 +35,15 @@ export default function OwnershipPage() {
   const { isLoading } = useWaitForTransactionReceipt({ hash });
 
   const isOwner = address && owner && address.toLowerCase() === (owner as string).toLowerCase();
+
+  useEffect(() => {
+    if (!renounced || !address) return;
+    fetch(`/api/tokens/${tokenAddress}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ walletAddress: address, ownershipRenounced: true }),
+    }).catch(() => {});
+  }, [renounced, address, tokenAddress]);
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-10 sm:px-6 lg:px-8">

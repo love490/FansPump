@@ -9,6 +9,9 @@ import {
   searchRegistryTokens,
 } from "@/lib/token-registry";
 import { initializeTokenAnalytics } from "@/lib/analytics/token-init";
+import { isTokenCategory } from "@iopn/shared";
+import { buildDiscoverWhere, parseDiscoverFilters } from "@/lib/discover-filters";
+import { mapTokenListRow, tokenListSelect } from "@/lib/analytics/token-list";
 
 const emptyToNull = (v: unknown) => (v === "" ? null : v);
 
@@ -48,6 +51,7 @@ const createSchema = z.object({
   sellTaxBps: z.number().int().optional().nullable(),
   maxWallet: z.string().optional().nullable(),
   maxTx: z.string().optional().nullable(),
+  category: z.string().optional(),
 });
 
 export async function GET(request: NextRequest) {
@@ -58,6 +62,12 @@ export async function GET(request: NextRequest) {
   const creatorNormalized = creator ? creator.toLowerCase() : "";
   const limit = Math.min(Number(searchParams.get("limit") ?? 24), 100);
   const chainId = Number(searchParams.get("chainId") ?? getActiveChainId());
+  const discoverFilters = parseDiscoverFilters(searchParams);
+  const hasDiscoverFilters =
+    discoverFilters.category ||
+    discoverFilters.verified ||
+    discoverFilters.liquidityLocked ||
+    discoverFilters.ownershipRenounced;
 
   if (creatorNormalized && !isAddress(creatorNormalized)) {
     console.warn("[GET /api/tokens] Invalid creator address:", creator);
@@ -75,7 +85,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ tokens: registry, source: "registry" });
   }
 
-  const chainFilter: Prisma.TokenProjectWhereInput = { chainId };
+  const chainFilter: Prisma.TokenProjectWhereInput = hasDiscoverFilters
+    ? buildDiscoverWhere(chainId, discoverFilters)
+    : { chainId };
 
   const orderBy =
     section === "trending"
@@ -119,36 +131,10 @@ export async function GET(request: NextRequest) {
       where,
       orderBy: q ? { createdAt: "desc" as const } : (orderBy ?? { createdAt: "desc" }),
       take: q ? Math.min(limit, 20) : limit,
-      select: {
-        id: true,
-        contractAddress: true,
-        chainId: true,
-        name: true,
-        symbol: true,
-        logoUrl: true,
-        description: true,
-        viewCount: true,
-        holderCount: true,
-        isFeatured: true,
-        featureFlags: true,
-        createdAt: true,
-        volume24h: true,
-        volumeTotal: true,
-        txCount24h: true,
-        txCountTotal: true,
-        lastActivity: true,
-        poolStrength: true,
-        creator: { select: { verification: { select: { id: true } } } },
-      },
+      select: tokenListSelect,
     });
 
-    const enriched = tokens.map((t) => ({
-      ...t,
-      featureFlags: t.featureFlags.toString(),
-      creatorVerified: !!t.creator?.verification,
-      createdAt: t.createdAt.toISOString(),
-      lastActivity: t.lastActivity?.toISOString() ?? null,
-    }));
+    const enriched = tokens.map(mapTokenListRow);
 
     let responseTokens = enriched;
 
@@ -220,6 +206,9 @@ export async function POST(request: NextRequest) {
       update: {},
     });
 
+    const category =
+      body.category && isTokenCategory(body.category) ? body.category : "OTHER";
+
     const data = {
       chainId: body.chainId,
       name: body.name,
@@ -241,6 +230,7 @@ export async function POST(request: NextRequest) {
       sellTaxBps: body.sellTaxBps,
       maxWallet: body.maxWallet,
       maxTx: body.maxTx,
+      category,
     };
 
     const token = await prisma.tokenProject.upsert({

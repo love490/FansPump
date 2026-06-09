@@ -12,6 +12,8 @@ export async function GET(
       include: {
         creator: { include: { verification: true } },
         votes: true,
+        liquidityLocks: { select: { id: true }, take: 1 },
+        lpBurns: { select: { id: true }, take: 1 },
       },
     });
 
@@ -32,11 +34,14 @@ export async function GET(
       {} as Record<string, number>
     );
 
+    const { votes, liquidityLocks, lpBurns, ...tokenFields } = token;
+
     return NextResponse.json({
       token: {
-        ...token,
+        ...tokenFields,
         featureFlags: token.featureFlags.toString(),
         creatorVerified: !!token.creator?.verification,
+        liquidityLocked: liquidityLocks.length > 0 || lpBurns.length > 0,
         voteCounts,
       },
     });
@@ -78,9 +83,10 @@ export async function PATCH(
     "twitter",
     "discord",
     "github",
+    "ownershipRenounced",
   ] as const;
 
-  const data: Record<string, string | null> = {};
+  const data: Record<string, string | boolean | null> = {};
   const history: { field: string }[] = [];
 
   for (const field of allowed) {

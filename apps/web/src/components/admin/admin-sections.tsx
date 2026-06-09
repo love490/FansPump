@@ -219,8 +219,10 @@ export function TreasurySection() {
 
 export function VerificationSection() {
   const [rows, setRows] = useState<{ tokenId: string; token: string; wallet: string; status: string; submittedAt: string }[]>([]);
+  const [creators, setCreators] = useState<{ walletAddress: string; verifiedAt: string }[]>([]);
   const load = useCallback(() => {
     adminFetch("/api/admin/verification").then((r) => r.json()).then((d) => setRows(d.submissions ?? []));
+    adminFetch("/api/admin/creator-verifications").then((r) => r.json()).then((d) => setCreators(d.creators ?? []));
   }, []);
   useEffect(() => { load(); }, [load]);
   const act = async (tokenId: string, action: string) => {
@@ -260,6 +262,29 @@ export function VerificationSection() {
           </tbody>
         </table>
       </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Verified Creators (view only)</CardTitle>
+          <CardDescription>Wallet signature verifications — cannot be bypassed from admin</CardDescription>
+        </CardHeader>
+        <CardContent className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="border-b bg-muted/50">
+              <tr><th className="p-3 text-left">Wallet</th><th className="p-3 text-left">Verified</th></tr>
+            </thead>
+            <tbody>
+              {creators.length === 0 ? (
+                <tr><td colSpan={2} className="p-4 text-center text-muted-foreground">No verified creators yet</td></tr>
+              ) : creators.map((c) => (
+                <tr key={c.walletAddress} className="border-b">
+                  <td className="p-3 font-mono text-xs">{c.walletAddress}</td>
+                  <td className="p-3 text-xs">{new Date(c.verifiedAt).toLocaleString()}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </CardContent>
+      </Card>
     </div>
   );
 }
@@ -594,6 +619,182 @@ export function RolesSection() {
   );
 }
 
+export function CategoriesSection() {
+  const [stats, setStats] = useState<{ category: string; count: number }[]>([]);
+  useEffect(() => {
+    fetch("/api/analytics/extended")
+      .then((r) => r.json())
+      .then((d) => setStats(d.analytics?.categoryStats ?? []));
+  }, []);
+  return (
+    <div className="space-y-4">
+      <h2 className="text-2xl font-bold">Token Categories</h2>
+      <p className="text-sm text-muted-foreground">Category distribution across tokens. Categories are fixed enums; old tokens default to Other.</p>
+      <div className="overflow-x-auto rounded-lg border">
+        <table className="w-full text-sm">
+          <thead className="border-b bg-muted/50">
+            <tr><th className="p-3 text-left">Category</th><th className="p-3 text-left">Tokens</th></tr>
+          </thead>
+          <tbody>
+            {stats.map((s) => (
+              <tr key={s.category} className="border-b">
+                <td className="p-3">{s.category}</td>
+                <td className="p-3 font-medium">{s.count}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+export function AnnouncementsModerationSection() {
+  const [rows, setRows] = useState<{ id: string; title: string; tokenSymbol: string; creatorWallet: string; isHidden: boolean; createdAt: string }[]>([]);
+  const load = useCallback(() => {
+    adminFetch("/api/admin/announcements").then((r) => r.json()).then((d) => setRows(d.announcements ?? []));
+  }, []);
+  useEffect(() => { load(); }, [load]);
+  const toggle = async (id: string, isHidden: boolean) => {
+    await adminFetch("/api/admin/announcements", { method: "PATCH", body: JSON.stringify({ id, isHidden }) });
+    load();
+  };
+  return (
+    <div className="space-y-4">
+      <h2 className="text-2xl font-bold">Announcement Moderation</h2>
+      <div className="overflow-x-auto rounded-lg border">
+        <table className="w-full text-sm">
+          <thead className="border-b bg-muted/50">
+            <tr>
+              <th className="p-3 text-left">Title</th>
+              <th className="p-3 text-left">Token</th>
+              <th className="p-3 text-left">Creator</th>
+              <th className="p-3 text-left">Status</th>
+              <th className="p-3 text-left">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.id} className="border-b">
+                <td className="p-3">{r.title}</td>
+                <td className="p-3">{r.tokenSymbol}</td>
+                <td className="p-3 font-mono text-xs">{r.creatorWallet.slice(0, 10)}…</td>
+                <td className="p-3"><Badge variant={r.isHidden ? "secondary" : "default"}>{r.isHidden ? "Hidden" : "Visible"}</Badge></td>
+                <td className="p-3">
+                  <Button size="sm" variant="outline" onClick={() => toggle(r.id, !r.isHidden)}>
+                    {r.isHidden ? "Restore" : "Hide"}
+                  </Button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+export function StakingConfigSection() {
+  const [config, setConfig] = useState<{ tiers: { tier: string; minStakeOpn: string; creationFeeDiscountBps: number; visibilityBoost: number; rewardEligible: boolean }[]; visibilityBoostEnabled?: boolean } | null>(null);
+  const [saving, setSaving] = useState(false);
+  const load = useCallback(() => {
+    adminFetch("/api/admin/settings/staking").then((r) => r.json()).then((d) => setConfig(d.config));
+  }, []);
+  useEffect(() => { load(); }, [load]);
+  if (!config) return null;
+  return (
+    <div className="space-y-4">
+      <h2 className="text-2xl font-bold">Staking Tier Configuration</h2>
+      <p className="text-sm text-muted-foreground">Config only — reward distribution is not active yet.</p>
+      <label className="flex items-center gap-2 text-sm">
+        <input
+          type="checkbox"
+          checked={config.visibilityBoostEnabled ?? true}
+          onChange={(e) => setConfig({ ...config, visibilityBoostEnabled: e.target.checked })}
+        />
+        Enable visibility boosts from staking tiers
+      </label>
+      {config.tiers.map((tier, i) => (
+        <Card key={tier.tier}>
+          <CardHeader><CardTitle>{tier.tier}</CardTitle></CardHeader>
+          <CardContent className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <Label>Min stake OPN</Label>
+              <Input value={tier.minStakeOpn} onChange={(e) => {
+                const tiers = [...config.tiers];
+                tiers[i] = { ...tier, minStakeOpn: e.target.value };
+                setConfig({ ...config, tiers });
+              }} />
+            </div>
+            <div>
+              <Label>Fee discount (bps)</Label>
+              <Input type="number" value={tier.creationFeeDiscountBps} onChange={(e) => {
+                const tiers = [...config.tiers];
+                tiers[i] = { ...tier, creationFeeDiscountBps: Number(e.target.value) };
+                setConfig({ ...config, tiers });
+              }} />
+            </div>
+            <div>
+              <Label>Visibility boost</Label>
+              <Input type="number" value={tier.visibilityBoost} onChange={(e) => {
+                const tiers = [...config.tiers];
+                tiers[i] = { ...tier, visibilityBoost: Number(e.target.value) };
+                setConfig({ ...config, tiers });
+              }} />
+            </div>
+            <label className="flex items-center gap-2 text-sm pt-6">
+              <input type="checkbox" checked={tier.rewardEligible} onChange={(e) => {
+                const tiers = [...config.tiers];
+                tiers[i] = { ...tier, rewardEligible: e.target.checked };
+                setConfig({ ...config, tiers });
+              }} />
+              Future reward eligible
+            </label>
+          </CardContent>
+        </Card>
+      ))}
+      <SaveButton saving={saving} onClick={async () => {
+        setSaving(true);
+        await adminFetch("/api/admin/settings/staking", { method: "PATCH", body: JSON.stringify({ config }) });
+        setSaving(false);
+      }} />
+    </div>
+  );
+}
+
+export function TrustPanelConfigSection() {
+  const [config, setConfig] = useState<Record<string, boolean> | null>(null);
+  const [saving, setSaving] = useState(false);
+  useEffect(() => {
+    adminFetch("/api/admin/settings/trust-panel").then((r) => r.json()).then((d) => setConfig(d.config));
+  }, []);
+  if (!config) return null;
+  return (
+    <div className="space-y-4">
+      <h2 className="text-2xl font-bold">Trust Panel Configuration</h2>
+      <Card>
+        <CardContent className="grid gap-3 pt-6 sm:grid-cols-2">
+          {Object.entries(config).map(([key, val]) => (
+            <label key={key} className="flex items-center gap-2 text-sm capitalize">
+              <input
+                type="checkbox"
+                checked={val}
+                onChange={(e) => setConfig({ ...config, [key]: e.target.checked })}
+              />
+              {key.replace(/([A-Z])/g, " $1").replace(/^show /, "")}
+            </label>
+          ))}
+        </CardContent>
+      </Card>
+      <SaveButton saving={saving} onClick={async () => {
+        setSaving(true);
+        await adminFetch("/api/admin/settings/trust-panel", { method: "PATCH", body: JSON.stringify({ config }) });
+        setSaving(false);
+      }} />
+    </div>
+  );
+}
+
 export function AdminSectionRouter({ section }: { section: string }) {
   const { can } = useAdmin();
   const map: Record<string, { perm: Parameters<typeof can>[0]; Component: React.ComponentType }> = {
@@ -602,6 +803,10 @@ export function AdminSectionRouter({ section }: { section: string }) {
     "trading-fees": { perm: "trading_fees", Component: TradingFeesSection },
     treasury: { perm: "treasury", Component: TreasurySection },
     verification: { perm: "verification", Component: VerificationSection },
+    categories: { perm: "categories", Component: CategoriesSection },
+    announcements: { perm: "announcements", Component: AnnouncementsModerationSection },
+    staking: { perm: "staking", Component: StakingConfigSection },
+    "trust-panel": { perm: "trust_panel", Component: TrustPanelConfigSection },
     discovery: { perm: "discovery", Component: DiscoverySection },
     analytics: { perm: "analytics", Component: AnalyticsSection },
     "creator-earnings": { perm: "creator_earnings", Component: CreatorEarningsSection },

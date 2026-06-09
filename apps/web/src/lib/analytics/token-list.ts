@@ -20,7 +20,11 @@ export const tokenListSelect = {
   txCountTotal: true,
   lastActivity: true,
   poolStrength: true,
+  category: true,
+  ownershipRenounced: true,
   creator: { select: { verification: { select: { id: true } } } },
+  liquidityLocks: { select: { id: true }, take: 1 },
+  lpBurns: { select: { id: true }, take: 1 },
 } satisfies Prisma.TokenProjectSelect;
 
 export function mapTokenListRow(t: {
@@ -42,7 +46,11 @@ export function mapTokenListRow(t: {
   txCountTotal: number;
   lastActivity: Date | null;
   poolStrength: number;
+  category?: string;
+  ownershipRenounced?: boolean;
   creator?: { verification: { id: string } | null } | null;
+  liquidityLocks?: { id: string }[];
+  lpBurns?: { id: string }[];
 }) {
   return {
     id: t.id,
@@ -63,6 +71,10 @@ export function mapTokenListRow(t: {
     txCountTotal: t.txCountTotal,
     lastActivity: t.lastActivity?.toISOString() ?? null,
     poolStrength: t.poolStrength,
+    category: t.category ?? "OTHER",
+    ownershipRenounced: t.ownershipRenounced ?? false,
+    liquidityLocked:
+      (t.liquidityLocks?.length ?? 0) > 0 || (t.lpBurns?.length ?? 0) > 0,
     creatorVerified: !!t.creator?.verification,
   };
 }
