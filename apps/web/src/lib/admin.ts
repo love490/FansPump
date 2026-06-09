@@ -13,7 +13,11 @@ export function isAdminWallet(address: string | undefined | null): boolean {
 }
 
 export function getAdminMessagePrefix(): string {
-  return process.env.ADMIN_MESSAGE_PREFIX ?? "FansPump Admin Authorization";
+  return (
+    process.env.ADMIN_MESSAGE_PREFIX ??
+    process.env.NEXT_PUBLIC_ADMIN_MESSAGE_PREFIX ??
+    "FansPump Admin Authorization"
+  );
 }
 
 export function getFactoryAdminAddress(): string | null {

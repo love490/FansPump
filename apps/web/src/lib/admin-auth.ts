@@ -36,8 +36,9 @@ export async function verifyAdminAuth(payload: AdminAuthPayload): Promise<`0x${s
   return valid ? wallet : null;
 }
 
-export function buildAdminAuthMessage(wallet: string): string {
-  return `${getAdminMessagePrefix()}\nWallet: ${wallet}\nTimestamp: ${Date.now()}`;
+export function buildAdminAuthMessage(wallet: string, prefix?: string): string {
+  const messagePrefix = prefix ?? getAdminMessagePrefix();
+  return `${messagePrefix}\nWallet: ${wallet}\nTimestamp: ${Date.now()}`;
 }
 
 /** Reject messages older than 24 hours to limit replay window. */

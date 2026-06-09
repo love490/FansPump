@@ -9,7 +9,11 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const wallet = await requireAdminAuth(body);
     const role = await ensureAdminProfile(wallet);
-    await logAdminAction(wallet, "ADMIN_LOGIN", {}, request);
+    try {
+      await logAdminAction(wallet, "ADMIN_LOGIN", {}, request);
+    } catch (auditError) {
+      console.error("Admin login audit log failed:", auditError);
+    }
     return NextResponse.json({
       authorized: true,
       role,
@@ -19,6 +23,17 @@ export async function POST(request: NextRequest) {
     if (e instanceof AdminAuthError) {
       return NextResponse.json({ error: e.message }, { status: 401 });
     }
-    return NextResponse.json({ error: "Authorization failed" }, { status: 400 });
+    console.error("Admin authorize failed:", e);
+    const message = e instanceof Error ? e.message : "Authorization failed";
+    const missingTables =
+      /admin_profiles|admin_activity_logs|does not exist|Unknown arg/i.test(message);
+    return NextResponse.json(
+      {
+        error: missingTables
+          ? "Admin database tables are missing. Run pnpm db:push on the production database."
+          : message || "Authorization failed",
+      },
+      { status: missingTables ? 503 : 500 }
+    );
   }
 }

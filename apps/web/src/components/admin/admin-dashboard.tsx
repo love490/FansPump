@@ -7,19 +7,21 @@ import { useAdmin } from "@/components/admin/admin-context";
 import { AdminSectionRouter } from "@/components/admin/admin-sections";
 
 function DashboardContent() {
-  const { authorized, isAdmin } = useAdmin();
+  const { authorized, isAdmin, sessionChecking } = useAdmin();
   const { isConnected } = useAccount();
   const router = useRouter();
   const searchParams = useSearchParams();
   const section = searchParams.get("section") ?? "overview";
 
   useEffect(() => {
-    if (!isConnected || !isAdmin) router.replace("/admin/login");
-    else if (!authorized) router.replace("/admin/login");
-  }, [authorized, isAdmin, isConnected, router]);
+    if (sessionChecking) return;
+    if (!isConnected || !isAdmin || !authorized) {
+      router.replace("/admin/login");
+    }
+  }, [authorized, isAdmin, isConnected, router, sessionChecking]);
 
-  if (!authorized) {
-    return <p className="text-muted-foreground">Redirecting to login...</p>;
+  if (sessionChecking || !authorized) {
+    return <p className="text-muted-foreground">Loading admin dashboard...</p>;
   }
 
   return <AdminSectionRouter section={section} />;

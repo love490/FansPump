@@ -11,12 +11,14 @@ import { Shield } from "lucide-react";
 
 export function AdminLogin() {
   const { isConnected } = useAccount();
-  const { isAdmin, authorized, loading, signIn } = useAdmin();
+  const { isAdmin, authorized, sessionChecking, loading, error, signIn, clearError } = useAdmin();
   const router = useRouter();
 
   useEffect(() => {
-    if (authorized) router.replace("/admin/dashboard");
-  }, [authorized, router]);
+    if (!sessionChecking && authorized) {
+      router.replace("/admin/dashboard");
+    }
+  }, [authorized, sessionChecking, router]);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-muted/30 p-4">
@@ -38,9 +40,21 @@ export function AdminLogin() {
               This wallet is not in the admin allowlist.
             </p>
           )}
+          {error && (
+            <p className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-center text-sm text-destructive">
+              {error}
+            </p>
+          )}
           {isConnected && isAdmin && (
-            <Button className="w-full" onClick={() => signIn()} disabled={loading}>
-              {loading ? "Signing..." : "Sign in as admin"}
+            <Button
+              className="w-full"
+              onClick={() => {
+                clearError();
+                void signIn();
+              }}
+              disabled={loading || sessionChecking}
+            >
+              {loading ? "Signing..." : sessionChecking ? "Checking session..." : "Sign in as admin"}
             </Button>
           )}
           <p className="text-center text-xs text-muted-foreground">
