@@ -26,6 +26,7 @@ import {
   type LiquidityPairId,
 } from "@/lib/liquidity/pair-tokens";
 import { readRouterWeth } from "@/lib/liquidity/router-weth";
+import { resolveDexFactory } from "@/lib/liquidity/dex-factory";
 import {
   liquidityLockerAbi,
   uniswapV2FactoryAbi,
@@ -136,17 +137,7 @@ export default function LiquidityModulePage() {
         return [...quoteCandidatesSet].map((s) => s as Address);
       };
 
-      let factory: Address;
-      try {
-        factory = (await client.readContract({
-          address: DEX_ROUTER_ADDRESS,
-          abi: uniswapV2RouterAbi,
-          functionName: "factory",
-        })) as Address;
-      } catch {
-        // Some router deployments don't expose `factory()`. Fall back to configured factory.
-        factory = opnChainConfig.contracts.factory;
-      }
+      const factory = await resolveDexFactory(client);
 
       const orderedPairIds: LiquidityPairId[] = [
         pairId,

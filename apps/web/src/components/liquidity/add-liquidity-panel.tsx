@@ -32,6 +32,9 @@ import {
 import { isValidTokenAddress } from "@/lib/swap/routerAdapter";
 import { erc20Abi } from "@/lib/swap/abis";
 import { saveLiquidityPosition } from "@/lib/liquidity/my-liquidity-storage";
+import { resolveDexFactory } from "@/lib/liquidity/dex-factory";
+import { findPairAddress, quoteCandidatesForPairId } from "@/lib/liquidity/pair-resolve";
+import { readRouterWeth } from "@/lib/liquidity/router-weth";
 import { cn, shortenAddress } from "@/lib/utils";
 import { opnChainConfig } from "@/lib/chain-config/opn";
 
@@ -331,6 +334,37 @@ export function AddLiquidityPanel({
         await waitForTx(addHash);
         setStatus(`Liquidity added (${tokenSymbol}/${pair.symbol}).`);
         console.log("[liquidity] Transaction confirmed on-chain");
+        if (client) {
+          try {
+            const factory = await resolveDexFactory(client);
+            const weth = await readRouterWeth(client, DEX_ROUTER_ADDRESS);
+            const quotes = quoteCandidatesForPairId(
+              pairId,
+              weth,
+              opnChainConfig.contracts.wopnExplicit,
+              opnChainConfig.contracts.usdt
+            );
+            const pairAddr = await findPairAddress(
+              client,
+              factory,
+              tokenAddress as Address,
+              quotes
+            );
+            if (pairAddr) {
+              saveLiquidityPosition({
+                tokenAddress: tokenAddress.toLowerCase(),
+                tokenSymbol,
+                pairId,
+                pairSymbol: pair.symbol,
+                lpToken: pairAddr.toLowerCase(),
+                txHash: addHash,
+                addedAt: new Date().toISOString(),
+              });
+            }
+          } catch (pairError) {
+            console.warn("[liquidity] Could not resolve LP pair address:", pairError);
+          }
+        }
       } catch (receiptError) {
         console.warn("[liquidity] Receipt wait failed (tx may still succeed):", receiptError);
         setStatus(

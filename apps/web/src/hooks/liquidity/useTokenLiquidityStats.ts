@@ -9,6 +9,7 @@ import { DEAD_BURN_ADDRESS, LIQUIDITY_LOCKER_ADDRESS } from "@/lib/liquidity/con
 import { uniswapV2FactoryAbi, uniswapV2PairAbi, uniswapV2RouterAbi } from "@/lib/liquidity/abis";
 import { LIQUIDITY_PAIR_OPTIONS, quoteAddressForPairId, type LiquidityPairId } from "@/lib/liquidity/pair-tokens";
 import { readRouterWeth } from "@/lib/liquidity/router-weth";
+import { resolveDexFactory } from "@/lib/liquidity/dex-factory";
 import { opnChainConfig } from "@/lib/chain-config/opn";
 import { isValidTokenAddress } from "@/lib/swap/routerAdapter";
 
@@ -132,16 +133,7 @@ export function useTokenLiquidityStats(tokenAddress: string | undefined, tokenDe
     setLoading(true);
     try {
       const token = tokenAddress as Address;
-      let factory: Address;
-      try {
-        factory = (await client.readContract({
-          address: DEX_ROUTER_ADDRESS,
-          abi: uniswapV2RouterAbi,
-          functionName: "factory",
-        })) as Address;
-      } catch {
-        factory = opnChainConfig.contracts.factory;
-      }
+      const factory = await resolveDexFactory(client);
 
       const weth = await readRouterWeth(client, DEX_ROUTER_ADDRESS);
       const pairIds: LiquidityPairId[] = ["OPN", "USDT"];

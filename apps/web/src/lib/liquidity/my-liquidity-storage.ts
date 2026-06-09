@@ -5,6 +5,7 @@ export type StoredLiquidityPosition = {
   tokenSymbol: string;
   pairId: LiquidityPairId;
   pairSymbol: string;
+  lpToken?: string;
   txHash?: string;
   addedAt: string;
 };
