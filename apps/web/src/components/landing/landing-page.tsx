@@ -9,6 +9,7 @@ import { LandingFeatures } from "@/components/landing/landing-features";
 import { LandingHowItWorks } from "@/components/landing/landing-how-it-works";
 import {
   LandingNewlyCreatedPreview,
+  LandingTrendingPreview,
   LandingVerifiedPreview,
 } from "@/components/landing/landing-token-previews";
 import { LandingStats } from "@/components/landing/landing-stats";
@@ -22,7 +23,8 @@ export function LandingPage() {
       <main className="flex-1">
         <LandingHero />
 
-        <div className="mx-auto max-w-6xl space-y-10 px-4 pb-16 pt-8 sm:space-y-12 sm:px-6 sm:pb-20 sm:pt-10">
+        <div className="mx-auto max-w-6xl space-y-12 px-4 pb-16 pt-6 sm:space-y-14 sm:px-6 sm:pb-20 sm:pt-8">
+          <LandingTrendingPreview />
           <LandingNewlyCreatedPreview />
           <LandingStats />
           <LandingVerifiedPreview />
@@ -39,7 +41,7 @@ export function LandingPage() {
             </p>
             <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
               <Button asChild size="lg">
-                <Link href="/app">Launch App</Link>
+                <Link href="/home">Launch App</Link>
               </Button>
               <Button asChild size="lg" variant="outline">
                 <Link href="/create">

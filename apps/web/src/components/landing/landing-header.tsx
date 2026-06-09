@@ -27,7 +27,7 @@ export function LandingHeader() {
         <div className="flex items-center gap-2">
           <ThemeToggle />
           <Button asChild size="sm" className="hidden sm:inline-flex">
-            <Link href="/app">Launch App</Link>
+            <Link href="/home">Launch App</Link>
           </Button>
           <ConnectButton showBalance={false} chainStatus="icon" accountStatus="avatar" />
         </div>

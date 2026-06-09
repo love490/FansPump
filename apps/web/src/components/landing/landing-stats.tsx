@@ -29,6 +29,7 @@ export function LandingStats() {
 
   return (
     <section className="space-y-4">
+      <h2 className="text-xl font-bold sm:text-2xl">Platform Stats</h2>
       {isError && (
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200">
           <span>Stats unavailable — database may be unreachable.</span>

@@ -34,6 +34,7 @@ function filterQuery(filters?: DiscoverFilters): string {
   return q ? `&${q}` : "";
 }
 
+/** Section-specific fetch for discover & landing previews. */
 export async function fetchDiscoverTokens(
   section: string,
   limit = 24,
@@ -43,31 +44,29 @@ export async function fetchDiscoverTokens(
   const fq = filterQuery(filters);
 
   if (section === "trending") {
-    const res = await fetch(
-      `/api/tokens/trending?limit=${limit}&chainId=${chainId}${fq}`
-    );
+    const res = await fetch(`/api/tokens/trending?limit=${limit}&chainId=${chainId}${fq}`);
     if (!res.ok) throw new Error("Failed to load trending tokens");
     const data = (await res.json()) as { tokens: TokenCardData[] };
     return data.tokens ?? [];
   }
 
   if (section === "latest" || section === "new") {
-    const res = await fetch(
-      `/api/tokens/latest?limit=${limit}&chainId=${chainId}${fq}`
-    );
+    const res = await fetch(`/api/tokens/latest?limit=${limit}&chainId=${chainId}${fq}`);
     if (!res.ok) throw new Error("Failed to load latest tokens");
     const data = (await res.json()) as { tokens: TokenCardData[] };
     return data.tokens ?? [];
   }
 
-  const apiSection = section === "verified" ? "new" : section;
-  const verifiedFq =
-    section === "verified" && !filters?.verified
-      ? `${fq}&verified=true`
-      : fq;
+  if (section === "verified") {
+    const query = filterQuery({ ...filters, verified: true });
+    const res = await fetch(`/api/tokens/latest?limit=${limit}&chainId=${chainId}${query}`);
+    if (!res.ok) throw new Error("Failed to load verified tokens");
+    const data = (await res.json()) as { tokens: TokenCardData[] };
+    return data.tokens ?? [];
+  }
 
   const res = await fetch(
-    `/api/tokens?section=${encodeURIComponent(apiSection)}&limit=${limit}&chainId=${chainId}${verifiedFq}`
+    `/api/tokens?section=${encodeURIComponent(section)}&limit=${limit}&chainId=${chainId}${fq}`
   );
   if (!res.ok) throw new Error("Failed to load tokens");
   const data = (await res.json()) as { tokens: TokenCardData[] };

@@ -15,7 +15,7 @@ const features = [
   { icon: ShieldCheck, label: "Verify Ownership", href: "/verify" },
   { icon: Users, label: "Build Communities", href: "/discover?section=featured" },
   { icon: Eye, label: "Gain Visibility", href: "/discover?section=trending" },
-  { icon: TrendingUp, label: "Grow Together", href: "/app" },
+  { icon: TrendingUp, label: "Grow Together", href: "/home" },
 ] as const;
 
 export function LandingFeatures() {
