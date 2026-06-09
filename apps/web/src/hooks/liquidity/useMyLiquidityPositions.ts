@@ -7,16 +7,52 @@ import { DEX_ROUTER_ADDRESS } from "@/lib/wagmi";
 import { uniswapV2FactoryAbi, uniswapV2PairAbi, uniswapV2RouterAbi } from "@/lib/liquidity/abis";
 import {
   getLiquidityPair,
-  quoteAddressForPairId,
   type LiquidityPairId,
 } from "@/lib/liquidity/pair-tokens";
 import { readRouterWeth } from "@/lib/liquidity/router-weth";
-import { loadStoredLiquidityPositions } from "@/lib/liquidity/my-liquidity-storage";
+import { loadStoredLiquidityPositions, saveLiquidityPosition } from "@/lib/liquidity/my-liquidity-storage";
 import { useWalletLiquidityTokens } from "@/hooks/liquidity/useWalletLiquidityTokens";
 import { isValidTokenAddress } from "@/lib/swap/routerAdapter";
 import { opnChainConfig } from "@/lib/chain-config/opn";
 
 const ZERO_PAIR = "0x0000000000000000000000000000000000000000";
+
+function quoteCandidatesForPairId(
+  pairId: LiquidityPairId,
+  weth: Address,
+  wopnExplicit: Address,
+  usdt: Address
+): Address[] {
+  const seen = new Set<string>();
+  const add = (addr: string) => {
+    const lower = addr.toLowerCase();
+    if (lower && lower !== ZERO_PAIR) seen.add(lower);
+  };
+
+  if (pairId === "USDT") {
+    add(usdt);
+  } else if (pairId === "WOPN") {
+    add(wopnExplicit);
+    add(weth);
+  } else {
+    add(weth);
+    add(wopnExplicit);
+  }
+
+  return [...seen].map((s) => s as Address);
+}
+
+async function resolveDexFactory(client: PublicClient): Promise<Address> {
+  try {
+    return (await client.readContract({
+      address: DEX_ROUTER_ADDRESS,
+      abi: uniswapV2RouterAbi,
+      functionName: "factory",
+    })) as Address;
+  } catch {
+    return opnChainConfig.contracts.factory;
+  }
+}
 
 export type MyLiquidityPosition = {
   tokenAddress: string;
@@ -48,41 +84,48 @@ async function resolvePairAddress(
 
 async function readLpPosition(
   client: PublicClient,
+  factory: Address,
   wallet: Address,
   tokenAddress: string,
   tokenSymbol: string,
   pairId: LiquidityPairId,
-  quoteAddress: Address
+  quoteCandidates: Address[]
 ): Promise<MyLiquidityPosition | null> {
   if (!isValidTokenAddress(tokenAddress)) return null;
   const token = tokenAddress as Address;
 
-  const factory = await client.readContract({
-    address: DEX_ROUTER_ADDRESS,
-    abi: uniswapV2RouterAbi,
-    functionName: "factory",
-  });
+  for (const quoteAddress of quoteCandidates) {
+    const pair = await resolvePairAddress(client, factory, token, quoteAddress);
+    if (!pair) continue;
 
-  const pair = await resolvePairAddress(client, factory as Address, token, quoteAddress);
-  if (!pair) return null;
+    const [balance, decimals] = await Promise.all([
+      client.readContract({ address: pair, abi: uniswapV2PairAbi, functionName: "balanceOf", args: [wallet] }),
+      client.readContract({ address: pair, abi: uniswapV2PairAbi, functionName: "decimals" }).catch(() => 18),
+    ]);
 
-  const [balance, decimals] = await Promise.all([
-    client.readContract({ address: pair, abi: uniswapV2PairAbi, functionName: "balanceOf", args: [wallet] }),
-    client.readContract({ address: pair, abi: uniswapV2PairAbi, functionName: "decimals" }).catch(() => 18),
-  ]);
+    if (balance === 0n) continue;
 
-  if (balance === 0n) return null;
+    const pairMeta = getLiquidityPair(pairId);
+    saveLiquidityPosition({
+      tokenAddress: token.toLowerCase(),
+      tokenSymbol,
+      pairId,
+      pairSymbol: pairMeta.symbol,
+      addedAt: new Date().toISOString(),
+    });
 
-  const pairMeta = getLiquidityPair(pairId);
-  return {
-    tokenAddress: token.toLowerCase(),
-    tokenSymbol,
-    pairId,
-    pairLabel: pairMeta.symbol,
-    lpToken: pair.toLowerCase(),
-    lpBalance: balance,
-    lpDecimals: Number(decimals),
-  };
+    return {
+      tokenAddress: token.toLowerCase(),
+      tokenSymbol,
+      pairId,
+      pairLabel: pairMeta.symbol,
+      lpToken: pair.toLowerCase(),
+      lpBalance: balance,
+      lpDecimals: Number(decimals),
+    };
+  }
+
+  return null;
 }
 
 function storedToPendingPosition(stored: {
@@ -118,7 +161,10 @@ export function useMyLiquidityPositions(walletAddress: string | undefined) {
     setLoading(true);
     try {
       const wallet = walletAddress as Address;
-      const weth = await readRouterWeth(client, DEX_ROUTER_ADDRESS);
+      const [weth, factory] = await Promise.all([
+        readRouterWeth(client, DEX_ROUTER_ADDRESS),
+        resolveDexFactory(client),
+      ]);
       const usdt = opnChainConfig.contracts.usdt;
       const wopn = opnChainConfig.contracts.wopnExplicit;
 
@@ -143,9 +189,8 @@ export function useMyLiquidityPositions(walletAddress: string | undefined) {
           meta.pairIds.size > 0 ? [...meta.pairIds] : ["OPN", "WOPN", "USDT"];
 
         for (const pairId of pairIds) {
-          const quote = quoteAddressForPairId(pairId, weth, wopn, usdt) as Address;
-          if (pairId === "WOPN" && quote.toLowerCase() === weth.toLowerCase()) continue;
-          checks.push(readLpPosition(client, wallet, addr, meta.symbol, pairId, quote));
+          const quotes = quoteCandidatesForPairId(pairId, weth, wopn, usdt);
+          checks.push(readLpPosition(client, factory, wallet, addr, meta.symbol, pairId, quotes));
         }
       }
 
