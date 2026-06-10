@@ -364,7 +364,7 @@ export default function StakingPage() {
                 (assetType === "LP_TOKEN" && (!selectedLp || walletLpPositions.length === 0))
               }
             >
-              {loading ? "Recording…" : "Record stake"}
+              {loading ? "Staking…" : "Stake"}
             </Button>
           </CardContent>
         </Card>
