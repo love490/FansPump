@@ -19,3 +19,4 @@ apps/web/.next
 apps/web/node_modules
 *.tsbuildinfo
 packages/database/src/generated
+packages/**/.env.example
