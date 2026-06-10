@@ -502,7 +502,7 @@ export default function LiquidityModulePage() {
               <CardHeader className="pb-2">
                 <CardDescription>Pool security</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-3 pt-0">
+              <CardContent className="min-w-0 space-y-3 overflow-hidden pt-0">
                 <LiquidityMetricBar
                   label="Burned liquidity"
                   amount={formatUnits(lpBurned, lpDecimals)}
@@ -594,7 +594,7 @@ export default function LiquidityModulePage() {
                 <CardContent className="space-y-3">
                   {!canLock ? (
                     <p className="text-sm text-muted-foreground">
-                      Liquidity locker not configured. Set `NEXT_PUBLIC_LIQUIDITY_LOCKER_ADDRESS`.
+                      LP locking is not available on this network yet. Please try again later.
                     </p>
                   ) : (
                     <>

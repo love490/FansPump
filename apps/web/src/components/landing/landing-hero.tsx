@@ -54,7 +54,7 @@ export function LandingHero() {
               variant="secondary"
               className={`${heroBtnBase} bg-white text-[#0a1628] hover:bg-white/90`}
             >
-              <Link href="/home" className="whitespace-nowrap">
+              <Link href="/app" className="whitespace-nowrap">
                 Launch App
               </Link>
             </Button>

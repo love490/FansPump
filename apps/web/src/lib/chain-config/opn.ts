@@ -46,6 +46,7 @@ export const OPN_TESTNET_CONTRACTS = {
   DEX_ROUTER: "0xB489bce5c9c9364da2D1D1Bc5CE4274F63141885" as Address,
   DEX_FACTORY: "0x8860242B65611dfd077aEe26C3C7920813dF9208" as Address,
   LIQUIDITY_ROUTER: "0xB489bce5c9c9364da2D1D1Bc5CE4274F63141885" as Address,
+  LIQUIDITY_LOCKER: "0xD6671336A188971957d1ef722b3C4C1E12B2a1F1" as Address,
 } as const;
 
 export const opnChainConfig = {
@@ -67,7 +68,10 @@ export const opnChainConfig = {
       "NEXT_PUBLIC_LIQUIDITY_ROUTER_ADDRESS",
       OPN_TESTNET_CONTRACTS.LIQUIDITY_ROUTER
     ),
-    liquidityLocker: envAddress("NEXT_PUBLIC_LIQUIDITY_LOCKER_ADDRESS", ZERO),
+    liquidityLocker: envAddress(
+      "NEXT_PUBLIC_LIQUIDITY_LOCKER_ADDRESS",
+      OPN_TESTNET_CONTRACTS.LIQUIDITY_LOCKER
+    ),
     /** Wrapped native OPN — used by DEX routers when native OPN is swapped. */
     wopn: envAddress("NEXT_PUBLIC_WETH_ADDRESS", OPN_TESTNET_TOKENS.WOPN),
     wopnExplicit: envAddress("NEXT_PUBLIC_WOPN_ADDRESS", OPN_TESTNET_TOKENS.WOPN),

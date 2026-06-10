@@ -87,32 +87,32 @@ function DiscoverFiltersPanel({
     (filters.ownershipRenounced ? 1 : 0);
 
   return (
-    <div className="space-y-4 p-1">
-      <div className="flex items-center justify-between">
-        <p className="text-sm font-medium">Filter tokens</p>
+    <div className="space-y-5">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-sm font-semibold text-foreground">Filter tokens</p>
         {activeCount > 0 && (
           <button
             type="button"
             onClick={onClear}
-            className="text-xs text-primary hover:underline"
+            className="shrink-0 text-xs text-primary hover:underline"
           >
             Clear all
           </button>
         )}
       </div>
-      <div>
-        <Label className="text-xs text-muted-foreground">Category</Label>
-        <div className="mt-2 flex flex-wrap gap-2">
+      <div className="space-y-3">
+        <Label className="text-xs font-medium text-muted-foreground">Category</Label>
+        <div className="flex max-h-40 flex-wrap gap-2 overflow-y-auto overscroll-contain pr-1">
           {TOKEN_CATEGORIES.map((cat) => (
             <button
               key={cat}
               type="button"
               onClick={() => onToggle("category", cat)}
               className={cn(
-                "rounded-full border px-3 py-1 text-xs font-medium transition-colors",
+                "rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
                 filters.category === cat
-                  ? "border-primary bg-primary/10 text-primary"
-                  : "border-border text-muted-foreground hover:bg-muted"
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-border bg-muted text-foreground hover:bg-muted/80"
               )}
             >
               {TOKEN_CATEGORY_LABELS[cat as TokenCategoryId]}
@@ -120,7 +120,9 @@ function DiscoverFiltersPanel({
           ))}
         </div>
       </div>
-      <div className="space-y-2 border-t border-border pt-3">
+      <div className="space-y-3 border-t border-border pt-4">
+        <Label className="text-xs font-medium text-muted-foreground">Trust filters</Label>
+        <div className="space-y-2.5">
         {(
           [
             ["verified", "Verified Creator"],
@@ -128,7 +130,7 @@ function DiscoverFiltersPanel({
             ["ownershipRenounced", "Ownership Renounced"],
           ] as const
         ).map(([key, label]) => (
-          <label key={key} className="flex cursor-pointer items-center gap-2 text-sm">
+          <label key={key} className="flex cursor-pointer items-center gap-2.5 text-sm text-foreground">
             <Checkbox
               checked={!!filters[key]}
               onCheckedChange={() => onToggle(key)}
@@ -136,6 +138,7 @@ function DiscoverFiltersPanel({
             {label}
           </label>
         ))}
+        </div>
       </div>
     </div>
   );
@@ -245,7 +248,7 @@ function DiscoverContent() {
 
   return (
     <div className="space-y-10 py-2 sm:space-y-12 sm:py-4">
-      <header className="flex items-start justify-between gap-3">
+      <header className="relative z-40 flex items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold">Explore Tokens</h1>
           <p className="mt-1 text-muted-foreground">
@@ -273,7 +276,7 @@ function DiscoverContent() {
             )}
           </Button>
           {filtersOpen && (
-            <div className="absolute right-0 top-full z-50 mt-2 w-[min(calc(100vw-2rem),320px)] rounded-lg border bg-popover p-3 shadow-lg">
+            <div className="absolute right-0 top-full z-[100] mt-2 w-[min(calc(100vw-2rem),360px)] rounded-xl border border-border bg-background p-4 shadow-2xl">
               <DiscoverFiltersPanel
                 filters={filters}
                 onToggle={toggleFilter}

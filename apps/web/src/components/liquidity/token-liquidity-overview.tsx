@@ -156,7 +156,7 @@ export function TokenLiquidityOverview({
             </button>
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="min-w-0 space-y-4 overflow-hidden">
           <LiquidityMetricBar
             label="Burned liquidity"
             amount={topBurnedPair.burnedLpAmount}

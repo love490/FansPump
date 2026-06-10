@@ -68,10 +68,8 @@ export function CreatorLpSecurityPanel({ tokenAddress }: Props) {
                   Time-lock LP in the on-chain locker contract until your chosen unlock date.
                 </p>
               ) : (
-                <p className="mt-1 text-amber-800">
-                  Locker contract not deployed yet. Set{" "}
-                  <code className="text-xs">NEXT_PUBLIC_LIQUIDITY_LOCKER_ADDRESS</code> after
-                  deploying FansPumpLiquidityLocker.
+                <p className="mt-1 text-muted-foreground">
+                  LP locking is not available on this network yet.
                 </p>
               )}
             </div>

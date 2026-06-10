@@ -41,7 +41,7 @@ export function LandingPage() {
             </p>
             <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
               <Button asChild size="lg">
-                <Link href="/home">Launch App</Link>
+                <Link href="/app">Launch App</Link>
               </Button>
               <Button asChild size="lg" variant="outline">
                 <Link href="/create">

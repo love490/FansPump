@@ -16,7 +16,7 @@ const features = [
   { icon: ShieldCheck, label: "Verify Ownership", href: "/verify" },
   { icon: Users, label: "Build Communities", href: "/discover?section=featured" },
   { icon: Eye, label: "Gain Visibility", href: "/discover?section=trending" },
-  { icon: TrendingUp, label: "Grow Together", href: "/home" },
+  { icon: TrendingUp, label: "Grow Together", href: "/app" },
 ] as const;
 
 export function LandingFeatures() {
@@ -55,20 +55,20 @@ export function LandingFeatures() {
           <p className="mt-1 text-lg font-semibold text-white/90 sm:text-xl">Trusted by Communities.</p>
         </div>
         <div className="relative z-10 mt-6 shrink-0 sm:mt-0">
-          <Link
-            href="/"
-            className="inline-block overflow-hidden rounded-2xl"
-            style={{ backgroundColor: BRAND_BLUE }}
-            aria-label="FansPump home"
-          >
-            <Image
-              src="/images/logo-brand.png"
-              alt=""
-              width={112}
-              height={112}
-              className="h-20 w-20 sm:h-28 sm:w-28"
-              priority
-            />
+          <Link href="/" className="block" aria-label="FansPump home">
+            <div
+              className="relative h-20 w-20 overflow-hidden sm:h-28 sm:w-28"
+              style={{ backgroundColor: BRAND_BLUE }}
+            >
+              <Image
+                src="/images/logo-brand.png"
+                alt=""
+                fill
+                priority
+                className="scale-[1.18] object-cover"
+                sizes="112px"
+              />
+            </div>
           </Link>
         </div>
       </div>

@@ -23,7 +23,7 @@ export function LandingHeader() {
           <Link href="/swap" className={navLinkClass}>
             Swap
           </Link>
-          <Link href="/home" className={navLinkClass}>
+          <Link href="/app" className={navLinkClass}>
             Launch App
           </Link>
         </nav>

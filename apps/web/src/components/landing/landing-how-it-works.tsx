@@ -66,7 +66,7 @@ export function LandingHowItWorks() {
 
         <div className="mt-10 flex flex-wrap justify-center gap-3">
           <Button asChild size="lg">
-            <Link href="/home">Launch App</Link>
+            <Link href="/app">Launch App</Link>
           </Button>
           <Button asChild variant="outline" size="lg">
             <Link href="/docs/how-it-works">Read full guide</Link>

@@ -1,4 +1,4 @@
-import { cn } from "@/lib/utils";
+import { cn, formatCompactNumber } from "@/lib/utils";
 
 type LiquidityMetricBarProps = {
   label: string;
@@ -7,25 +7,71 @@ type LiquidityMetricBarProps = {
   variant: "burn" | "lock";
 };
 
-export function LiquidityMetricBar({ label, amount, pct, variant }: LiquidityMetricBarProps) {
+function formatLpAmountDisplay(amount: string): { display: string; full: string } {
+  const full = `${amount} LP`;
+  const n = Number(amount);
+
+  if (!Number.isFinite(n)) {
+    const trimmed = amount.length > 14 ? `${amount.slice(0, 12)}…` : amount;
+    return { display: trimmed, full };
+  }
+
+  if (n === 0) return { display: "0", full: "0 LP" };
+
+  if (n >= 1_000) {
+    return { display: formatCompactNumber(n), full };
+  }
+
+  if (amount.length > 12) {
+    return {
+      display: n.toLocaleString(undefined, { maximumFractionDigits: 6 }),
+      full,
+    };
+  }
+
+  return { display: amount, full };
+}
+
+function formatPct(pct: number): string {
+  if (pct >= 99.995) return "100";
+  if (pct <= 0.005) return "0.00";
+  return pct.toFixed(2);
+}
+
+export function LiquidityMetricBar({ label, amount, pct }: LiquidityMetricBarProps) {
   const clampedPct = Math.min(100, Math.max(0, pct));
+  const barWidth = clampedPct >= 99.995 ? 100 : clampedPct;
+  const { display: displayAmount, full: fullAmount } = formatLpAmountDisplay(amount);
+  const pctLabel = formatPct(clampedPct);
 
   return (
-    <div className="space-y-1.5">
-      <div className="flex items-baseline justify-between gap-2 text-sm">
-        <span className="text-muted-foreground">{label}</span>
-        <span className="font-mono font-semibold tabular-nums text-foreground">
-          {amount} LP
-          <span className="ml-1.5 font-sans font-normal text-muted-foreground">({clampedPct.toFixed(2)}%)</span>
-        </span>
+    <div className="min-w-0 space-y-1.5">
+      <div className="flex items-baseline justify-between gap-2 text-sm min-w-0">
+        <span className="shrink-0 text-muted-foreground">{label}</span>
+        <div className="flex min-w-0 max-w-[62%] items-baseline justify-end gap-1.5 sm:max-w-[68%]">
+          <span
+            className="min-w-0 truncate text-right font-mono text-xs font-semibold tabular-nums text-foreground sm:text-sm"
+            title={fullAmount}
+          >
+            {displayAmount} LP
+          </span>
+          <span className="shrink-0 font-sans text-xs font-normal text-muted-foreground sm:text-sm">
+            ({pctLabel}%)
+          </span>
+        </div>
       </div>
       <div className="h-2.5 overflow-hidden rounded-full bg-muted">
         <div
           className={cn(
-            "h-full rounded-full transition-all",
-            variant === "burn" ? "bg-red-500/80" : "bg-amber-500/80"
+            "h-full rounded-full bg-green-500 transition-all duration-300",
+            barWidth > 0 && barWidth < 100 && "min-w-[2px]"
           )}
-          style={{ width: `${clampedPct}%` }}
+          style={{ width: `${barWidth}%` }}
+          role="progressbar"
+          aria-valuenow={barWidth}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-label={`${label}: ${pctLabel}%`}
         />
       </div>
     </div>
