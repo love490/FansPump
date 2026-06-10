@@ -32,7 +32,7 @@ const steps = [
 export function LandingHowItWorks() {
   return (
     <section id="how-it-works" className="border-y border-border bg-muted/20 py-16 sm:py-20">
-      <div className="mx-auto max-w-6xl px-4 sm:px-6">
+      <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-10">
         <div className="mb-10 text-center">
           <h2 className="text-2xl font-bold sm:text-3xl">How It Works</h2>
           <p className="mx-auto mt-2 max-w-xl text-muted-foreground">

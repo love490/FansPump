@@ -11,22 +11,22 @@ const heroBtnBase =
 
 export function LandingHero() {
   return (
-    <section className="mx-auto max-w-6xl px-4 pt-4 sm:px-6 sm:pt-8 lg:pt-10">
-      <div className="relative min-h-[118px] overflow-hidden rounded-2xl shadow-lg sm:min-h-[200px] lg:min-h-[220px]">
+    <section className="w-full">
+      <div className="relative min-h-[140px] w-full overflow-hidden sm:min-h-[220px] lg:min-h-[300px] xl:min-h-[340px]">
         <Image
           src="/images/hero-banner.png"
           alt=""
           fill
           priority
           className="object-cover object-[98%_50%] scale-[1.2] sm:scale-[1.15] sm:object-[94%_center] lg:scale-110 lg:object-[88%_center]"
-          sizes="(max-width: 1024px) 100vw, 1152px"
+          sizes="100vw"
         />
         <div className="absolute inset-0 bg-gradient-to-r from-[#0a1628] from-[38%] via-[#0a1628]/80 via-[52%] to-transparent sm:from-50% sm:via-70% sm:to-[#0a1628]/25 lg:from-48% lg:via-68%" />
-        <div className="relative z-10 flex min-h-[118px] flex-col justify-center p-3 sm:min-h-[200px] sm:p-6 lg:min-h-[220px] lg:p-8">
-          <h1 className="max-w-[11rem] text-lg font-extrabold leading-tight text-white sm:max-w-xs sm:text-[1.75rem] lg:text-3xl">
+        <div className="relative z-10 mx-auto flex min-h-[140px] w-full max-w-[100vw] flex-col justify-center px-4 py-6 sm:min-h-[220px] sm:px-6 sm:py-8 lg:min-h-[300px] lg:px-8 xl:px-10">
+          <h1 className="max-w-[11rem] text-lg font-extrabold leading-tight text-white sm:max-w-md sm:text-[1.75rem] lg:text-4xl">
             Create Your Token
           </h1>
-          <p className="mt-0.5 max-w-[11rem] text-[11px] font-medium leading-snug text-white/90 sm:mt-2 sm:max-w-xs sm:text-base">
+          <p className="mt-0.5 max-w-[11rem] text-[11px] font-medium leading-snug text-white/90 sm:mt-2 sm:max-w-md sm:text-base lg:text-lg">
             Launch and grow your community on OPN.
           </p>
           <div className="mt-2 flex flex-row flex-nowrap items-center gap-1 sm:mt-4 sm:flex-wrap sm:gap-2">

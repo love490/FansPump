@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -8,22 +8,25 @@ import { TokenPreviewCard } from "@/components/tokens/token-preview-card";
 import type { TokenCardData } from "@/components/tokens/token-card";
 import { cn } from "@/lib/utils";
 
-export function useResponsivePerPage(preset: "trending" | "grid") {
-  const [perPage, setPerPage] = useState(preset === "trending" ? 1 : 2);
+/** Max cards per row/page for the current viewport width. */
+export function useResponsiveMaxColumns(preset: "trending" | "grid") {
+  const [maxCols, setMaxCols] = useState(1);
 
   useEffect(() => {
     function update() {
       const w = window.innerWidth;
       if (preset === "trending") {
-        if (w >= 1024) setPerPage(3);
-        else if (w >= 640) setPerPage(2);
-        else setPerPage(1);
+        if (w >= 1280) setMaxCols(4);
+        else if (w >= 768) setMaxCols(3);
+        else if (w >= 480) setMaxCols(2);
+        else setMaxCols(1);
       } else {
-        if (w >= 1280) setPerPage(8);
-        else if (w >= 1024) setPerPage(6);
-        else if (w >= 768) setPerPage(3);
-        else if (w >= 480) setPerPage(2);
-        else setPerPage(1);
+        if (w >= 1536) setMaxCols(8);
+        else if (w >= 1280) setMaxCols(6);
+        else if (w >= 1024) setMaxCols(4);
+        else if (w >= 640) setMaxCols(3);
+        else if (w >= 400) setMaxCols(2);
+        else setMaxCols(1);
       }
     }
     update();
@@ -31,20 +34,22 @@ export function useResponsivePerPage(preset: "trending" | "grid") {
     return () => window.removeEventListener("resize", update);
   }, [preset]);
 
-  return perPage;
+  return maxCols;
 }
 
-export function gridColsClass(perPage: number, variant: "trending" | "grid") {
-  if (variant === "trending") {
-    if (perPage >= 3) return "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3";
-    if (perPage >= 2) return "grid-cols-1 sm:grid-cols-2";
-    return "grid-cols-1";
-  }
-  if (perPage >= 8) return "grid-cols-1 min-[480px]:grid-cols-2 md:grid-cols-3 lg:grid-cols-4";
-  if (perPage >= 6) return "grid-cols-1 min-[480px]:grid-cols-2 md:grid-cols-3 lg:grid-cols-3";
-  if (perPage >= 3) return "grid-cols-1 min-[480px]:grid-cols-2 md:grid-cols-3";
-  if (perPage >= 2) return "grid-cols-1 min-[480px]:grid-cols-2";
-  return "grid-cols-1";
+/** @deprecated Use useResponsiveMaxColumns */
+export function useResponsivePerPage(preset: "trending" | "grid") {
+  return useResponsiveMaxColumns(preset);
+}
+
+export function gridColumnCount(visibleCount: number, maxCols: number) {
+  return Math.max(1, Math.min(visibleCount, maxCols));
+}
+
+export function responsiveGridStyle(colCount: number): React.CSSProperties {
+  return {
+    gridTemplateColumns: `repeat(${colCount}, minmax(0, 1fr))`,
+  };
 }
 
 export function TokenGridCarousel({
@@ -70,11 +75,15 @@ export function TokenGridCarousel({
   fetchLimit?: number;
   emptyMessage?: string;
 }) {
-  const perPage = useResponsivePerPage(variant);
+  const maxCols = useResponsiveMaxColumns(variant);
+  const perPage = maxCols;
   const [page, setPage] = useState(0);
   const maxPage = Math.max(0, Math.ceil(tokens.length / perPage) - 1);
   const safePage = Math.min(page, maxPage);
   const visible = tokens.slice(safePage * perPage, safePage * perPage + perPage);
+  const colCount = gridColumnCount(visible.length || maxCols, maxCols);
+  const gridStyle = useMemo(() => responsiveGridStyle(colCount), [colCount]);
+  const skeletonCount = Math.min(maxCols, 4);
 
   useEffect(() => {
     setPage(0);
@@ -93,9 +102,9 @@ export function TokenGridCarousel({
   }
 
   return (
-    <section id={id} className="w-full space-y-3">
+    <section id={id} className="w-full min-w-0 space-y-3">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <h2 className="flex items-center gap-2 text-lg font-semibold sm:text-xl">
             {icon}
             {title}
@@ -138,9 +147,9 @@ export function TokenGridCarousel({
       </div>
 
       {isLoading ? (
-        <div className={cn("grid gap-3", gridColsClass(perPage, variant))}>
-          {[...Array(Math.min(perPage, 4))].map((_, i) => (
-            <div key={i} className="h-[88px] animate-pulse rounded-xl bg-muted sm:h-[96px]" />
+        <div className="grid w-full min-w-0 gap-3" style={responsiveGridStyle(skeletonCount)}>
+          {[...Array(skeletonCount)].map((_, i) => (
+            <div key={i} className="h-[88px] min-w-0 animate-pulse rounded-xl bg-muted sm:h-[96px]" />
           ))}
         </div>
       ) : tokens.length === 0 ? (
@@ -148,13 +157,11 @@ export function TokenGridCarousel({
           {emptyMessage}
         </p>
       ) : (
-        <>
-          <div className={cn("grid gap-3", gridColsClass(perPage, variant))}>
-            {visible.map((t, i) => (
-              <TokenPreviewCard key={t.id} token={t} index={i} />
-            ))}
-          </div>
-        </>
+        <div className={cn("grid w-full min-w-0 gap-3")} style={gridStyle}>
+          {visible.map((t, i) => (
+            <TokenPreviewCard key={t.id} token={t} index={i} compact={colCount > 2} />
+          ))}
+        </div>
       )}
     </section>
   );

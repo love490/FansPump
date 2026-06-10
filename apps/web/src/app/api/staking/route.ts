@@ -103,6 +103,7 @@ export async function DELETE(request: NextRequest) {
       .object({
         wallet: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
         positionId: z.string(),
+        amount: z.string().regex(/^\d+$/).optional(),
         message: z.string(),
         signature: z.string(),
       })
@@ -122,17 +123,50 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "Position not found" }, { status: 404 });
     }
 
-    const position = await prisma.stakingPosition.update({
-      where: { id: existing.id },
-      data: { isActive: false, unstakedAt: new Date() },
-    });
+    const stakedWei = BigInt(existing.amount);
+    const unstakeWei = body.amount ? BigInt(body.amount) : stakedWei;
+
+    if (unstakeWei <= 0n) {
+      return NextResponse.json({ error: "Unstake amount must be greater than zero" }, { status: 400 });
+    }
+    if (unstakeWei > stakedWei) {
+      return NextResponse.json({ error: "Unstake amount exceeds staked balance" }, { status: 400 });
+    }
+
+    const remaining = stakedWei - unstakeWei;
+    const config = await getStakingPlatformConfig();
+
+    let position;
+    if (remaining === 0n) {
+      position = await prisma.stakingPosition.update({
+        where: { id: existing.id },
+        data: { isActive: false, unstakedAt: new Date(), amount: "0" },
+      });
+    } else {
+      position = await prisma.stakingPosition.update({
+        where: { id: existing.id },
+        data: { amount: remaining.toString() },
+      });
+      if (existing.assetType === "OPN") {
+        const tier = await computeWalletStakingTier(wallet, config);
+        position = await prisma.stakingPosition.update({
+          where: { id: existing.id },
+          data: { tier },
+        });
+      }
+    }
 
     return NextResponse.json({
       position: serializeStakingPosition(position),
+      unstakedAmount: unstakeWei.toString(),
+      remainingAmount: remaining.toString(),
     });
   } catch (e) {
     if (e instanceof CreatorAuthError) {
       return NextResponse.json({ error: e.message }, { status: e.status });
+    }
+    if (e instanceof z.ZodError) {
+      return NextResponse.json({ error: "Invalid request" }, { status: 400 });
     }
     console.error("[DELETE /api/staking]", e);
     return NextResponse.json({ error: "Failed to unstake" }, { status: 500 });

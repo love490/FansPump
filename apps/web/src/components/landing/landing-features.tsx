@@ -21,7 +21,7 @@ const features = [
 
 export function LandingFeatures() {
   return (
-    <section id="features" className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-20">
+    <section id="features" className="w-full px-4 py-16 sm:px-6 sm:py-20 lg:px-8 xl:px-10">
       <div
         className="overflow-hidden rounded-2xl px-5 py-8 shadow-lg sm:px-8 sm:py-10"
         style={{ backgroundColor: BRAND_BLUE }}

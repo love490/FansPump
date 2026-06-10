@@ -17,13 +17,13 @@ import { Footer } from "@/components/layout/footer";
 
 export function LandingPage() {
   return (
-    <div className="flex min-h-screen flex-col bg-background">
+    <div className="flex min-h-screen w-full flex-col bg-background">
       <LandingHeader />
 
-      <main className="flex-1">
+      <main className="w-full flex-1">
         <LandingHero />
 
-        <div className="mx-auto max-w-6xl space-y-12 px-4 pb-16 pt-6 sm:space-y-14 sm:px-6 sm:pb-20 sm:pt-8">
+        <div className="w-full space-y-12 px-4 pb-16 pt-6 sm:space-y-14 sm:px-6 lg:px-8 lg:pb-20 lg:pt-8 xl:px-10">
           <LandingTrendingPreview />
           <LandingNewlyCreatedPreview />
           <LandingStats />
@@ -33,8 +33,8 @@ export function LandingPage() {
         <LandingFeatures />
         <LandingHowItWorks />
 
-        <section className="border-t border-border bg-primary/5 py-14 sm:py-16">
-          <div className="mx-auto max-w-2xl px-4 text-center sm:px-6">
+        <section className="w-full border-t border-border bg-primary/5 py-14 sm:py-16">
+          <div className="mx-auto w-full max-w-2xl px-4 text-center sm:px-6 lg:px-8">
             <h2 className="text-2xl font-bold sm:text-3xl">Ready to launch?</h2>
             <p className="mt-2 text-muted-foreground">
               Join creators building on OPNChain with FansPump.
