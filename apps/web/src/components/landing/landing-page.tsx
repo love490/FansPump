@@ -23,7 +23,7 @@ export function LandingPage() {
       <main className="w-full flex-1">
         <LandingHero />
 
-        <div className="w-full space-y-12 px-4 pb-16 pt-6 sm:space-y-14 sm:px-6 lg:px-8 lg:pb-20 lg:pt-8 xl:px-10">
+        <div className="w-full space-y-12 px-4 pb-16 pt-2 sm:space-y-14 sm:px-6 sm:pt-4 lg:px-8 lg:pb-20 lg:pt-6 xl:px-10">
           <LandingTrendingPreview />
           <LandingNewlyCreatedPreview />
           <LandingStats />

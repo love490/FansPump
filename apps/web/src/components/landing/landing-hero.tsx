@@ -11,18 +11,18 @@ const heroBtnBase =
 
 export function LandingHero() {
   return (
-    <section className="w-full">
+    <section className="relative z-10 w-full">
       <div className="relative min-h-[140px] w-full overflow-hidden sm:min-h-[220px] lg:min-h-[300px] xl:min-h-[340px]">
         <Image
           src="/images/hero-banner.png"
           alt=""
           fill
           priority
-          className="object-cover object-[98%_50%] scale-[1.2] sm:scale-[1.15] sm:object-[94%_center] lg:scale-110 lg:object-[88%_center]"
+          className="object-cover object-[98%_68%] scale-[1.12] sm:scale-[1.08] sm:object-[94%_72%] lg:scale-[1.02] lg:object-[88%_75%] xl:object-[86%_78%]"
           sizes="100vw"
         />
         <div className="absolute inset-0 bg-gradient-to-r from-[#0a1628] from-[38%] via-[#0a1628]/80 via-[52%] to-transparent sm:from-50% sm:via-70% sm:to-[#0a1628]/25 lg:from-48% lg:via-68%" />
-        <div className="relative z-10 mx-auto flex min-h-[140px] w-full max-w-[100vw] flex-col justify-center px-4 py-6 sm:min-h-[220px] sm:px-6 sm:py-8 lg:min-h-[300px] lg:px-8 xl:px-10">
+        <div className="relative z-10 mx-auto flex min-h-[140px] w-full max-w-[100vw] flex-col justify-center px-4 pb-8 pt-6 sm:min-h-[220px] sm:px-6 sm:pb-10 sm:pt-8 lg:min-h-[300px] lg:px-8 lg:pb-12 xl:px-10">
           <h1 className="max-w-[11rem] text-lg font-extrabold leading-tight text-white sm:max-w-md sm:text-[1.75rem] lg:text-4xl">
             Create Your Token
           </h1>
