@@ -2,12 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@iopn/database";
 import { z } from "zod";
 import { requireCreatorActionAuth, CreatorAuthError } from "@/lib/creator-auth";
+import { getStakingPlatformConfig, serializeStakingPosition } from "@/lib/staking/config";
+import { computeWalletStakingTier } from "@/lib/staking/tier";
 
 const stakeSchema = z.object({
   wallet: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
   assetType: z.enum(["OPN", "LP_TOKEN"]),
   asset: z.string().min(1).max(128),
   amount: z.string().regex(/^\d+$/),
+  poolAddress: z.string().regex(/^0x[a-fA-F0-9]{40}$/).optional(),
+  tokenAddress: z.string().regex(/^0x[a-fA-F0-9]{40}$/).optional(),
   tier: z.string().optional(),
   message: z.string(),
   signature: z.string(),
@@ -20,17 +24,20 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const positions = await prisma.stakingPosition.findMany({
-      where: { wallet, isActive: true },
-      orderBy: { stakedAt: "desc" },
-    });
+    const [positions, config] = await Promise.all([
+      prisma.stakingPosition.findMany({
+        where: { wallet, isActive: true },
+        orderBy: { stakedAt: "desc" },
+      }),
+      getStakingPlatformConfig(),
+    ]);
+
+    const tier = await computeWalletStakingTier(wallet, config);
 
     return NextResponse.json({
-      positions: positions.map((p) => ({
-        ...p,
-        stakedAt: p.stakedAt.toISOString(),
-        unstakedAt: p.unstakedAt?.toISOString() ?? null,
-      })),
+      positions: positions.map(serializeStakingPosition),
+      walletTier: tier,
+      rewardsActive: false,
     });
   } catch (e) {
     console.error("[GET /api/staking]", e);
@@ -47,22 +54,36 @@ export async function POST(request: NextRequest) {
       signature: body.signature,
     });
 
+    const config = await getStakingPlatformConfig();
+
+    if (body.assetType === "OPN" && !config.opnStakingEnabled) {
+      return NextResponse.json({ error: "OPN staking is disabled" }, { status: 403 });
+    }
+    if (body.assetType === "LP_TOKEN" && !config.lpStakingEnabled) {
+      return NextResponse.json({ error: "LP staking is disabled" }, { status: 403 });
+    }
+
+    const extraOpnWei = body.assetType === "OPN" ? BigInt(body.amount) : 0n;
+    const tier =
+      body.tier ??
+      (body.assetType === "OPN"
+        ? await computeWalletStakingTier(wallet, config, extraOpnWei)
+        : null);
+
     const position = await prisma.stakingPosition.create({
       data: {
         wallet,
         assetType: body.assetType,
         asset: body.asset.toLowerCase(),
         amount: body.amount,
-        tier: body.tier ?? null,
+        poolAddress: body.poolAddress?.toLowerCase() ?? null,
+        tokenAddress: body.tokenAddress?.toLowerCase() ?? null,
+        tier,
       },
     });
 
     return NextResponse.json({
-      position: {
-        ...position,
-        stakedAt: position.stakedAt.toISOString(),
-        unstakedAt: null,
-      },
+      position: serializeStakingPosition(position),
     });
   } catch (e) {
     if (e instanceof CreatorAuthError) {
@@ -107,11 +128,7 @@ export async function DELETE(request: NextRequest) {
     });
 
     return NextResponse.json({
-      position: {
-        ...position,
-        stakedAt: position.stakedAt.toISOString(),
-        unstakedAt: position.unstakedAt?.toISOString() ?? null,
-      },
+      position: serializeStakingPosition(position),
     });
   } catch (e) {
     if (e instanceof CreatorAuthError) {

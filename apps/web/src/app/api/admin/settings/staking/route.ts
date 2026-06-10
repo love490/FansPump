@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { DEFAULT_STAKING_TIERS, type StakingTierConfig } from "@iopn/shared";
+import {
+  DEFAULT_STAKING_PLATFORM_CONFIG,
+  type StakingPlatformConfig,
+} from "@iopn/shared";
 import { AdminAuthError } from "@/lib/admin-auth";
 import { requirePermission } from "@/lib/admin/api-auth";
 import { getPlatformSetting, setPlatformSetting } from "@/lib/admin/platform-settings";
-
-const STAKING_KEY = "staking_config";
+import { STAKING_CONFIG_KEY } from "@/lib/staking/config";
 
 const tierSchema = z.object({
   tier: z.enum(["BRONZE", "SILVER", "GOLD", "PLATINUM"]),
@@ -15,18 +17,28 @@ const tierSchema = z.object({
   rewardEligible: z.boolean(),
 });
 
+const lpPoolSchema = z.object({
+  id: z.string(),
+  label: z.string(),
+  token0: z.string(),
+  token1: z.string(),
+  poolAddress: z.string().optional(),
+  enabled: z.boolean(),
+});
+
 const configSchema = z.object({
   tiers: z.array(tierSchema),
   visibilityBoostEnabled: z.boolean().optional(),
+  discoveryRankingBoostEnabled: z.boolean().optional(),
+  opnStakingEnabled: z.boolean().optional(),
+  lpStakingEnabled: z.boolean().optional(),
+  supportedLpPools: z.array(lpPoolSchema).optional(),
 });
 
 export async function GET(request: NextRequest) {
   try {
     await requirePermission(request, "staking", "GET");
-    const config = await getPlatformSetting(STAKING_KEY, {
-      tiers: DEFAULT_STAKING_TIERS,
-      visibilityBoostEnabled: true,
-    });
+    const config = await getPlatformSetting(STAKING_CONFIG_KEY, DEFAULT_STAKING_PLATFORM_CONFIG);
     return NextResponse.json({ config });
   } catch (e) {
     if (e instanceof AdminAuthError) {
@@ -39,11 +51,8 @@ export async function GET(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
   try {
     const { parsedBody } = await requirePermission(request, "staking", "PATCH");
-    const config = configSchema.parse(parsedBody.config) as {
-      tiers: StakingTierConfig[];
-      visibilityBoostEnabled?: boolean;
-    };
-    await setPlatformSetting(STAKING_KEY, config);
+    const config = configSchema.parse(parsedBody.config) as StakingPlatformConfig;
+    await setPlatformSetting(STAKING_CONFIG_KEY, config);
     return NextResponse.json({ config });
   } catch (e) {
     if (e instanceof AdminAuthError) {

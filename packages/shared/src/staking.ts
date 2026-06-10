@@ -23,3 +23,78 @@ export const DEFAULT_STAKING_TIERS: StakingTierConfig[] = [
   { tier: "GOLD", minStakeOpn: "2000", creationFeeDiscountBps: 1000, visibilityBoost: 15, rewardEligible: true },
   { tier: "PLATINUM", minStakeOpn: "10000", creationFeeDiscountBps: 2000, visibilityBoost: 30, rewardEligible: true },
 ];
+
+export type StakingType = "OPN" | "LP";
+
+export type SupportedLpPool = {
+  id: string;
+  label: string;
+  token0: string;
+  token1: string;
+  poolAddress?: string;
+  enabled: boolean;
+};
+
+export type StakingPlatformConfig = {
+  tiers: StakingTierConfig[];
+  visibilityBoostEnabled: boolean;
+  discoveryRankingBoostEnabled: boolean;
+  opnStakingEnabled: boolean;
+  lpStakingEnabled: boolean;
+  supportedLpPools: SupportedLpPool[];
+};
+
+export const DEFAULT_SUPPORTED_LP_POOLS: SupportedLpPool[] = [
+  {
+    id: "opn-usdt",
+    label: "OPN/USDT",
+    token0: "native",
+    token1: "usdt",
+    enabled: true,
+  },
+  {
+    id: "opn-usdc",
+    label: "OPN/USDC",
+    token0: "native",
+    token1: "usdc",
+    enabled: false,
+  },
+  {
+    id: "opn-token",
+    label: "OPN/Token",
+    token0: "native",
+    token1: "any",
+    enabled: true,
+  },
+];
+
+export const DEFAULT_STAKING_PLATFORM_CONFIG: StakingPlatformConfig = {
+  tiers: DEFAULT_STAKING_TIERS,
+  visibilityBoostEnabled: true,
+  discoveryRankingBoostEnabled: true,
+  opnStakingEnabled: true,
+  lpStakingEnabled: true,
+  supportedLpPools: DEFAULT_SUPPORTED_LP_POOLS,
+};
+
+export type PoolPairType =
+  | "OPN_USDT"
+  | "OPN_USDC"
+  | "OPN_WOPN"
+  | "OPN_TOKEN"
+  | "OTHER";
+
+export type PoolRecord = {
+  poolAddress: string;
+  token0: string;
+  token1: string;
+  token0Symbol?: string | null;
+  token1Symbol?: string | null;
+  pairType: PoolPairType;
+  totalLiquidity: string;
+  totalVolume: string;
+  providerCount: number;
+  createdAt: string;
+  updatedAt: string;
+  indexedAt?: string | null;
+};

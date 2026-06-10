@@ -369,20 +369,47 @@ model TokenAnnouncement {
 
 /// Off-chain stake position tracking (no reward distribution yet).
 model StakingPosition {
-  id         String           @id @default(cuid())
-  wallet     String
-  assetType  StakingAssetType @map("asset_type")
-  asset      String
-  amount     String
-  tier       String?
-  stakedAt   DateTime         @default(now()) @map("staked_at")
-  unstakedAt DateTime?        @map("unstaked_at")
-  isActive   Boolean          @default(true) @map("is_active")
+  id           String           @id @default(cuid())
+  wallet       String
+  assetType    StakingAssetType @map("asset_type")
+  asset        String
+  amount       String
+  poolAddress  String?          @map("pool_address")
+  tokenAddress String?          @map("token_address")
+  tier         String?
+  stakedAt     DateTime         @default(now()) @map("staked_at")
+  unstakedAt   DateTime?        @map("unstaked_at")
+  isActive     Boolean          @default(true) @map("is_active")
+  updatedAt    DateTime         @updatedAt @map("updated_at")
 
   @@index([wallet])
   @@index([asset])
+  @@index([poolAddress])
+  @@index([tokenAddress])
   @@index([isActive])
   @@map("staking_positions")
+}
+
+/// DEX liquidity pool registry (read-only analytics — AMM migration prep).
+model LiquidityPool {
+  id              String    @id @default(cuid())
+  poolAddress     String    @unique @map("pool_address")
+  token0          String    @map("token0")
+  token1          String    @map("token1")
+  token0Symbol    String?   @map("token0_symbol")
+  token1Symbol    String?   @map("token1_symbol")
+  pairType        String    @default("OPN_TOKEN") @map("pair_type")
+  totalLiquidity  String    @default("0") @map("total_liquidity")
+  totalVolume     String    @default("0") @map("total_volume")
+  providerCount   Int       @default(0) @map("provider_count")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+  indexedAt       DateTime? @map("indexed_at")
+
+  @@index([token0])
+  @@index([token1])
+  @@index([pairType])
+  @@map("liquidity_pools")
 }
 
 /// Key-value platform configuration (fees, treasury, discovery weights, etc.).

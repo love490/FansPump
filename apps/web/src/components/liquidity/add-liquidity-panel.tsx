@@ -37,6 +37,7 @@ import { findPairAddress, quoteCandidatesForPairId } from "@/lib/liquidity/pair-
 import { readRouterWeth } from "@/lib/liquidity/router-weth";
 import { cn, shortenAddress } from "@/lib/utils";
 import { opnChainConfig } from "@/lib/chain-config/opn";
+import { ensureWopnBalance, readWopnBalance } from "@/lib/liquidity/wrap-opn-tx";
 
 type AddLiquidityPanelProps = {
   initialToken?: string;
@@ -44,7 +45,7 @@ type AddLiquidityPanelProps = {
   onLiquidityAdded?: () => void;
 };
 
-type LiquidityAction = "idle" | "approve-token" | "approve-pair" | "add";
+type LiquidityAction = "idle" | "approve-token" | "wrap-opn" | "approve-pair" | "add";
 
 function formatBalance(amount: bigint, decimals: number, maxFrac = 4): string {
   const raw = formatUnits(amount, decimals);
@@ -86,6 +87,9 @@ export function AddLiquidityPanel({
   const [lastTxHash, setLastTxHash] = useState<Hash | undefined>();
 
   const pair = getLiquidityPair(pairId);
+  const wopnPair = getLiquidityPair("WOPN");
+  const wopnAddress = opnChainConfig.contracts.wopnExplicit;
+  const usesWopnPath = pair.isNative;
   const validToken = isValidTokenAddress(tokenAddress);
   const pairConflict = validToken && pairConflictsWithToken(pair, tokenAddress);
   const wrongNetwork = isConnected && chainId !== opnChain.id;
@@ -124,8 +128,22 @@ export function AddLiquidityPanel({
     args: address ? [address, DEX_ROUTER_ADDRESS] : undefined,
   });
 
+  const { data: wopnAllowance, refetch: refetchWopnAllowance } = useReadContract({
+    address: usesWopnPath && validToken ? wopnAddress : undefined,
+    abi: erc20Abi,
+    functionName: "allowance",
+    args: address ? [address, DEX_ROUTER_ADDRESS] : undefined,
+  });
+
+  const { data: wopnBalance, refetch: refetchWopnBalance } = useReadContract({
+    address: usesWopnPath && validToken ? wopnAddress : undefined,
+    abi: erc20Abi,
+    functionName: "balanceOf",
+    args: address ? [address] : undefined,
+  });
+
   const { data: pairAllowance, refetch: refetchPairAllowance } = useReadContract({
-    address: !pair.isNative && pair.address && validToken ? pair.address : undefined,
+    address: !usesWopnPath && pair.address && validToken ? pair.address : undefined,
     abi: erc20Abi,
     functionName: "allowance",
     args: address ? [address, DEX_ROUTER_ADDRESS] : undefined,
@@ -175,8 +193,14 @@ export function AddLiquidityPanel({
 
   const needsTokenApproval =
     parsedTokenAmount !== null && (tokenAllowance ?? 0n) < parsedTokenAmount;
+  const needsWopnApproval =
+    usesWopnPath && parsedPairAmount !== null && (wopnAllowance ?? 0n) < parsedPairAmount;
   const needsPairApproval =
-    !pair.isNative && parsedPairAmount !== null && (pairAllowance ?? 0n) < parsedPairAmount;
+    !usesWopnPath && parsedPairAmount !== null && (pairAllowance ?? 0n) < parsedPairAmount;
+  const needsOpnWrap =
+    usesWopnPath &&
+    parsedPairAmount !== null &&
+    (wopnBalance ?? 0n) < parsedPairAmount;
 
   const pairBalanceDisplay = pair.isNative ? nativeBalance?.value : pairTokenBalance;
   const pairBalanceDecimals = pair.decimals;
@@ -271,6 +295,41 @@ export function AddLiquidityPanel({
         }
       }
 
+      const effectivePair = usesWopnPath ? wopnPair : pair;
+
+      if (usesWopnPath) {
+        const wopnBal = await readWopnBalance(client, wopnAddress, address);
+        if (wopnBal < parsedPairAmount) {
+          setAction("wrap-opn");
+          setStatus("Wrapping OPN → WOPN — confirm in your wallet…");
+          await ensureWopnBalance({
+            client,
+            wopnAddress,
+            owner: address,
+            required: parsedPairAmount,
+            writeContractAsync: writeContractAsync as Parameters<typeof ensureWopnBalance>[0]["writeContractAsync"],
+            waitForTx,
+          });
+          await refetchWopnBalance();
+          await refetchNativeBalance();
+        }
+
+        const wopnAllowanceNow = await readAllowance(wopnAddress, address);
+        if (wopnAllowanceNow < parsedPairAmount) {
+          setAction("approve-pair");
+          await submitTx(
+            {
+              address: wopnAddress,
+              abi: erc20Abi,
+              functionName: "approve",
+              args: [DEX_ROUTER_ADDRESS, maxUint256],
+            },
+            "Step — Approve WOPN in your wallet"
+          );
+          await refetchWopnAllowance();
+        }
+      }
+
       setAction("add");
       const deadline = BigInt(Math.floor(Date.now() / 1000) + LIQUIDITY_DEADLINE_SECONDS);
 
@@ -279,10 +338,17 @@ export function AddLiquidityPanel({
         throw new Error(`${tokenSymbol} approval failed or was rejected.`);
       }
 
-      if (!pair.isNative && pair.address) {
+      if (!usesWopnPath && pair.address) {
         const pairAllowanceFinal = await readAllowance(pair.address, address);
         if (pairAllowanceFinal < parsedPairAmount) {
           throw new Error(`${pair.symbol} approval failed or was rejected.`);
+        }
+      }
+
+      if (usesWopnPath) {
+        const wopnAllowanceFinal = await readAllowance(wopnAddress, address);
+        if (wopnAllowanceFinal < parsedPairAmount) {
+          throw new Error("WOPN approval failed or was rejected.");
         }
       }
 
@@ -291,7 +357,7 @@ export function AddLiquidityPanel({
         router: DEX_ROUTER_ADDRESS,
         account: address,
         token: tokenAddress as Address,
-        pair,
+        pair: effectivePair,
         amountToken: parsedTokenAmount,
         amountPair: parsedPairAmount,
         deadline,
@@ -362,6 +428,11 @@ export function AddLiquidityPanel({
                 txHash: addHash,
                 addedAt: new Date().toISOString(),
               });
+              void fetch("/api/pools/sync", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ poolAddress: pairAddr.toLowerCase() }),
+              }).catch(() => undefined);
             }
           } catch (pairError) {
             console.warn("[liquidity] Could not resolve LP pair address:", pairError);
@@ -379,8 +450,10 @@ export function AddLiquidityPanel({
           refetchTokenBalance(),
           refetchPairBalance(),
           refetchNativeBalance(),
+          refetchWopnBalance(),
           refetchTokenAllowance(),
           refetchPairAllowance(),
+          refetchWopnAllowance(),
           refreshWalletTokens(),
         ]);
       } catch (refreshError) {
@@ -397,13 +470,18 @@ export function AddLiquidityPanel({
   }
 
   const pendingSteps =
-    (needsTokenApproval ? 1 : 0) + (needsPairApproval ? 1 : 0) + 1;
+    (needsTokenApproval ? 1 : 0) +
+    (needsOpnWrap ? 1 : 0) +
+    ((needsWopnApproval || needsPairApproval) ? 1 : 0) +
+    1;
 
   const addLiquidityLabel =
     action === "approve-token"
       ? `Approving ${tokenSymbol}… (${pendingSteps} wallet steps)`
+      : action === "wrap-opn"
+        ? `Wrapping OPN → WOPN… (${pendingSteps} wallet steps)`
       : action === "approve-pair"
-        ? `Approving ${pair.symbol}… (${pendingSteps} wallet steps)`
+        ? `Approving ${usesWopnPath ? "WOPN" : pair.symbol}… (${pendingSteps} wallet steps)`
         : action === "add"
           ? `Adding liquidity…`
           : pendingSteps > 1
@@ -532,8 +610,12 @@ export function AddLiquidityPanel({
             <CardTitle>3. Add liquidity</CardTitle>
             <CardDescription>
               Click once — your wallet will walk you through each step (approve {tokenSymbol}
-              {needsPairApproval ? `, approve ${pair.symbol}` : pair.isNative ? ", send OPN" : ""}, then add
-              liquidity).
+              {usesWopnPath
+                ? ", wrap OPN → WOPN, approve WOPN"
+                : needsPairApproval
+                  ? `, approve ${pair.symbol}`
+                  : ""}
+              , then add liquidity).
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -586,22 +668,32 @@ export function AddLiquidityPanel({
                         <strong>Approve {tokenSymbol}</strong>
                       </li>
                     )}
+                    {needsWopnApproval && (
+                      <li>
+                        <strong>Approve WOPN</strong>
+                      </li>
+                    )}
                     {needsPairApproval && (
                       <li>
                         <strong>Approve {pair.symbol}</strong>
                       </li>
                     )}
-                    {pair.isNative && !needsPairApproval && (
+                    {needsOpnWrap && (
                       <li>
-                        <strong>OPN</strong> included with add liquidity (no OPN approval)
+                        <strong>Wrap OPN → WOPN</strong> (automatic)
                       </li>
                     )}
                     <li>
                       <strong>Add liquidity ({tokenSymbol}/{pair.symbol})</strong>
                     </li>
                   </ol>
-                  {!needsTokenApproval && !needsPairApproval && (
+                  {!needsTokenApproval && !needsPairApproval && !needsWopnApproval && !needsOpnWrap && (
                     <p className="mt-2 text-xs text-green-700">Approvals already set — one wallet confirm.</p>
+                  )}
+                  {usesWopnPath && (
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      OPN is wrapped to WOPN automatically before liquidity is added.
+                    </p>
                   )}
                 </div>
 

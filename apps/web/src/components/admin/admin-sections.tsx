@@ -447,6 +447,22 @@ export function PoolShareSection() {
       <Card><CardContent className="grid gap-4 pt-6 sm:grid-cols-2">
         <FeeInput label="Pool Share %" value={Number(poolShare.poolSharePercentage)} onChange={(v) => setPoolShare({ ...poolShare, poolSharePercentage: v })} />
         <div><Label>Pool Reserve Target</Label><Input className="mt-1" value={String(poolShare.poolReserveTarget ?? "")} onChange={(e) => setPoolShare({ ...poolShare, poolReserveTarget: e.target.value })} /></div>
+        <label className="flex items-center gap-2 text-sm sm:col-span-2">
+          <input
+            type="checkbox"
+            checked={Boolean(poolShare.trackingOnly ?? true)}
+            onChange={(e) => setPoolShare({ ...poolShare, trackingOnly: e.target.checked })}
+          />
+          Tracking only (no on-chain pool injection)
+        </label>
+        <label className="flex items-center gap-2 text-sm sm:col-span-2">
+          <input
+            type="checkbox"
+            checked={Boolean(poolShare.liquidityIncentiveEnabled)}
+            onChange={(e) => setPoolShare({ ...poolShare, liquidityIncentiveEnabled: e.target.checked })}
+          />
+          Liquidity incentives enabled (future — not active)
+        </label>
       </CardContent></Card>
       <SaveButton saving={saving} onClick={async () => {
         setSaving(true);
@@ -695,7 +711,14 @@ export function AnnouncementsModerationSection() {
 }
 
 export function StakingConfigSection() {
-  const [config, setConfig] = useState<{ tiers: { tier: string; minStakeOpn: string; creationFeeDiscountBps: number; visibilityBoost: number; rewardEligible: boolean }[]; visibilityBoostEnabled?: boolean } | null>(null);
+  const [config, setConfig] = useState<{
+    tiers: { tier: string; minStakeOpn: string; creationFeeDiscountBps: number; visibilityBoost: number; rewardEligible: boolean }[];
+    visibilityBoostEnabled?: boolean;
+    discoveryRankingBoostEnabled?: boolean;
+    opnStakingEnabled?: boolean;
+    lpStakingEnabled?: boolean;
+    supportedLpPools?: { id: string; label: string; token0: string; token1: string; poolAddress?: string; enabled: boolean }[];
+  } | null>(null);
   const [saving, setSaving] = useState(false);
   const load = useCallback(() => {
     adminFetch("/api/admin/settings/staking").then((r) => r.json()).then((d) => setConfig(d.config));
@@ -705,15 +728,74 @@ export function StakingConfigSection() {
   return (
     <div className="space-y-4">
       <h2 className="text-2xl font-bold">Staking Tier Configuration</h2>
-      <p className="text-sm text-muted-foreground">Config only — reward distribution is not active yet.</p>
-      <label className="flex items-center gap-2 text-sm">
-        <input
-          type="checkbox"
-          checked={config.visibilityBoostEnabled ?? true}
-          onChange={(e) => setConfig({ ...config, visibilityBoostEnabled: e.target.checked })}
-        />
-        Enable visibility boosts from staking tiers
-      </label>
+      <p className="text-sm text-muted-foreground">Config only — reward distribution and APY are not active yet.</p>
+      <Card>
+        <CardContent className="grid gap-3 pt-6 sm:grid-cols-2">
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={config.visibilityBoostEnabled ?? true}
+              onChange={(e) => setConfig({ ...config, visibilityBoostEnabled: e.target.checked })}
+            />
+            Visibility boosts (future)
+          </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={config.discoveryRankingBoostEnabled ?? true}
+              onChange={(e) => setConfig({ ...config, discoveryRankingBoostEnabled: e.target.checked })}
+            />
+            Discovery ranking boosts (future)
+          </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={config.opnStakingEnabled ?? true}
+              onChange={(e) => setConfig({ ...config, opnStakingEnabled: e.target.checked })}
+            />
+            OPN staking enabled
+          </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={config.lpStakingEnabled ?? true}
+              onChange={(e) => setConfig({ ...config, lpStakingEnabled: e.target.checked })}
+            />
+            LP staking enabled
+          </label>
+        </CardContent>
+      </Card>
+      {(config.supportedLpPools ?? []).map((pool, i) => (
+        <Card key={pool.id}>
+          <CardHeader><CardTitle className="text-base">{pool.label}</CardTitle></CardHeader>
+          <CardContent className="grid gap-3 sm:grid-cols-2">
+            <label className="flex items-center gap-2 text-sm sm:col-span-2">
+              <input
+                type="checkbox"
+                checked={pool.enabled}
+                onChange={(e) => {
+                  const supportedLpPools = [...(config.supportedLpPools ?? [])];
+                  supportedLpPools[i] = { ...pool, enabled: e.target.checked };
+                  setConfig({ ...config, supportedLpPools });
+                }}
+              />
+              Supported for LP staking
+            </label>
+            <div className="sm:col-span-2">
+              <Label>Pool address (optional)</Label>
+              <Input
+                className="mt-1 font-mono text-xs"
+                value={pool.poolAddress ?? ""}
+                onChange={(e) => {
+                  const supportedLpPools = [...(config.supportedLpPools ?? [])];
+                  supportedLpPools[i] = { ...pool, poolAddress: e.target.value };
+                  setConfig({ ...config, supportedLpPools });
+                }}
+              />
+            </div>
+          </CardContent>
+        </Card>
+      ))}
       {config.tiers.map((tier, i) => (
         <Card key={tier.tier}>
           <CardHeader><CardTitle>{tier.tier}</CardTitle></CardHeader>
@@ -735,7 +817,7 @@ export function StakingConfigSection() {
               }} />
             </div>
             <div>
-              <Label>Visibility boost</Label>
+              <Label>Visibility multiplier (%)</Label>
               <Input type="number" value={tier.visibilityBoost} onChange={(e) => {
                 const tiers = [...config.tiers];
                 tiers[i] = { ...tier, visibilityBoost: Number(e.target.value) };
