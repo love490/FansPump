@@ -19,4 +19,5 @@ apps/web/.next
 apps/web/node_modules
 *.tsbuildinfo
 packages/database/src/generated
+packages/database/.env
 packages/**/.env.example
