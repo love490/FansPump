@@ -55,7 +55,12 @@ export function LandingFeatures() {
           <p className="mt-1 text-lg font-semibold text-white/90 sm:text-xl">Trusted by Communities.</p>
         </div>
         <div className="relative z-10 mt-6 shrink-0 sm:mt-0">
-          <Link href="/" className="inline-block" aria-label="FansPump home">
+          <Link
+            href="/"
+            className="inline-block overflow-hidden rounded-2xl"
+            style={{ backgroundColor: BRAND_BLUE }}
+            aria-label="FansPump home"
+          >
             <Image
               src="/images/logo-brand.png"
               alt=""

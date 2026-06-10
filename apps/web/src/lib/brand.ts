@@ -1,2 +1,2 @@
-/** Vivid brand blue for landing feature banners. */
-export const BRAND_BLUE = "#0a3690";
+/** Brand blue for landing banners and hero CTA (matches logo-brand background). */
+export const BRAND_BLUE = "#0f42a8";
