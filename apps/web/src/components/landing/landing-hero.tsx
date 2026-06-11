@@ -12,17 +12,17 @@ const heroBtnBase =
 export function LandingHero() {
   return (
     <section className="relative z-10 w-full px-4 pt-4 sm:px-6 sm:pt-6 lg:px-8 lg:pt-8 xl:px-10">
-      <div className="relative min-h-[140px] w-full overflow-hidden rounded-2xl shadow-lg sm:min-h-[200px] lg:min-h-[240px] xl:min-h-[280px]">
+      <div className="relative min-h-[150px] w-full overflow-hidden rounded-2xl shadow-lg sm:min-h-[200px] lg:min-h-[240px] xl:min-h-[280px]">
         <Image
           src="/images/hero-banner.png"
           alt=""
           fill
           priority
-          className="object-cover object-[98%_68%] scale-[1.12] sm:scale-[1.08] sm:object-[94%_72%] lg:scale-[1.02] lg:object-[88%_75%] xl:object-[86%_78%]"
+          className="object-cover object-[72%_center] sm:object-right sm:object-center"
           sizes="(max-width: 640px) 100vw, (max-width: 1024px) 90vw, 1200px"
         />
-        <div className="absolute inset-0 bg-gradient-to-r from-[#0a1628] from-[38%] via-[#0a1628]/80 via-[52%] to-transparent sm:from-50% sm:via-70% sm:to-[#0a1628]/25 lg:from-48% lg:via-68%" />
-        <div className="relative z-10 flex min-h-[140px] flex-col justify-center p-4 sm:min-h-[200px] sm:p-6 lg:min-h-[240px] lg:p-8 xl:min-h-[280px]">
+        <div className="absolute inset-0 bg-gradient-to-r from-[#0a1628]/50 from-0% via-[#0a1628]/15 via-40% to-transparent" />
+        <div className="relative z-10 flex min-h-[150px] flex-col justify-center p-4 sm:min-h-[200px] sm:p-6 lg:min-h-[240px] lg:p-8 xl:min-h-[280px]">
           <h1 className="max-w-[11rem] text-lg font-extrabold leading-tight text-white sm:max-w-md sm:text-[1.75rem] lg:text-3xl">
             Create Your Token
           </h1>

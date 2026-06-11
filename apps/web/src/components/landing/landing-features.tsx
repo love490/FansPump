@@ -56,13 +56,13 @@ export function LandingFeatures() {
         </div>
         <div className="relative z-10 mt-6 shrink-0 sm:mt-0">
           <Link href="/" className="block" aria-label="FansPump home">
-            <div className="relative h-20 w-20 overflow-hidden rounded-xl sm:h-28 sm:w-28">
+            <div className="relative h-20 w-20 sm:h-28 sm:w-28">
               <Image
                 src="/images/logo-brand.png"
                 alt="FansPump"
                 fill
                 priority
-                className="object-contain"
+                className="object-contain drop-shadow-sm"
                 sizes="112px"
               />
             </div>
