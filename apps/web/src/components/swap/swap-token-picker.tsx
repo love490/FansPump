@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
-import Image from "next/image";
 import { ChevronDown, Loader2, Search } from "lucide-react";
 import { useAccount, usePublicClient } from "wagmi";
 import { formatUnits, type Address } from "viem";
@@ -16,6 +15,7 @@ import {
 } from "@/lib/token-registry";
 import { erc20Abi } from "@/lib/swap/abis";
 import { SwapDropdownPortal } from "@/components/swap/swap-dropdown-portal";
+import { TokenLogo } from "@/components/tokens/token-logo";
 
 export type SwapToken = {
   contractAddress: string;
@@ -37,26 +37,8 @@ type SwapTokenPickerProps = {
 };
 
 function TokenAvatar({ token, size = "md" }: { token: SwapToken; size?: "sm" | "md" }) {
-  const px = size === "sm" ? 32 : 28;
-
-  if (token.logoUrl) {
-    return (
-      <Image
-        src={token.logoUrl}
-        alt=""
-        width={px}
-        height={px}
-        unoptimized
-        className="h-8 w-8 shrink-0 rounded-full object-cover"
-      />
-    );
-  }
-
-  return (
-    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/15 text-[10px] font-bold text-primary">
-      {token.symbol.slice(0, 2).toUpperCase()}
-    </div>
-  );
+  const px = size === "sm" ? 28 : 32;
+  return <TokenLogo src={token.logoUrl} symbol={token.symbol} name={token.name} layout="fixed" size={px} className="rounded-full" />;
 }
 
 function formatBalance(value: bigint | undefined): string {

@@ -1,13 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { CheckCircle2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { formatCompactNumber, formatTimeAgo, shortenAddress, cn } from "@/lib/utils";
 import { formatCreatorDisplay } from "@/lib/username";
 import { motion } from "framer-motion";
 import type { TokenCardData } from "@/components/tokens/token-card";
+import { TokenLogo } from "@/components/tokens/token-logo";
 
 export function TokenPreviewCard({
   token,
@@ -38,15 +38,14 @@ export function TokenPreviewCard({
           href={`/token/${token.contractAddress}`}
           className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3 md:gap-4"
         >
-          <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-lg bg-iopn-50 ring-1 ring-border/60 sm:h-11 sm:w-11 md:h-12 md:w-12 md:rounded-xl">
-            {token.logoUrl ? (
-              <Image src={token.logoUrl} alt={token.name} fill className="object-cover" sizes="48px" />
-            ) : (
-              <div className="flex h-full w-full items-center justify-center text-xs font-bold text-iopn-600 sm:text-sm">
-                {token.symbol.slice(0, 2)}
-              </div>
-            )}
-          </div>
+          <TokenLogo
+            src={token.logoUrl}
+            symbol={token.symbol}
+            name={token.name}
+            layout="fixed"
+            size={48}
+            className="rounded-xl"
+          />
 
           <div className="min-w-0 flex-1">
             <div className="flex items-start justify-between gap-1.5 sm:gap-2">

@@ -1,13 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { shortenAddress } from "@/lib/utils";
 import { motion } from "framer-motion";
 import { TOKEN_CATEGORY_LABELS, type TokenCategoryId } from "@iopn/shared";
 import { Activity, CheckCircle2, Eye, Lock, Users, TrendingUp, Droplets, Coins } from "lucide-react";
+import { TokenLogo } from "@/components/tokens/token-logo";
 
 export interface TokenCardData {
   id: string;
@@ -44,15 +44,7 @@ export function TokenCard({ token, index = 0 }: { token: TokenCardData; index?: 
       <Link href={`/token/${token.contractAddress}`}>
         <Card className="group h-full transition-shadow hover:shadow-md hover:border-iopn-200">
           <CardHeader className="flex flex-row items-start gap-4 space-y-0 pb-2">
-            <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-iopn-50">
-              {token.logoUrl ? (
-                <Image src={token.logoUrl} alt={token.name} fill className="object-cover" />
-              ) : (
-                <div className="flex h-full w-full items-center justify-center text-lg font-bold text-iopn-600">
-                  {token.symbol.slice(0, 2)}
-                </div>
-              )}
-            </div>
+            <TokenLogo src={token.logoUrl} symbol={token.symbol} name={token.name} layout="fixed" size={48} />
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
                 <CardTitle className="truncate text-lg">{token.name}</CardTitle>

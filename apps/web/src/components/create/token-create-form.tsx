@@ -1022,15 +1022,16 @@ export function TokenCreateForm() {
           <CardContent className="grid gap-4 sm:grid-cols-2">
             <MetadataImageField
               label="Project logo"
-              hint="Square image works best. Shown on token cards and your project page."
+              hint="Square high-quality logo for cards and your project page."
               value={metadata.logoUrl}
               onChange={(logoUrl) => setMetadata({ ...metadata, logoUrl })}
               variant="logo"
+              symbol={symbol || "TK"}
               urlPlaceholder="https://yourproject.com/logo.png"
             />
             <MetadataImageField
               label="Project banner"
-              hint="Wide image for your project header. Recommended 1200×400 or similar."
+              hint="Wide banner for your token profile and launch pages."
               value={metadata.bannerUrl}
               onChange={(bannerUrl) => setMetadata({ ...metadata, bannerUrl })}
               variant="banner"

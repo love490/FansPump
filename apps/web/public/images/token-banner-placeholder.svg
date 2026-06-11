@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1500 500" fill="none" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1500" y2="500" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0a1628"/>
+      <stop offset="1" stop-color="#0f42a8"/>
+    </linearGradient>
+  </defs>
+  <rect width="1500" height="500" fill="url(#bg)"/>
+  <circle cx="1320" cy="120" r="3" fill="white" opacity="0.5"/>
+  <circle cx="1280" cy="200" r="2" fill="white" opacity="0.35"/>
+  <circle cx="1350" cy="280" r="2.5" fill="white" opacity="0.4"/>
+  <path d="M1180 340L1260 220L1340 340H1180Z" fill="white" opacity="0.12"/>
+  <text x="80" y="270" fill="white" font-family="system-ui,sans-serif" font-size="48" font-weight="700" opacity="0.9">FansPump</text>
+</svg>

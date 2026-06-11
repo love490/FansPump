@@ -1,15 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { randomUUID } from "crypto";
+import { IMAGE_UPLOAD_MAX_BYTES } from "@/lib/token-images/constants";
+import { processBannerUpload, processLogoUpload } from "@/lib/token-images/process";
 
-const MAX_SIZE = 5 * 1024 * 1024;
 const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
-const EXT_BY_TYPE: Record<string, string> = {
-  "image/jpeg": "jpg",
-  "image/png": "png",
-  "image/webp": "webp",
-  "image/gif": "gif",
-};
 
 function getR2Client() {
   const accountId = process.env.R2_ACCOUNT_ID;
@@ -23,19 +18,45 @@ function getR2Client() {
   });
 }
 
+async function uploadBuffer(
+  r2: S3Client,
+  bucket: string,
+  publicUrl: string,
+  buffer: Buffer,
+  contentType: string,
+  ext: string,
+  suffix = ""
+) {
+  const key = `projects/${randomUUID()}${suffix}.${ext}`;
+  await r2.send(
+    new PutObjectCommand({
+      Bucket: bucket,
+      Key: key,
+      Body: buffer,
+      ContentType: contentType,
+      CacheControl: "public, max-age=31536000, immutable",
+    })
+  );
+  return `${publicUrl}/${key}`;
+}
+
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
     const file = formData.get("file");
+    const kind = (formData.get("kind") as string | null)?.toLowerCase();
 
     if (!file || !(file instanceof File)) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 });
     }
+    if (!kind || (kind !== "logo" && kind !== "banner")) {
+      return NextResponse.json({ error: "Upload kind must be logo or banner" }, { status: 400 });
+    }
     if (!ALLOWED_TYPES.has(file.type)) {
       return NextResponse.json({ error: "Use JPG, PNG, WebP, or GIF" }, { status: 400 });
     }
-    if (file.size > MAX_SIZE) {
-      return NextResponse.json({ error: "File must be 5 MB or smaller" }, { status: 400 });
+    if (file.size > IMAGE_UPLOAD_MAX_BYTES) {
+      return NextResponse.json({ error: "File must be 12 MB or smaller" }, { status: 400 });
     }
 
     const r2 = getR2Client();
@@ -43,25 +64,39 @@ export async function POST(request: NextRequest) {
     const publicUrl = process.env.R2_PUBLIC_URL;
 
     if (!r2 || !bucket || !publicUrl) {
-      // R2 not configured — return null url so token creation still works without image
       console.warn("[upload] R2 not configured, skipping image upload");
       return NextResponse.json({ url: null, path: null });
     }
 
-    const ext = EXT_BY_TYPE[file.type] ?? "png";
-    const key = `projects/${randomUUID()}.${ext}`;
+    const raw = Buffer.from(await file.arrayBuffer());
+    const processed =
+      kind === "logo" ? await processLogoUpload(raw) : await processBannerUpload(raw);
 
-    await r2.send(new PutObjectCommand({
-      Bucket: bucket,
-      Key: key,
-      Body: Buffer.from(await file.arrayBuffer()),
-      ContentType: file.type,
-    }));
+    const url = await uploadBuffer(r2, bucket, publicUrl, processed.main, processed.contentType, processed.ext);
 
-    const url = `${publicUrl}/${key}`;
-    return NextResponse.json({ url, path: key });
+    let thumbUrl: string | null = null;
+    if (processed.thumb) {
+      thumbUrl = await uploadBuffer(
+        r2,
+        bucket,
+        publicUrl,
+        processed.thumb,
+        processed.contentType,
+        processed.ext,
+        "-thumb"
+      );
+    }
+
+    return NextResponse.json({
+      url,
+      thumbUrl,
+      width: processed.width,
+      height: processed.height,
+      format: processed.ext,
+    });
   } catch (e) {
     const message = e instanceof Error ? e.message : "Upload failed";
-    return NextResponse.json({ error: message }, { status: 500 });
+    const status = message.includes("must be") || message.includes("too ") ? 400 : 500;
+    return NextResponse.json({ error: message }, { status });
   }
 }

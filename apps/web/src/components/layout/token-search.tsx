@@ -1,13 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Search, X, Loader2, ChevronDown } from "lucide-react";
 import { shortenAddress } from "@/lib/utils";
 import { isValidTokenAddress } from "@/lib/swap/routerAdapter";
 import { getActiveChainId } from "@/lib/chain-config/opn";
+import { TokenLogo } from "@/components/tokens/token-logo";
 
 type SearchToken = {
   contractAddress: string;
@@ -264,15 +264,14 @@ export function TokenSearch() {
                   onClick={() => goToToken(token.contractAddress)}
                   className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left hover:bg-muted"
                 >
-                  {token.logoUrl ? (
-                    <div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-lg">
-                      <Image src={token.logoUrl} alt="" fill className="object-cover" unoptimized />
-                    </div>
-                  ) : (
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-xs font-bold text-primary">
-                      {token.symbol.slice(0, 2)}
-                    </div>
-                  )}
+                  <TokenLogo
+                    src={token.logoUrl}
+                    symbol={token.symbol}
+                    name={token.name}
+                    layout="fixed"
+                    size={36}
+                    className="rounded-lg"
+                  />
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium">
                       {token.name}{" "}

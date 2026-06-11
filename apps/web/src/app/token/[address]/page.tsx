@@ -3,12 +3,13 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import Image from "next/image";
 import { useAccount } from "wagmi";
 import { TokenFeatureBadges } from "@/components/token/token-feature-badges";
 import { TokenTrustPanel } from "@/components/token/token-trust-panel";
 import { AnnouncementsSection } from "@/components/token/announcements-section";
 import { TokenAnalyticsSection } from "@/components/token/token-analytics-section";
+import { TokenBanner } from "@/components/tokens/token-banner";
+import { TokenLogo } from "@/components/tokens/token-logo";
 import { TOKEN_CATEGORY_LABELS, type TokenCategoryId } from "@iopn/shared";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -109,23 +110,11 @@ export default function TokenPage() {
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6 lg:px-8">
-      {token.bannerUrl && (
-        <div className="relative mb-6 h-40 w-full overflow-hidden rounded-xl bg-iopn-100">
-          <Image src={token.bannerUrl} alt="" fill className="object-cover" />
-        </div>
-      )}
+      <TokenBanner src={token.bannerUrl} alt={`${token.name} banner`} className="mb-6" priority />
 
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="flex gap-4">
-          <div className="relative h-16 w-16 overflow-hidden rounded-xl bg-iopn-50">
-            {token.logoUrl ? (
-              <Image src={token.logoUrl} alt="" fill className="object-cover" />
-            ) : (
-              <div className="flex h-full items-center justify-center text-xl font-bold text-iopn-600">
-                {token.symbol.slice(0, 2)}
-              </div>
-            )}
-          </div>
+          <TokenLogo src={token.logoUrl} symbol={token.symbol} name={token.name} layout="responsive" priority />
           <div>
             <h1 className="text-3xl font-bold flex items-center gap-2">
               {token.name}
