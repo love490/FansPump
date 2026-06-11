@@ -8,107 +8,141 @@ import { formatCreatorDisplay } from "@/lib/username";
 import { motion } from "framer-motion";
 import type { TokenCardData } from "@/components/tokens/token-card";
 import { TokenLogo } from "@/components/tokens/token-logo";
+import { tokenCardShellClass } from "@/components/tokens/token-card-styles";
+
+type MetricCellProps = {
+  label: string;
+  value: string;
+  emphasis?: boolean;
+};
+
+function MetricCell({ label, value, emphasis }: MetricCellProps) {
+  return (
+    <div className="min-w-0">
+      <p className="truncate text-[10px] font-medium uppercase tracking-wide text-muted-foreground md:text-[11px]">
+        {label}
+      </p>
+      <p
+        className={cn(
+          "mt-0.5 truncate tabular-nums text-foreground",
+          emphasis ? "text-sm font-bold md:text-base" : "text-xs font-semibold md:text-sm"
+        )}
+      >
+        {value}
+      </p>
+    </div>
+  );
+}
 
 export function TokenPreviewCard({
   token,
   index = 0,
-  compact = false,
+  className,
 }: {
   token: TokenCardData;
   index?: number;
-  /** Hide side columns when many cards share a row on smaller widths. */
-  compact?: boolean;
+  className?: string;
 }) {
-  const mc =
+  const marketCap =
     token.marketCap != null && token.marketCap > 0
       ? formatCompactNumber(token.marketCap)
       : "—";
-  const age = token.createdAt ? formatTimeAgo(token.createdAt) : "—";
+  const age = token.createdAt ? formatTimeAgo(token.createdAt) : null;
   const creator = formatCreatorDisplay(token.creatorUsername, token.creatorAddress, shortenAddress);
+  const volume =
+    token.volume24h != null && token.volume24h > 0
+      ? formatCompactNumber(token.volume24h)
+      : "—";
+  const liquidity =
+    token.poolStrength != null && token.poolStrength > 0
+      ? formatCompactNumber(token.poolStrength)
+      : "—";
+  const holders =
+    token.holderCount > 0 ? formatCompactNumber(token.holderCount) : "—";
 
   return (
     <motion.div
-      className="min-w-0 w-full"
-      initial={{ opacity: 0, y: 8 }}
+      className={cn("h-full min-w-0 w-full", className)}
+      initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.04 }}
     >
-      <div className="group flex w-full min-w-0 items-center gap-2 overflow-hidden rounded-xl border border-border bg-card p-2.5 shadow-sm transition-all hover:border-primary/30 hover:shadow-md sm:gap-3 sm:p-3 md:gap-4 md:p-4">
-        <Link
-          href={`/token/${token.contractAddress}`}
-          className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3 md:gap-4"
-        >
+      <Link
+        href={`/token/${token.contractAddress}`}
+        className={cn(tokenCardShellClass, "no-underline")}
+      >
+        <div className="flex min-h-0 flex-1 gap-3 md:gap-4">
           <TokenLogo
             src={token.logoUrl}
             symbol={token.symbol}
             name={token.name}
-            layout="fixed"
-            size={48}
-            className="rounded-xl"
+            layout="responsive"
+            className="shrink-0 ring-1 ring-border/50"
           />
 
-          <div className="min-w-0 flex-1">
-            <div className="flex items-start justify-between gap-1.5 sm:gap-2">
-              <div className="min-w-0">
-                <div className="flex items-center gap-1">
-                  <p className="truncate text-xs font-semibold text-foreground group-hover:text-primary sm:text-sm md:text-base">
+          <div className="flex min-w-0 flex-1 flex-col">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <h3 className="truncate text-base font-bold leading-tight text-foreground group-hover/card:text-primary md:text-lg lg:text-xl">
                     {token.name}
-                  </p>
+                  </h3>
                   {token.creatorVerified && (
-                    <CheckCircle2 className="h-3 w-3 shrink-0 text-green-600 sm:h-3.5 sm:w-3.5" aria-label="Verified" />
+                    <CheckCircle2
+                      className="h-4 w-4 shrink-0 text-emerald-500"
+                      aria-label="Verified creator"
+                    />
+                  )}
+                  {token.isFeatured && (
+                    <Badge variant="default" className="h-5 px-1.5 text-[10px]">
+                      Featured
+                    </Badge>
                   )}
                 </div>
-                <p className="truncate text-[10px] font-medium text-muted-foreground sm:text-xs md:text-sm">
+                <p className="mt-0.5 truncate text-xs font-medium text-muted-foreground md:text-sm">
                   ${token.symbol}
                 </p>
               </div>
-              <span className="shrink-0 rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-foreground sm:px-2 sm:text-[11px] md:text-xs">
-                {age}
-              </span>
-            </div>
-
-            <div className="mt-1 truncate text-[10px] sm:mt-1.5 sm:text-[11px] md:text-xs">
-              <span className="text-muted-foreground">MC </span>
-              <span className="font-semibold tabular-nums text-foreground">{mc}</span>
-              {mc !== "—" && <span className="ml-0.5 text-muted-foreground">OPN</span>}
-            </div>
-
-            {compact && (
-              <p className="mt-1 truncate text-[10px] text-muted-foreground sm:text-[11px]">
-                <span className="text-muted-foreground/80">Creator </span>
-                <span className={cn("font-medium text-foreground", !token.creatorUsername && "font-mono")}>
-                  {creator}
+              {age && (
+                <span className="shrink-0 rounded-md bg-muted/80 px-2 py-0.5 text-[10px] font-semibold tabular-nums text-muted-foreground md:text-xs">
+                  {age}
                 </span>
-              </p>
-            )}
-          </div>
-        </Link>
+              )}
+            </div>
 
-        {!compact && (
-          <div className="hidden min-w-0 max-w-[5.5rem] shrink-0 text-right text-[10px] sm:block sm:max-w-[7rem] sm:text-[11px] md:text-xs">
-            <p className="text-muted-foreground">Creator</p>
-            {token.creatorAddress ? (
-              <Link
-                href={`/creator/${token.creatorAddress}`}
+            <div className="mt-2 flex items-baseline gap-1.5 md:mt-3">
+              <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground md:text-xs">
+                Market Cap
+              </span>
+              <span className="text-lg font-bold tabular-nums text-foreground md:text-xl lg:text-2xl">
+                {marketCap}
+              </span>
+              {marketCap !== "—" && (
+                <span className="text-xs font-medium text-muted-foreground md:text-sm">OPN</span>
+              )}
+            </div>
+
+            <p className="mt-1.5 truncate text-xs text-muted-foreground md:mt-2 md:text-sm">
+              <span className="text-muted-foreground/80">Creator </span>
+              <span
                 className={cn(
-                  "mt-0.5 block truncate font-medium text-foreground hover:text-primary hover:underline",
+                  "font-medium text-foreground/90",
                   !token.creatorUsername && "font-mono"
                 )}
               >
                 {creator}
-              </Link>
-            ) : (
-              <p className="mt-0.5 truncate font-medium text-foreground">{creator}</p>
-            )}
-          </div>
-        )}
+              </span>
+            </p>
 
-        {token.isFeatured && !compact && (
-          <Badge variant="default" className="hidden shrink-0 xl:inline-flex">
-            Featured
-          </Badge>
-        )}
-      </div>
+            <div className="mt-auto grid grid-cols-4 gap-2 border-t border-border/50 pt-3 md:gap-3 md:pt-4">
+              <MetricCell label="Liquidity" value={liquidity} />
+              <MetricCell label="Volume" value={volume} />
+              <MetricCell label="Holders" value={holders} />
+              <MetricCell label="Change" value="—" />
+            </div>
+          </div>
+        </div>
+      </Link>
     </motion.div>
   );
 }

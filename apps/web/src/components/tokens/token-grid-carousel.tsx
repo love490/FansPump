@@ -1,38 +1,35 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { TokenPreviewCard } from "@/components/tokens/token-preview-card";
 import type { TokenCardData } from "@/components/tokens/token-card";
+import {
+  tokenCardGridClass,
+  tokenCardMobilePeekClass,
+  tokenCardMobileScrollClass,
+  tokenCardSkeletonClass,
+} from "@/components/tokens/token-card-styles";
 import { cn } from "@/lib/utils";
 
-/** Max cards per row/page for the current viewport width. */
-export function useResponsiveMaxColumns(preset: "trending" | "grid") {
-  const [maxCols, setMaxCols] = useState(1);
+/** Cards per page on tablet+ viewports. */
+export function useResponsiveMaxColumns(_preset: "trending" | "grid" = "grid") {
+  const [maxCols, setMaxCols] = useState(3);
 
   useEffect(() => {
     function update() {
       const w = window.innerWidth;
-      if (preset === "trending") {
-        if (w >= 1280) setMaxCols(4);
-        else if (w >= 768) setMaxCols(3);
-        else if (w >= 480) setMaxCols(2);
-        else setMaxCols(1);
-      } else {
-        if (w >= 1536) setMaxCols(8);
-        else if (w >= 1280) setMaxCols(6);
-        else if (w >= 1024) setMaxCols(4);
-        else if (w >= 640) setMaxCols(3);
-        else if (w >= 400) setMaxCols(2);
-        else setMaxCols(1);
-      }
+      if (w >= 1440) setMaxCols(6);
+      else if (w >= 1024) setMaxCols(5);
+      else if (w >= 768) setMaxCols(3);
+      else setMaxCols(1);
     }
     update();
     window.addEventListener("resize", update);
     return () => window.removeEventListener("resize", update);
-  }, [preset]);
+  }, []);
 
   return maxCols;
 }
@@ -78,12 +75,22 @@ export function TokenGridCarousel({
   const maxCols = useResponsiveMaxColumns(variant);
   const perPage = maxCols;
   const [page, setPage] = useState(0);
+  const [isMobile, setIsMobile] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const maxPage = Math.max(0, Math.ceil(tokens.length / perPage) - 1);
   const safePage = Math.min(page, maxPage);
-  const visible = tokens.slice(safePage * perPage, safePage * perPage + perPage);
+  const visible = isMobile ? tokens : tokens.slice(safePage * perPage, safePage * perPage + perPage);
   const colCount = gridColumnCount(visible.length || maxCols, maxCols);
-  const gridStyle = useMemo(() => responsiveGridStyle(colCount), [colCount]);
   const skeletonCount = Math.min(maxCols, 4);
+
+  useEffect(() => {
+    function update() {
+      setIsMobile(window.innerWidth < 768);
+    }
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
 
   useEffect(() => {
     setPage(0);
@@ -93,16 +100,28 @@ export function TokenGridCarousel({
     setPage((p) => Math.min(p, maxPage));
   }, [maxPage]);
 
+  function scrollByCard(direction: -1 | 1) {
+    const el = scrollRef.current;
+    if (!el) return;
+    const card = el.querySelector<HTMLElement>("[data-token-card]");
+    const step = card ? card.offsetWidth + 16 : el.clientWidth * 0.66;
+    el.scrollBy({ left: direction * step, behavior: "smooth" });
+  }
+
   function prev() {
-    setPage((p) => Math.max(0, p - 1));
+    if (isMobile) scrollByCard(-1);
+    else setPage((p) => Math.max(0, p - 1));
   }
 
   function next() {
-    setPage((p) => Math.min(maxPage, p + 1));
+    if (isMobile) scrollByCard(1);
+    else setPage((p) => Math.min(maxPage, p + 1));
   }
 
+  const showPager = !isMobile && tokens.length > perPage;
+
   return (
-    <section id={id} className="w-full min-w-0 space-y-3">
+    <section id={id} className="w-full min-w-0 space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <h2 className="flex items-center gap-2 text-lg font-semibold sm:text-xl">
@@ -119,7 +138,7 @@ export function TokenGridCarousel({
             variant="outline"
             size="icon"
             className="h-9 w-9"
-            disabled={isLoading || safePage <= 0 || tokens.length <= perPage}
+            disabled={isLoading || (!isMobile && safePage <= 0) || tokens.length <= 1}
             onClick={prev}
             aria-label={`Previous ${title}`}
           >
@@ -130,7 +149,7 @@ export function TokenGridCarousel({
             variant="outline"
             size="icon"
             className="h-9 w-9"
-            disabled={isLoading || safePage >= maxPage || tokens.length <= perPage}
+            disabled={isLoading || (!isMobile && safePage >= maxPage) || tokens.length <= 1}
             onClick={next}
             aria-label={`Next ${title}`}
           >
@@ -147,19 +166,32 @@ export function TokenGridCarousel({
       </div>
 
       {isLoading ? (
-        <div className="grid w-full min-w-0 gap-3" style={responsiveGridStyle(skeletonCount)}>
+        <div className={cn(isMobile ? tokenCardMobileScrollClass : tokenCardGridClass)}>
           {[...Array(skeletonCount)].map((_, i) => (
-            <div key={i} className="h-[88px] min-w-0 animate-pulse rounded-xl bg-muted sm:h-[96px]" />
+            <div key={i} className={tokenCardSkeletonClass()} />
           ))}
         </div>
       ) : tokens.length === 0 ? (
-        <p className="rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">
+        <p className="rounded-2xl border border-dashed p-8 text-center text-sm text-muted-foreground">
           {emptyMessage}
         </p>
       ) : (
-        <div className={cn("grid w-full min-w-0 gap-3")} style={gridStyle}>
+        <div
+          ref={scrollRef}
+          className={cn(
+            isMobile ? tokenCardMobileScrollClass : tokenCardGridClass,
+            !isMobile && "items-stretch"
+          )}
+          style={!isMobile ? responsiveGridStyle(colCount) : undefined}
+        >
           {visible.map((t, i) => (
-            <TokenPreviewCard key={t.id} token={t} index={i} compact={colCount > 2} />
+            <div
+              key={t.id}
+              data-token-card
+              className={cn("h-full min-h-0", isMobile && tokenCardMobilePeekClass)}
+            >
+              <TokenPreviewCard token={t} index={i} />
+            </div>
           ))}
         </div>
       )}

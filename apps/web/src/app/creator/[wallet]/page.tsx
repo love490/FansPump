@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { TokenCard, type TokenCardData } from "@/components/tokens/token-card";
+import { tokenCardGridClass } from "@/components/tokens/token-card-styles";
 import { VerifiedCreatorBadge } from "@/components/creator/verified-creator-badge";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -124,9 +125,11 @@ export default function CreatorProfilePage() {
         {profile.tokens.length === 0 ? (
           <p className="text-muted-foreground">No tokens created yet.</p>
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className={`${tokenCardGridClass} items-stretch`}>
             {profile.tokens.map((t, i) => (
-              <TokenCard key={t.id} token={t} index={i} />
+              <div key={t.id} className="h-full">
+                <TokenCard token={t} index={i} />
+              </div>
             ))}
           </div>
         )}

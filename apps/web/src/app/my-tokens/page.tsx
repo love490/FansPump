@@ -4,6 +4,7 @@ import { useAccount } from "wagmi";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { TokenCard } from "@/components/tokens/token-card";
+import { tokenCardGridClass } from "@/components/tokens/token-card-styles";
 import { Button } from "@/components/ui/button";
 import { fetchMyTokens } from "@/lib/token-register";
 import { getActiveChainId } from "@/lib/chain-config/opn";
@@ -72,9 +73,11 @@ export default function MyTokensPage() {
           </Button>
         </div>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className={`${tokenCardGridClass} items-stretch`}>
           {tokens.map((t, i) => (
-            <TokenCard key={t.id} token={t} index={i} />
+            <div key={t.id} className="h-full">
+              <TokenCard token={t} index={i} />
+            </div>
           ))}
         </div>
       )}

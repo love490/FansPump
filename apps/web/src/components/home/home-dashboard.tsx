@@ -4,9 +4,11 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Rocket, TrendingUp, Users, Shield } from "lucide-react";
 import { TokenPreviewCard } from "@/components/tokens/token-preview-card";
+import { tokenCardGridClass, tokenCardSkeletonClass } from "@/components/tokens/token-card-styles";
 import { useQuery } from "@tanstack/react-query";
 import { fetchDiscoverTokens, fetchPlatformStats, tokenQueryKeys } from "@/lib/tokens-api";
 import { getActiveChainId } from "@/lib/chain-config/opn";
+import { cn } from "@/lib/utils";
 
 export function HomeDashboard() {
   const chainId = getActiveChainId();
@@ -93,19 +95,21 @@ export function HomeDashboard() {
           </Button>
         </div>
         {loadingNew ? (
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          <div className={tokenCardGridClass}>
             {[...Array(3)].map((_, i) => (
-              <div key={i} className="h-48 animate-pulse rounded-xl bg-muted" />
+              <div key={i} className={tokenCardSkeletonClass()} />
             ))}
           </div>
         ) : newTokens.length === 0 ? (
-          <p className="rounded-xl border border-dashed p-8 text-center text-muted-foreground">
+          <p className="rounded-2xl border border-dashed p-8 text-center text-muted-foreground">
             No tokens yet — be the first to launch on FansPump.
           </p>
         ) : (
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          <div className={cn(tokenCardGridClass, "items-stretch")}>
             {newTokens.map((t, i) => (
-              <TokenPreviewCard key={t.id} token={t} index={i} />
+              <div key={t.id} className="h-full">
+                <TokenPreviewCard token={t} index={i} />
+              </div>
             ))}
           </div>
         )}

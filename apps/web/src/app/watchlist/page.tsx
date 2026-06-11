@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useAccount } from "wagmi";
 import { TokenCard, type TokenCardData } from "@/components/tokens/token-card";
+import { tokenCardGridClass } from "@/components/tokens/token-card-styles";
 
 export default function WatchlistPage() {
   const { address } = useAccount();
@@ -25,9 +26,11 @@ export default function WatchlistPage() {
       ) : tokens.length === 0 ? (
         <p className="text-muted-foreground">Your watchlist is empty.</p>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className={`${tokenCardGridClass} items-stretch`}>
           {tokens.map((t, i) => (
-            <TokenCard key={t.id} token={t} index={i} />
+            <div key={t.id} className="h-full">
+              <TokenCard token={t} index={i} />
+            </div>
           ))}
         </div>
       )}
