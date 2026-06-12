@@ -60,6 +60,9 @@ export function AdminLogin() {
             <Shield className="h-6 w-6 text-primary" />
           </div>
           <CardTitle className="text-2xl">FansPump Admin</CardTitle>
+          <p className="text-xs font-medium uppercase tracking-wide text-primary">
+            Email &amp; password sign-in
+          </p>
           <CardDescription>
             {step === "2fa"
               ? "Enter the 6-digit code from your authenticator app."

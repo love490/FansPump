@@ -4,7 +4,7 @@ const monorepoRoot = path.join(__dirname, "../..");
 const nextConfig: NextConfig = {
   transpilePackages: ["@iopn/database", "@iopn/shared"],
   outputFileTracingRoot: monorepoRoot,
-  serverExternalPackages: ["@prisma/client", "prisma"],
+  serverExternalPackages: ["@prisma/client", "prisma", "@node-rs/argon2"],
   outputFileTracingIncludes: {
     "/api/**/*": [
       "../../node_modules/.prisma/client/**/*",
@@ -36,6 +36,21 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "**" },
       { protocol: "http", hostname: "localhost" },
     ],
+  },
+  async headers() {
+    return [
+      {
+        source: "/admin/login",
+        headers: [
+          { key: "Cache-Control", value: "no-store, no-cache, must-revalidate" },
+          { key: "Pragma", value: "no-cache" },
+        ],
+      },
+      {
+        source: "/admin/:path*",
+        headers: [{ key: "Cache-Control", value: "no-store" }],
+      },
+    ];
   },
 };
 export default nextConfig;

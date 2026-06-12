@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 
-/** /admin redirects to dashboard (login gate is client-side). */
+/** /admin → email/password login (not wallet). */
 export default function AdminIndexPage() {
-  redirect("/admin/dashboard");
+  redirect("/admin/login");
 }
