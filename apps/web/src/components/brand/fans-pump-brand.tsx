@@ -1,7 +1,7 @@
 import { cn } from "@/lib/utils";
 import { FansPumpLogo } from "@/components/brand/fans-pump-logo";
 
-const TAGLINE_PARTS = ["Create", "Discover", "Verify", "Grow"] as const;
+const TAGLINE_PARTS = ["Create", "Discover", "Trust", "Grow"] as const;
 
 export function FansPumpTagline({ className }: { className?: string }) {
   return (
