@@ -65,6 +65,20 @@ export async function fetchDiscoverTokens(
     return data.tokens ?? [];
   }
 
+  if (
+    section === "most-trusted" ||
+    section === "top-builders" ||
+    section === "fastest-growing" ||
+    section === "recently-verified"
+  ) {
+    const res = await fetch(
+      `/api/tokens?section=${encodeURIComponent(section)}&limit=${limit}&chainId=${chainId}${fq}`
+    );
+    if (!res.ok) throw new Error("Failed to load tokens");
+    const data = (await res.json()) as { tokens: TokenCardData[] };
+    return data.tokens ?? [];
+  }
+
   const res = await fetch(
     `/api/tokens?section=${encodeURIComponent(section)}&limit=${limit}&chainId=${chainId}${fq}`
   );

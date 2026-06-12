@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useAccount } from "wagmi";
 import { TokenFeatureBadges } from "@/components/token/token-feature-badges";
 import { TokenTrustPanel } from "@/components/token/token-trust-panel";
+import { TokenTrustScorePanel, TokenHealthPanel } from "@/components/v2/token-trust-score-panel";
 import { AnnouncementsSection } from "@/components/token/announcements-section";
 import { TokenAnalyticsSection } from "@/components/token/token-analytics-section";
 import { TokenBanner } from "@/components/tokens/token-banner";
@@ -196,6 +197,11 @@ export default function TokenPage() {
           buyTaxBps={token.buyTaxBps}
           sellTaxBps={token.sellTaxBps}
         />
+      </div>
+
+      <div className="mt-6 grid gap-6 lg:grid-cols-2">
+        <TokenTrustScorePanel tokenAddress={address} />
+        <TokenHealthPanel tokenAddress={address} />
       </div>
 
       <div className="mt-6">

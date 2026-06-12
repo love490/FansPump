@@ -1,10 +1,10 @@
 import Link from "next/link";
-import { ArrowLeftRight, Compass, Rocket, Shield } from "lucide-react";
+import { ArrowLeftRight, Compass, Layers, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const steps = [
   {
-    icon: Rocket,
+    icon: Layers,
     title: "Create your token",
     description: "Deploy on OPNChain with configurable features, taxes, and metadata.",
     href: "/create",
@@ -36,7 +36,7 @@ export function LandingHowItWorks() {
         <div className="mb-10 text-center">
           <h2 className="text-2xl font-bold sm:text-3xl">How It Works</h2>
           <p className="mx-auto mt-2 max-w-xl text-muted-foreground">
-            From launch to liquidity — everything you need on OPNChain.
+            From launch to liquidity — with trust signals at every step.
           </p>
         </div>
 

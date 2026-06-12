@@ -62,6 +62,30 @@ const sections = [
     description: "Hand-picked featured projects.",
     variant: "grid" as const,
   },
+  {
+    id: "most-trusted",
+    label: "Most Trusted",
+    description: "Tokens with the highest trust scores.",
+    variant: "grid" as const,
+  },
+  {
+    id: "top-builders",
+    label: "Top Builders",
+    description: "Projects from top-reputation creators.",
+    variant: "grid" as const,
+  },
+  {
+    id: "fastest-growing",
+    label: "Fastest Growing",
+    description: "Tokens gaining holders and momentum quickly.",
+    variant: "grid" as const,
+  },
+  {
+    id: "recently-verified",
+    label: "Recently Verified",
+    description: "Projects with approved contract verification.",
+    variant: "grid" as const,
+  },
 ] as const;
 
 function sectionFilters(sectionId: string, global: DiscoverFilters): DiscoverFilters {

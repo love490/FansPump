@@ -3,7 +3,7 @@ import Image from "next/image";
 import {
   Compass,
   Eye,
-  Rocket,
+  Layers,
   ShieldCheck,
   TrendingUp,
   Users,
@@ -11,7 +11,7 @@ import {
 import { BRAND_BLUE } from "@/lib/brand";
 
 const features = [
-  { icon: Rocket, label: "Create Tokens", href: "/create" },
+  { icon: Layers, label: "Create Tokens", href: "/create" },
   { icon: Compass, label: "Discover Projects", href: "/discover" },
   { icon: ShieldCheck, label: "Verify Ownership", href: "/verify" },
   { icon: Users, label: "Build Communities", href: "/discover?section=featured" },
@@ -27,7 +27,7 @@ export function LandingFeatures() {
         style={{ backgroundColor: BRAND_BLUE }}
       >
         <p className="mx-auto max-w-2xl text-center text-base font-medium text-white sm:text-lg">
-          The official token launch &amp; discovery platform for the IOPn ecosystem.
+          Trust &amp; growth infrastructure for the IOPn ecosystem.
         </p>
 
         <div className="mt-8 grid grid-cols-2 gap-3 sm:mt-10 sm:gap-4 md:grid-cols-3">

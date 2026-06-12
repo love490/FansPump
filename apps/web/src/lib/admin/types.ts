@@ -18,6 +18,7 @@ export type AdminPermission =
   | "announcements"
   | "staking"
   | "trust_panel"
+  | "v2_platform"
   | "write";
 
 export type AdminRole = "SUPER_ADMIN" | "MODERATOR" | "SUPPORT" | "VIEWER";

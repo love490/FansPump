@@ -3,6 +3,9 @@ import { prisma } from "@iopn/database";
 import { isAddress } from "viem";
 import { mapTokenListRow, tokenListSelect } from "@/lib/analytics/token-list";
 import { getActiveChainId } from "@/lib/chain-config/opn";
+import { ensureCreatorProfile, resolveCreatorStatus } from "@/lib/v2/reputation";
+import { deriveCreatorBadges } from "@/lib/v2/badges";
+import { getV2FeatureFlags } from "@/lib/v2/feature-flags";
 
 export async function GET(
   _request: NextRequest,
@@ -18,7 +21,10 @@ export async function GET(
   const chainId = getActiveChainId();
 
   try {
-    const [verification, user, tokens, earnings, swapStats, announcementCount] = await Promise.all([
+    await ensureCreatorProfile(wallet);
+
+    const [verification, user, tokens, earnings, swapStats, announcementCount, profile, liquidityAdded] =
+      await Promise.all([
       prisma.creatorVerification.findUnique({ where: { walletAddress: wallet } }),
       prisma.user.findUnique({
         where: { walletAddress: wallet },
@@ -39,7 +45,39 @@ export async function GET(
       prisma.tokenAnnouncement.count({
         where: { creatorWallet: wallet, isHidden: false },
       }),
+      prisma.creatorProfile.findUnique({ where: { walletAddress: wallet } }),
+      prisma.tokenProject.aggregate({
+        where: { creatorAddress: wallet, chainId },
+        _sum: { poolStrength: true },
+      }),
     ]);
+
+    await prisma.creatorProfile.update({
+      where: { walletAddress: wallet },
+      data: { totalViews: { increment: 1 } },
+    }).catch(() => {});
+
+    const flags = getV2FeatureFlags();
+    const walletVerified = !!verification;
+    const creatorStatus = resolveCreatorStatus({
+      profileStatus: profile?.status ?? "ANONYMOUS",
+      walletVerified,
+      reputationScore: profile?.reputationScore ?? 0,
+    });
+
+    const avgTrust =
+      tokens.length > 0
+        ? tokens.reduce((acc, t) => acc + (t.trustScore ?? 0), 0) / tokens.length
+        : 0;
+
+    const creatorBadges = deriveCreatorBadges({
+      badges: profile?.badges ?? [],
+      reputationScore: profile?.reputationScore ?? 0,
+      tokensCreated: tokens.length,
+      joinedAt: profile?.joinedAt ?? tokens[tokens.length - 1]?.createdAt ?? new Date(),
+      walletVerified,
+      status: creatorStatus,
+    });
 
     const creatorEarningsWei = earnings.reduce(
       (acc, row) => acc + BigInt(row.amount || "0"),
@@ -52,7 +90,7 @@ export async function GET(
       profile: {
         walletAddress: wallet,
         username: user?.username ?? null,
-        walletVerified: !!verification,
+        walletVerified,
         verifiedAt: verification?.verifiedAt?.toISOString() ?? null,
         tokensCreated: tokens.length,
         totalVolume,
@@ -62,6 +100,19 @@ export async function GET(
         followers: 0,
         following: 0,
         tokens: tokens.map(mapTokenListRow),
+        ...(flags.creatorProfiles
+          ? {
+              creatorStatus,
+              joinedAt: profile?.joinedAt?.toISOString() ?? null,
+              reputationScore: profile?.reputationScore ?? 0,
+              fansPumpXp: profile?.fansPumpXp ?? 0,
+              totalViews: (profile?.totalViews ?? 0) + 1,
+              avgTrustScore: Math.round(avgTrust),
+              liquidityAdded: liquidityAdded._sum.poolStrength ?? 0,
+              badges: creatorBadges,
+              questsCompleted: profile?.questsCompleted ?? 0,
+            }
+          : {}),
       },
     });
   } catch (e) {

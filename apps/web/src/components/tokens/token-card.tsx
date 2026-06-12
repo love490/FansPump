@@ -1,6 +1,7 @@
 "use client";
 
 import { TokenPreviewCard } from "@/components/tokens/token-preview-card";
+import type { SecurityBadge } from "@/lib/v2/badges";
 
 export interface TokenCardData {
   id: string;
@@ -25,6 +26,9 @@ export interface TokenCardData {
   creatorAddress?: string;
   creatorUsername?: string | null;
   marketCap?: number | null;
+  trustScore?: number;
+  contractVerified?: boolean;
+  badges?: SecurityBadge[];
 }
 
 /** Launchpad-style token card — shared across discover, lists, and dashboards. */

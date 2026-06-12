@@ -6,6 +6,9 @@ import Link from "next/link";
 import { TokenCard, type TokenCardData } from "@/components/tokens/token-card";
 import { tokenCardGridClass } from "@/components/tokens/token-card-styles";
 import { VerifiedCreatorBadge } from "@/components/creator/verified-creator-badge";
+import { SecurityBadges } from "@/components/v2/security-badges";
+import { CreatorQuestSection } from "@/components/v2/creator-quest-section";
+import type { SecurityBadge } from "@/lib/v2/badges";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { shortenAddress } from "@/lib/utils";
@@ -25,6 +28,26 @@ type CreatorProfile = {
   followers: number;
   following: number;
   tokens: TokenCardData[];
+  creatorStatus?: string;
+  joinedAt?: string | null;
+  reputationScore?: number;
+  fansPumpXp?: number;
+  totalViews?: number;
+  avgTrustScore?: number;
+  liquidityAdded?: number;
+  badges?: SecurityBadge[];
+  questsCompleted?: number;
+};
+
+type Quest = {
+  id: string;
+  title: string;
+  description: string;
+  questType: string;
+  targetUrl?: string | null;
+  rewardXp: number;
+  rewardReputation: number;
+  completions: number;
 };
 
 type Announcement = {
@@ -41,20 +64,27 @@ export default function CreatorProfilePage() {
   const wallet = (params.wallet as string)?.toLowerCase();
   const [profile, setProfile] = useState<CreatorProfile | null>(null);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [quests, setQuests] = useState<Quest[]>([]);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  function loadProfile() {
     if (!wallet) return;
     Promise.all([
       fetch(`/api/creator/${wallet}`).then((r) => r.json()),
       fetch(`/api/announcements?creatorWallet=${wallet}&limit=10`).then((r) => r.json()),
+      fetch(`/api/quests?creator=${wallet}`).then((r) => r.json()),
     ])
-      .then(([profileData, annData]) => {
+      .then(([profileData, annData, questData]) => {
         if (profileData.error) throw new Error(profileData.error);
         setProfile(profileData.profile);
         setAnnouncements(annData.announcements ?? []);
+        setQuests(questData.quests ?? []);
       })
       .catch((e) => setError(e instanceof Error ? e.message : "Failed to load profile"));
+  }
+
+  useEffect(() => {
+    loadProfile();
   }, [wallet]);
 
   if (error) {
@@ -85,6 +115,14 @@ export default function CreatorProfilePage() {
             Verified {new Date(profile.verifiedAt).toLocaleDateString()}
           </p>
         )}
+        {profile.badges && profile.badges.length > 0 && (
+          <SecurityBadges badges={profile.badges} size="md" className="mt-3" max={6} />
+        )}
+        {profile.creatorStatus && (
+          <Badge variant="outline" className="mt-2 capitalize">
+            {profile.creatorStatus.toLowerCase()} Creator
+          </Badge>
+        )}
       </header>
 
       <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -96,6 +134,30 @@ export default function CreatorProfilePage() {
             </p>
           </CardContent>
         </Card>
+        {profile.reputationScore != null && (
+          <Card>
+            <CardContent className="pt-6">
+              <p className="text-xs text-muted-foreground">Reputation</p>
+              <p className="text-2xl font-bold">{profile.reputationScore}</p>
+            </CardContent>
+          </Card>
+        )}
+        {profile.avgTrustScore != null && (
+          <Card>
+            <CardContent className="pt-6">
+              <p className="text-xs text-muted-foreground">Avg Trust Score</p>
+              <p className="text-2xl font-bold">{profile.avgTrustScore}/100</p>
+            </CardContent>
+          </Card>
+        )}
+        {profile.liquidityAdded != null && (
+          <Card>
+            <CardContent className="pt-6">
+              <p className="text-xs text-muted-foreground">Liquidity Added</p>
+              <p className="text-2xl font-bold">{profile.liquidityAdded.toFixed(2)}</p>
+            </CardContent>
+          </Card>
+        )}
         <Card>
           <CardContent className="pt-6">
             <p className="text-xs text-muted-foreground">Total Volume</p>
@@ -119,6 +181,12 @@ export default function CreatorProfilePage() {
           </CardContent>
         </Card>
       </div>
+
+      <CreatorQuestSection
+        creatorWallet={wallet}
+        quests={quests}
+        onRefresh={loadProfile}
+      />
 
       <section className="mb-8">
         <h2 className="mb-4 text-xl font-semibold">Tokens</h2>

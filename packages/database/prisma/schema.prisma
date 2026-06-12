@@ -66,6 +66,25 @@ enum StakingAssetType {
   LP_TOKEN
 }
 
+enum CreatorStatus {
+  ANONYMOUS
+  VERIFIED
+  TRUSTED
+}
+
+enum QuestType {
+  SOCIAL
+  ENGAGEMENT
+  GROWTH
+  COMMUNITY
+}
+
+enum QuestStatus {
+  ACTIVE
+  PAUSED
+  COMPLETED
+}
+
 model User {
   id            String   @id @default(cuid())
   walletAddress String   @unique @map("wallet_address")
@@ -126,6 +145,8 @@ model TokenProject {
   poolStrength    Float    @default(0) @map("pool_strength")
   category        TokenCategory @default(OTHER)
   ownershipRenounced Boolean @default(false) @map("ownership_renounced")
+  trustScore      Float    @default(0) @map("trust_score")
+  trustScoreUpdatedAt DateTime? @map("trust_score_updated_at")
 
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
@@ -140,8 +161,12 @@ model TokenProject {
   poolStats       TokenPoolStats?
   swapActivities  SwapActivity[]
   announcements   TokenAnnouncement[]
+  trustScoreHistory TrustScoreHistory[]
+  dailySnapshots  TokenDailySnapshot[]
+  quests          CreatorQuest[]
 
   @@index([category])
+  @@index([trustScore])
 
   @@index([createdAt])
   @@index([volume24h])
@@ -466,4 +491,97 @@ model PlatformSetting {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   @@map("platform_settings")
+}
+
+/// Off-chain creator reputation profile (auto-created for every token creator).
+model CreatorProfile {
+  walletAddress    String        @id @map("wallet_address")
+  status           CreatorStatus @default(ANONYMOUS)
+  reputationScore  Int           @default(0) @map("reputation_score")
+  fansPumpXp       Int           @default(0) @map("fans_pump_xp")
+  badges           String[]      @default([])
+  isFeatured       Boolean       @default(false) @map("is_featured")
+  totalViews       Int           @default(0) @map("total_views")
+  questsCompleted  Int           @default(0) @map("quests_completed")
+  joinedAt         DateTime      @default(now()) @map("joined_at")
+  updatedAt        DateTime      @updatedAt @map("updated_at")
+
+  quests CreatorQuest[]
+
+  @@index([reputationScore])
+  @@index([fansPumpXp])
+  @@index([isFeatured])
+  @@map("creator_profiles")
+}
+
+model CreatorQuest {
+  id               String      @id @default(cuid())
+  creatorWallet    String      @map("creator_wallet")
+  tokenId          String?     @map("token_id")
+  tokenAddress     String?     @map("token_address")
+  questType        QuestType   @map("quest_type")
+  title            String
+  description      String      @db.Text
+  targetUrl        String?     @map("target_url")
+  targetMetric     String?     @map("target_metric")
+  targetValue      Int?        @map("target_value")
+  rewardXp         Int         @default(10) @map("reward_xp")
+  rewardReputation Int         @default(5) @map("reward_reputation")
+  status           QuestStatus @default(ACTIVE)
+  createdAt        DateTime    @default(now()) @map("created_at")
+  updatedAt        DateTime    @updatedAt @map("updated_at")
+
+  creator     CreatorProfile  @relation(fields: [creatorWallet], references: [walletAddress], onDelete: Cascade)
+  token       TokenProject?   @relation(fields: [tokenId], references: [id], onDelete: SetNull)
+  completions QuestCompletion[]
+
+  @@index([creatorWallet])
+  @@index([tokenId])
+  @@index([status])
+  @@map("creator_quests")
+}
+
+model QuestCompletion {
+  id            String   @id @default(cuid())
+  questId       String   @map("quest_id")
+  walletAddress String   @map("wallet_address")
+  completedAt   DateTime @default(now()) @map("completed_at")
+
+  quest CreatorQuest @relation(fields: [questId], references: [id], onDelete: Cascade)
+
+  @@unique([questId, walletAddress])
+  @@index([walletAddress])
+  @@map("quest_completions")
+}
+
+model TokenDailySnapshot {
+  id             String   @id @default(cuid())
+  tokenId        String   @map("token_id")
+  snapshotDate   DateTime @map("snapshot_date") @db.Date
+  holderCount    Int      @default(0) @map("holder_count")
+  liquidityScore Float    @default(0) @map("liquidity_score")
+  volume24h      Float    @default(0) @map("volume_24h")
+  trustScore     Float    @default(0) @map("trust_score")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  token TokenProject @relation(fields: [tokenId], references: [id], onDelete: Cascade)
+
+  @@unique([tokenId, snapshotDate])
+  @@index([tokenId])
+  @@index([snapshotDate])
+  @@map("token_daily_snapshots")
+}
+
+model TrustScoreHistory {
+  id         String   @id @default(cuid())
+  tokenId    String   @map("token_id")
+  trustScore Float    @map("trust_score")
+  breakdown  Json
+  recordedAt DateTime @default(now()) @map("recorded_at")
+
+  token TokenProject @relation(fields: [tokenId], references: [id], onDelete: Cascade)
+
+  @@index([tokenId])
+  @@index([recordedAt])
+  @@map("trust_score_history")
 }

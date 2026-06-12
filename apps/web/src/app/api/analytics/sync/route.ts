@@ -3,6 +3,8 @@ import { createPublicClient, http } from "viem";
 import { getActiveChainId, opnChain, opnChainConfig } from "@/lib/chain-config/opn";
 import { refreshAllTokenHolderCounts } from "@/lib/analytics/holder-count";
 import { refreshRolling24hMetrics, syncAnalyticsFromChain } from "@/lib/analytics/indexer";
+import { recordDailyMetricsSnapshot, refreshAllTrustScores } from "@/lib/v2/metrics-snapshot";
+import { getV2FeatureFlags } from "@/lib/v2/feature-flags";
 export async function POST(request: NextRequest) {
   const secret = process.env.ANALYTICS_SYNC_SECRET;
   const auth = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
@@ -23,7 +25,13 @@ export async function POST(request: NextRequest) {
     const result = await syncAnalyticsFromChain(client);
     const holders = await refreshAllTokenHolderCounts(client, chainId);
 
-    return NextResponse.json({ ok: true, ...result, holders });
+    const flags = getV2FeatureFlags();
+    const [snapshots, trust] = await Promise.all([
+      recordDailyMetricsSnapshot(chainId),
+      flags.trustScore ? refreshAllTrustScores(chainId) : Promise.resolve({ updated: 0 }),
+    ]);
+
+    return NextResponse.json({ ok: true, ...result, holders, v2Metrics: { snapshots, trust } });
   } catch (e) {
     console.error("[POST /api/analytics/sync]", e);
     return NextResponse.json(

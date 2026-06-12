@@ -1,5 +1,6 @@
 import type { Prisma } from "@iopn/database";
 import { weiToOpnFloat } from "@/lib/analytics/fee-split";
+import { deriveTokenBadges } from "@/lib/v2/badges";
 
 /** Shared token select for discovery / list APIs (backward compatible). */
 export const tokenListSelect = {
@@ -24,6 +25,8 @@ export const tokenListSelect = {
   poolStrength: true,
   category: true,
   ownershipRenounced: true,
+  trustScore: true,
+  verificationStatus: true,
   creator: { select: { username: true, verification: { select: { id: true } } } },
   liquidityLocks: { select: { id: true }, take: 1 },
   lpBurns: { select: { id: true }, take: 1 },
@@ -66,6 +69,8 @@ export function mapTokenListRow(t: {
   poolStrength: number;
   category?: string;
   ownershipRenounced?: boolean;
+  trustScore?: number;
+  verificationStatus?: string;
   creator?: { username: string | null; verification: { id: string } | null } | null;
   liquidityLocks?: { id: string }[];
   lpBurns?: { id: string }[];
@@ -98,5 +103,14 @@ export function mapTokenListRow(t: {
     liquidityLocked:
       (t.liquidityLocks?.length ?? 0) > 0 || (t.lpBurns?.length ?? 0) > 0,
     creatorVerified: !!t.creator?.verification,
+    trustScore: t.trustScore ?? 0,
+    contractVerified: t.verificationStatus === "APPROVED",
+    badges: deriveTokenBadges({
+      liquidityLocked: (t.liquidityLocks?.length ?? 0) > 0,
+      liquidityBurned: (t.lpBurns?.length ?? 0) > 0,
+      ownershipRenounced: t.ownershipRenounced ?? false,
+      contractVerified: t.verificationStatus === "APPROVED",
+      trustScore: t.trustScore ?? 0,
+    }),
   };
 }

@@ -25,6 +25,7 @@ const ALL_PERMISSIONS: AdminPermission[] = [
   "announcements",
   "staking",
   "trust_panel",
+  "v2_platform",
   "write",
 ];
 
@@ -49,6 +50,7 @@ const ROLE_PERMISSIONS: Record<AdminRole, AdminPermission[]> = {
     "announcements",
     "staking",
     "trust_panel",
+    "v2_platform",
     "write",
   ],
   MODERATOR: [
@@ -60,6 +62,7 @@ const ROLE_PERMISSIONS: Record<AdminRole, AdminPermission[]> = {
     "categories",
     "announcements",
     "activity_logs",
+    "v2_platform",
     "write",
   ],
   SUPPORT: ["overview", "analytics", "creator_earnings", "activity_logs"],

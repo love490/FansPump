@@ -9,6 +9,7 @@ import { motion } from "framer-motion";
 import type { TokenCardData } from "@/components/tokens/token-card";
 import { TokenLogo } from "@/components/tokens/token-logo";
 import { tokenCardShellClass } from "@/components/tokens/token-card-styles";
+import { SecurityBadges } from "@/components/v2/security-badges";
 
 type MetricCellProps = {
   label: string;
@@ -133,6 +134,19 @@ export function TokenPreviewCard({
                 {creator}
               </span>
             </p>
+
+            {(token.badges?.length || token.trustScore != null) && (
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                {token.trustScore != null && token.trustScore > 0 && (
+                  <span className="rounded-md bg-primary/10 px-2 py-0.5 text-[10px] font-bold tabular-nums text-primary md:text-xs">
+                    Trust {Math.round(token.trustScore)}
+                  </span>
+                )}
+                {token.badges && token.badges.length > 0 && (
+                  <SecurityBadges badges={token.badges} max={3} />
+                )}
+              </div>
+            )}
 
             <div className="mt-auto grid grid-cols-4 gap-2 border-t border-border/50 pt-3 md:gap-3 md:pt-4">
               <MetricCell label="Liquidity" value={liquidity} />

@@ -96,11 +96,24 @@ export async function GET(request: NextRequest) {
         ? { viewCount: "desc" as const }
         : section === "holders"
           ? { holderCount: "desc" as const }
-          : section === "updated"
-            ? { updatedAt: "desc" as const }
-            : section === "featured"
-              ? undefined
-              : { createdAt: "desc" as const };
+          : section === "most-trusted"
+            ? { trustScore: "desc" as const }
+            : section === "fastest-growing"
+              ? [{ holderCount: "desc" as const }, { trendingScore: "desc" as const }]
+              : section === "recently-verified"
+                ? { verificationSubmittedAt: "desc" as const }
+                : section === "updated"
+                  ? { updatedAt: "desc" as const }
+                  : section === "featured"
+                    ? undefined
+                    : { createdAt: "desc" as const };
+
+  const sectionFilterExtra: Prisma.TokenProjectWhereInput | undefined =
+    section === "recently-verified"
+      ? { verificationStatus: "APPROVED" }
+      : section === "top-builders"
+        ? undefined
+        : undefined;
 
   const searchFilter: Prisma.TokenProjectWhereInput | undefined = q
     ? {
@@ -113,7 +126,11 @@ export async function GET(request: NextRequest) {
     : undefined;
 
   const sectionFilter: Prisma.TokenProjectWhereInput | undefined =
-    creatorNormalized || q ? undefined : section === "featured" ? { isFeatured: true } : undefined;
+    creatorNormalized || q
+      ? undefined
+      : section === "featured"
+        ? { isFeatured: true }
+        : sectionFilterExtra;
 
   const creatorFilter: Prisma.TokenProjectWhereInput | undefined = creatorNormalized
     ? { creatorAddress: creatorNormalized }
@@ -127,6 +144,27 @@ export async function GET(request: NextRequest) {
     filters.length === 0 ? chainFilter : filters.length === 1 ? filters[0] : { AND: filters };
 
   try {
+    if (section === "top-builders" && !creatorNormalized && !q) {
+      const topCreators = await prisma.creatorProfile.findMany({
+        orderBy: [{ reputationScore: "desc" }, { fansPumpXp: "desc" }],
+        take: 30,
+        select: { walletAddress: true },
+      });
+      const topWallets = topCreators.map((c) => c.walletAddress);
+      const topBuilderWhere: Prisma.TokenProjectWhereInput =
+        topWallets.length > 0
+          ? { AND: [chainFilter, { creatorAddress: { in: topWallets } }] }
+          : chainFilter;
+
+      const tokens = await prisma.tokenProject.findMany({
+        where: topBuilderWhere,
+        orderBy: { createdAt: "desc" },
+        take: limit,
+        select: tokenListSelect,
+      });
+      return NextResponse.json({ tokens: tokens.map(mapTokenListRow), section });
+    }
+
     const tokens = await prisma.tokenProject.findMany({
       where,
       orderBy: q ? { createdAt: "desc" as const } : (orderBy ?? { createdAt: "desc" }),

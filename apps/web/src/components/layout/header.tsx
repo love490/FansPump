@@ -10,11 +10,10 @@ import { FansPumpLogo } from "@/components/brand/fans-pump-logo";
 
 const nav = [
   { href: "/discover", label: "Discover" },
+  { href: "/leaderboard", label: "Builders" },
   { href: "/create", label: "Create Token" },
   { href: "/swap", label: "Swap" },
-  { href: "/watchlist", label: "Watchlist" },
-  { href: "/verify", label: "Verify" },
-  { href: "/docs", label: "Docs" },
+  { href: "/app", label: "Launch App" },
 ];
 
 export function Header() {

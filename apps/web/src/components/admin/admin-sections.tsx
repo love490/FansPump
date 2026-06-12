@@ -888,6 +888,127 @@ export function TrustPanelConfigSection() {
   );
 }
 
+export function V2PlatformSection() {
+  const [tab, setTab] = useState<"flags" | "creators" | "quests" | "analytics">("flags");
+  const [flags, setFlags] = useState<{ envDefaults: Record<string, boolean>; overrides: Record<string, boolean>; effective: Record<string, boolean> } | null>(null);
+  const [v2Data, setV2Data] = useState<{ creators: { walletAddress: string; reputationScore: number; status: string; isFeatured: boolean }[]; quests: { id: string; title: string; status: string; completions: number }[]; analytics: { dailySnapshots: number; trustHistoryEntries: number } } | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    adminFetch("/api/admin/settings/v2/feature-flags").then((r) => r.json()).then(setFlags);
+    adminFetch("/api/admin/v2").then((r) => r.json()).then(setV2Data);
+  }, []);
+
+  const tabs = [
+    { id: "flags" as const, label: "Feature Flags" },
+    { id: "creators" as const, label: "Creator Management" },
+    { id: "quests" as const, label: "Quest Management" },
+    { id: "analytics" as const, label: "Analytics Overview" },
+  ];
+
+  return (
+    <div className="space-y-6">
+      <h2 className="text-2xl font-bold">V2 Platform — Trust & Growth</h2>
+      <div className="flex flex-wrap gap-2">
+        {tabs.map((t) => (
+          <Button key={t.id} variant={tab === t.id ? "default" : "outline"} size="sm" onClick={() => setTab(t.id)}>
+            {t.label}
+          </Button>
+        ))}
+      </div>
+
+      {tab === "flags" && flags && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Feature Flags</CardTitle>
+            <CardDescription>Override env defaults for V2 modules (visibility only — never blocks token creation).</CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-3 sm:grid-cols-2">
+            {Object.entries(flags.effective).map(([key, val]) => (
+              <label key={key} className="flex items-center gap-2 text-sm capitalize">
+                <input
+                  type="checkbox"
+                  checked={flags.overrides[key as keyof typeof flags.overrides] ?? val}
+                  onChange={(e) =>
+                    setFlags({
+                      ...flags,
+                      overrides: { ...flags.overrides, [key]: e.target.checked },
+                    })
+                  }
+                />
+                {key.replace(/([A-Z])/g, " $1")}
+              </label>
+            ))}
+          </CardContent>
+          <CardContent>
+            <SaveButton
+              saving={saving}
+              onClick={async () => {
+                setSaving(true);
+                await adminFetch("/api/admin/settings/v2/feature-flags", {
+                  method: "PATCH",
+                  body: JSON.stringify({ overrides: flags.overrides }),
+                });
+                setSaving(false);
+              }}
+            />
+          </CardContent>
+        </Card>
+      )}
+
+      {tab === "creators" && v2Data && (
+        <Card>
+          <CardHeader><CardTitle>Creator Management</CardTitle></CardHeader>
+          <CardContent className="space-y-2 text-sm">
+            {v2Data.creators.map((c) => (
+              <div key={c.walletAddress} className="flex flex-wrap items-center justify-between gap-2 border-b py-2">
+                <Link href={`/creator/${c.walletAddress}`} className="font-mono hover:text-primary">
+                  {c.walletAddress.slice(0, 10)}…
+                </Link>
+                <span>Rep {c.reputationScore}</span>
+                <Badge variant="outline">{c.status}</Badge>
+                {c.isFeatured && <Badge>Featured</Badge>}
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
+      {tab === "quests" && v2Data && (
+        <Card>
+          <CardHeader><CardTitle>Quest Management</CardTitle></CardHeader>
+          <CardContent className="space-y-2 text-sm">
+            {v2Data.quests.map((q) => (
+              <div key={q.id} className="flex flex-wrap items-center justify-between gap-2 border-b py-2">
+                <span className="font-medium">{q.title}</span>
+                <Badge variant="secondary">{q.status}</Badge>
+                <span>{q.completions} completions</span>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
+      {tab === "analytics" && v2Data && (
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Card>
+            <CardContent className="pt-6">
+              <p className="text-xs text-muted-foreground">Daily Snapshots Collected</p>
+              <p className="text-2xl font-bold">{v2Data.analytics.dailySnapshots}</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-6">
+              <p className="text-xs text-muted-foreground">Trust Score History Entries</p>
+              <p className="text-2xl font-bold">{v2Data.analytics.trustHistoryEntries}</p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function AdminSectionRouter({ section }: { section: string }) {
   const { can } = useAdmin();
   const map: Record<string, { perm: Parameters<typeof can>[0]; Component: React.ComponentType }> = {
@@ -900,6 +1021,7 @@ export function AdminSectionRouter({ section }: { section: string }) {
     announcements: { perm: "announcements", Component: AnnouncementsModerationSection },
     staking: { perm: "staking", Component: StakingConfigSection },
     "trust-panel": { perm: "trust_panel", Component: TrustPanelConfigSection },
+    "v2-platform": { perm: "v2_platform", Component: V2PlatformSection },
     discovery: { perm: "discovery", Component: DiscoverySection },
     analytics: { perm: "analytics", Component: AnalyticsSection },
     "creator-earnings": { perm: "creator_earnings", Component: CreatorEarningsSection },

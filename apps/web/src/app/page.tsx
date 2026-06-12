@@ -2,13 +2,13 @@ import type { Metadata } from "next";
 import { LandingPage } from "@/components/landing/landing-page";
 
 export const metadata: Metadata = {
-  title: "FansPump — Token Launch & Discovery on OPNChain",
+  title: "FansPump — Trust & Growth Platform on OPNChain",
   description:
-    "The official token launch and discovery platform for the IOPn ecosystem. Create tokens, verify ownership, swap, and grow your community on OPNChain.",
+    "Create tokens, discover projects, evaluate trust, and track builders on the IOPn ecosystem. The trust & growth infrastructure for OPNChain.",
   openGraph: {
-    title: "FansPump — Token Launch & Discovery",
+    title: "FansPump — Trust & Growth on OPNChain",
     description:
-      "Create tokens, discover projects, and grow your community on OPNChain.",
+      "Launch tokens. Build communities. Earn trust — on the IOPn ecosystem.",
     type: "website",
   },
 };

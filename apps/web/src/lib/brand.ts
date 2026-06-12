@@ -1,2 +1,2 @@
-/** Brand blue for landing banners and hero CTA (matches logo-brand background). */
-export const BRAND_BLUE = "#0f42a8";
+/** Brand blue for landing banners and hero CTA (IOPn submission palette). */
+export const BRAND_BLUE = "#1E5BFF";
