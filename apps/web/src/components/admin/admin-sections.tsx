@@ -5,6 +5,7 @@ import Link from "next/link";
 import { adminFetch } from "@/lib/admin-session";
 import { useAdmin } from "@/components/admin/admin-context";
 import { FactoryControls } from "@/components/admin/factory-controls";
+import { AdminAccountSection } from "@/components/admin/admin-account-section";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -358,13 +359,8 @@ export function AnalyticsSection() {
     adminFetch("/api/admin/analytics").then((r) => r.json()).then((d) => setAnalytics(d.analytics));
   }, []);
   const exportCsv = async () => {
-    const session = (await import("@/lib/admin-session")).getAdminSession();
-    if (!session) return;
     const u = new URL("/api/admin/analytics", window.location.origin);
     u.searchParams.set("format", "csv");
-    u.searchParams.set("walletAddress", session.walletAddress);
-    u.searchParams.set("signature", session.signature);
-    u.searchParams.set("message", session.message);
     window.open(u.toString(), "_blank");
   };
   if (!analytics) return null;
@@ -607,7 +603,9 @@ export function ActivityLogsSection() {
 
 export function RolesSection() {
   const { role } = useAdmin();
-  const [admins, setAdmins] = useState<{ walletAddress: string; role: string }[]>([]);
+  const [admins, setAdmins] = useState<
+    { id: string; email: string; role: string; twoFactorEnabled: boolean; lastLogin: string | null }[]
+  >([]);
   useEffect(() => {
     if (role === "SUPER_ADMIN") {
       adminFetch("/api/admin/roles").then((r) => r.json()).then((d) => setAdmins(d.admins ?? []));
@@ -616,21 +614,34 @@ export function RolesSection() {
   if (role !== "SUPER_ADMIN") return <p className="text-muted-foreground">Super admin access required.</p>;
   return (
     <div className="space-y-4">
-      <h2 className="text-2xl font-bold">Admin Roles</h2>
+      <h2 className="text-2xl font-bold">Platform Admins</h2>
       <div className="overflow-x-auto rounded-lg border">
         <table className="w-full text-sm">
-          <thead className="border-b bg-muted/50"><tr><th className="p-3 text-left">Wallet</th><th className="p-3 text-left">Role</th></tr></thead>
+          <thead className="border-b bg-muted/50">
+            <tr>
+              <th className="p-3 text-left">Email</th>
+              <th className="p-3 text-left">Role</th>
+              <th className="p-3 text-left">2FA</th>
+              <th className="p-3 text-left">Last login</th>
+            </tr>
+          </thead>
           <tbody>
             {admins.map((a) => (
-              <tr key={a.walletAddress} className="border-b">
-                <td className="p-3 font-mono text-xs">{a.walletAddress}</td>
-                <td className="p-3"><Badge>{a.role}</Badge></td>
+              <tr key={a.id} className="border-b">
+                <td className="p-3">{a.email}</td>
+                <td className="p-3"><Badge>{a.role.replace("_", " ")}</Badge></td>
+                <td className="p-3">{a.twoFactorEnabled ? "Enabled" : "Off"}</td>
+                <td className="p-3 text-xs text-muted-foreground">
+                  {a.lastLogin ? new Date(a.lastLogin).toLocaleString() : "—"}
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-      <p className="text-xs text-muted-foreground">Set roles via ADMIN_ROLE_MAP env (wallet:ROLE) or database. Super Admin has full access.</p>
+      <p className="text-xs text-muted-foreground">
+        Super admins can create additional admins via POST /api/admin/admins. Roles: Super Admin, Admin, Moderator.
+      </p>
     </div>
   );
 }
@@ -897,6 +908,7 @@ export function AdminSectionRouter({ section }: { section: string }) {
     security: { perm: "security", Component: SecuritySection },
     system: { perm: "system", Component: SystemSection },
     factory: { perm: "factory", Component: FactorySection },
+    account: { perm: "overview", Component: AdminAccountSection },
     "activity-logs": { perm: "activity_logs", Component: ActivityLogsSection },
     roles: { perm: "roles", Component: RolesSection },
   };

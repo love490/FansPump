@@ -20,6 +20,7 @@ enum EarningType {
 
 enum AdminRole {
   SUPER_ADMIN
+  ADMIN
   MODERATOR
   SUPPORT
   VIEWER
@@ -333,14 +334,58 @@ model AdminProfile {
   @@map("admin_profiles")
 }
 
+model Admin {
+  id                   String    @id @default(cuid())
+  email                String    @unique
+  passwordHash         String    @map("password_hash")
+  role                 AdminRole @default(ADMIN)
+  twoFactorEnabled     Boolean   @default(false) @map("two_factor_enabled")
+  twoFactorSecret      String?   @map("two_factor_secret")
+  twoFactorBackupCodes String[]  @default([]) @map("two_factor_backup_codes")
+  passwordResetToken   String?   @map("password_reset_token")
+  passwordResetExpires DateTime? @map("password_reset_expires")
+  lastLogin            DateTime? @map("last_login")
+  createdAt            DateTime  @default(now()) @map("created_at")
+  updatedAt            DateTime  @updatedAt @map("updated_at")
+
+  sessions     AdminSession[]
+  activityLogs AdminActivityLog[]
+
+  @@map("admins")
+}
+
+model AdminSession {
+  id         String   @id @default(cuid())
+  adminId    String   @map("admin_id")
+  tokenHash  String   @unique @map("token_hash")
+  csrfToken  String   @map("csrf_token")
+  pending2FA Boolean  @default(false) @map("pending_2fa")
+  expiresAt  DateTime @map("expires_at")
+  ipAddress  String?  @map("ip_address")
+  userAgent  String?  @map("user_agent")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  admin Admin @relation(fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@index([adminId])
+  @@index([expiresAt])
+  @@map("admin_sessions")
+}
+
 model AdminActivityLog {
   id          String   @id @default(cuid())
-  adminWallet String   @map("admin_wallet")
+  adminId     String?  @map("admin_id")
+  adminEmail  String   @default("unknown") @map("admin_email")
+  adminWallet String?  @map("admin_wallet")
   action      String
   details     Json?
   ipAddress   String?  @map("ip_address")
   createdAt   DateTime @default(now()) @map("created_at")
 
+  admin Admin? @relation(fields: [adminId], references: [id], onDelete: SetNull)
+
+  @@index([adminId])
+  @@index([adminEmail])
   @@index([adminWallet])
   @@index([createdAt])
   @@index([action])

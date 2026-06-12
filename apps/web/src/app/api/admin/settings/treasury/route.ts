@@ -8,9 +8,6 @@ import { platformSettings, type TreasuryConfig } from "@/lib/admin/platform-sett
 const addressSchema = z.string().regex(/^0x[a-fA-F0-9]{40}$/i).or(z.literal(""));
 
 const schema = z.object({
-  walletAddress: z.string(),
-  signature: z.string(),
-  message: z.string(),
   treasury: z.object({
     treasuryWallet: addressSchema,
     revenueWallet: addressSchema,
@@ -34,10 +31,10 @@ export async function GET(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
-    const { wallet, parsedBody } = await requirePermission(request, "treasury", "PATCH");
+    const { email, admin, parsedBody } = await requirePermission(request, "treasury", "PATCH");
     const { treasury } = schema.parse(parsedBody);
-    await platformSettings.setTreasury(treasury as TreasuryConfig, wallet);
-    await logAdminAction(wallet, "WALLET_CHANGE", { section: "treasury", treasury }, request);
+    await platformSettings.setTreasury(treasury as TreasuryConfig, email);
+    await logAdminAction(email, "WALLET_CHANGE", { section: "treasury", treasury }, request, admin.id);
     return NextResponse.json({ ok: true, treasury });
   } catch (e) {
     if (e instanceof AdminAuthError) {

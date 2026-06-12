@@ -6,9 +6,6 @@ import { logAdminAction } from "@/lib/admin/audit-log";
 import { platformSettings, type CreationFeesConfig } from "@/lib/admin/platform-settings";
 
 const schema = z.object({
-  walletAddress: z.string(),
-  signature: z.string(),
-  message: z.string(),
   fees: z.object({
     baseFee: z.number().min(0),
     burnable: z.number().min(0),
@@ -38,10 +35,10 @@ export async function GET(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
-    const { wallet, parsedBody } = await requirePermission(request, "creation_fees", "PATCH");
+    const { email, admin, parsedBody } = await requirePermission(request, "creation_fees", "PATCH");
     const { fees } = schema.parse(parsedBody);
-    await platformSettings.setCreationFees(fees as CreationFeesConfig, wallet);
-    await logAdminAction(wallet, "FEE_CHANGE", { section: "creation_fees", fees }, request);
+    await platformSettings.setCreationFees(fees as CreationFeesConfig, email);
+    await logAdminAction(email, "FEE_CHANGE", { section: "creation_fees", fees }, request, admin.id);
     return NextResponse.json({ ok: true, fees });
   } catch (e) {
     if (e instanceof AdminAuthError) {

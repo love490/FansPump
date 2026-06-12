@@ -1,15 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { AdminAuthError } from "@/lib/admin-auth";
-import { requireAdminFromQuery } from "@/lib/admin/api-auth";
+import { requireAdminSession } from "@/lib/admin/api-auth";
 import { getRolePermissions } from "@/lib/admin/roles";
 
 export async function GET(request: NextRequest) {
   try {
-    const { wallet, role } = await requireAdminFromQuery(request);
+    const { admin, csrfToken } = await requireAdminSession(request);
     return NextResponse.json({
-      wallet,
-      role,
-      permissions: getRolePermissions(role),
+      email: admin.email,
+      role: admin.role,
+      permissions: getRolePermissions(admin.role),
+      csrfToken,
+      twoFactorEnabled: admin.twoFactorEnabled,
     });
   } catch (e) {
     if (e instanceof AdminAuthError) {

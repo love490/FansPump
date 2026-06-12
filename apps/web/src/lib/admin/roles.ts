@@ -1,6 +1,5 @@
 import type { AdminRole } from "@iopn/database";
 import { prisma } from "@iopn/database";
-import { isAdminWallet } from "@/lib/admin";
 import type { AdminPermission } from "@/lib/admin/types";
 
 export type { AdminPermission } from "@/lib/admin/types";
@@ -31,6 +30,27 @@ const ALL_PERMISSIONS: AdminPermission[] = [
 
 const ROLE_PERMISSIONS: Record<AdminRole, AdminPermission[]> = {
   SUPER_ADMIN: ALL_PERMISSIONS,
+  ADMIN: [
+    "overview",
+    "creation_fees",
+    "trading_fees",
+    "treasury",
+    "verification",
+    "discovery",
+    "analytics",
+    "creator_earnings",
+    "pool_share",
+    "bridge",
+    "security",
+    "system",
+    "activity_logs",
+    "factory",
+    "categories",
+    "announcements",
+    "staking",
+    "trust_panel",
+    "write",
+  ],
   MODERATOR: [
     "overview",
     "verification",
@@ -54,72 +74,52 @@ export function getRolePermissions(role: AdminRole): AdminPermission[] {
   return [...ROLE_PERMISSIONS[role]];
 }
 
-function roleFromEnv(wallet: string): AdminRole | null {
-  const raw = process.env.ADMIN_ROLE_MAP ?? "";
-  for (const entry of raw.split(",")) {
-    const [addr, role] = entry.split(":").map((s) => s.trim());
-    if (addr?.toLowerCase() === wallet.toLowerCase() && role) {
-      const upper = role.toUpperCase() as AdminRole;
-      if (["SUPER_ADMIN", "MODERATOR", "SUPPORT", "VIEWER"].includes(upper)) return upper;
-    }
-  }
-  return null;
-}
-
-export async function getAdminRole(wallet: string): Promise<AdminRole | null> {
-  const normalized = wallet.toLowerCase();
-  if (!isAdminWallet(normalized)) return null;
-
-  const profile = await prisma.adminProfile.findUnique({
-    where: { walletAddress: normalized },
-  });
-  if (profile) return profile.role;
-
-  return roleFromEnv(normalized) ?? "SUPER_ADMIN";
-}
-
-export async function ensureAdminProfile(wallet: string): Promise<AdminRole> {
-  const normalized = wallet.toLowerCase();
-  const role = (await getAdminRole(normalized)) ?? "SUPER_ADMIN";
-
-  await prisma.adminProfile.upsert({
-    where: { walletAddress: normalized },
-    create: { walletAddress: normalized, role },
-    update: {},
+export async function listAdmins() {
+  const admins = await prisma.admin.findMany({
+    orderBy: { createdAt: "asc" },
+    select: {
+      id: true,
+      email: true,
+      role: true,
+      twoFactorEnabled: true,
+      lastLogin: true,
+      createdAt: true,
+    },
   });
 
-  return role;
+  return admins.map((admin) => ({
+    id: admin.id,
+    email: admin.email,
+    role: admin.role,
+    twoFactorEnabled: admin.twoFactorEnabled,
+    lastLogin: admin.lastLogin?.toISOString() ?? null,
+    createdAt: admin.createdAt.toISOString(),
+  }));
 }
 
-export async function setAdminRole(
-  wallet: string,
-  role: AdminRole,
-  updatedBy: string
-): Promise<void> {
-  const normalized = wallet.toLowerCase();
-  if (!isAdminWallet(normalized)) {
-    throw new Error("Wallet is not in admin allowlist");
-  }
-  await prisma.adminProfile.upsert({
-    where: { walletAddress: normalized },
-    create: { walletAddress: normalized, role },
-    update: { role },
+export async function setAdminRoleById(adminId: string, role: AdminRole): Promise<void> {
+  await prisma.admin.update({
+    where: { id: adminId },
+    data: { role },
   });
 }
 
+export async function createAdminAccount(
+  email: string,
+  passwordHash: string,
+  role: AdminRole
+) {
+  return prisma.admin.create({
+    data: {
+      email: email.toLowerCase(),
+      passwordHash,
+      role,
+    },
+    select: { id: true, email: true, role: true },
+  });
+}
+
+/** Legacy wallet admin profiles — kept for migration reference only. */
 export async function listAdminProfiles() {
-  const wallets = process.env.ADMIN_WALLET_ADDRESSES?.split(",").map((w) => w.trim().toLowerCase()) ?? [];
-  const profiles = await prisma.adminProfile.findMany();
-  const profileMap = new Map(profiles.map((p) => [p.walletAddress, p]));
-
-  return wallets
-    .filter((w) => /^0x[a-f0-9]{40}$/.test(w))
-    .map((wallet) => {
-      const p = profileMap.get(wallet);
-      return {
-        walletAddress: wallet,
-        role: p?.role ?? roleFromEnv(wallet) ?? "SUPER_ADMIN",
-        createdAt: p?.createdAt?.toISOString() ?? null,
-      };
-    });
+  return listAdmins();
 }

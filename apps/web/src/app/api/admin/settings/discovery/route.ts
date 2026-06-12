@@ -6,9 +6,6 @@ import { logAdminAction } from "@/lib/admin/audit-log";
 import { platformSettings, type DiscoveryConfig } from "@/lib/admin/platform-settings";
 
 const schema = z.object({
-  walletAddress: z.string(),
-  signature: z.string(),
-  message: z.string(),
   discovery: z.object({
     volumeWeight: z.number().min(0).max(100),
     txCountWeight: z.number().min(0).max(100),
@@ -32,10 +29,10 @@ export async function GET(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
-    const { wallet, parsedBody } = await requirePermission(request, "discovery", "PATCH");
+    const { email, admin, parsedBody } = await requirePermission(request, "discovery", "PATCH");
     const { discovery } = schema.parse(parsedBody);
-    await platformSettings.setDiscovery(discovery as DiscoveryConfig, wallet);
-    await logAdminAction(wallet, "SETTINGS_UPDATE", { section: "discovery", discovery }, request);
+    await platformSettings.setDiscovery(discovery as DiscoveryConfig, email);
+    await logAdminAction(email, "SETTINGS_UPDATE", { section: "discovery", discovery }, request, admin.id);
     return NextResponse.json({ ok: true, discovery });
   } catch (e) {
     if (e instanceof AdminAuthError) {

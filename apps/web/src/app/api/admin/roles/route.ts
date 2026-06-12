@@ -2,17 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import type { AdminRole } from "@iopn/database";
 import { AdminAuthError } from "@/lib/admin-auth";
-import { requireAdminFromBody, requirePermission } from "@/lib/admin/api-auth";
-import { roleHasPermission } from "@/lib/admin/roles";
+import { requirePermission } from "@/lib/admin/api-auth";
 import { logAdminAction } from "@/lib/admin/audit-log";
-import { listAdminProfiles, setAdminRole } from "@/lib/admin/roles";
+import { listAdmins, setAdminRoleById } from "@/lib/admin/roles";
 
 const patchSchema = z.object({
-  walletAddress: z.string(),
-  signature: z.string(),
-  message: z.string(),
-  targetWallet: z.string().regex(/^0x[a-fA-F0-9]{40}$/i),
-  role: z.enum(["SUPER_ADMIN", "MODERATOR", "SUPPORT", "VIEWER"]),
+  adminId: z.string().min(1),
+  role: z.enum(["SUPER_ADMIN", "ADMIN", "MODERATOR", "SUPPORT", "VIEWER"]),
 });
 
 export async function GET(request: NextRequest) {
@@ -21,7 +17,7 @@ export async function GET(request: NextRequest) {
     if (role !== "SUPER_ADMIN") {
       return NextResponse.json({ error: "Super admin only" }, { status: 403 });
     }
-    const admins = await listAdminProfiles();
+    const admins = await listAdmins();
     return NextResponse.json({ admins });
   } catch (e) {
     if (e instanceof AdminAuthError) {
@@ -33,17 +29,13 @@ export async function GET(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { wallet, role: callerRole } = await requireAdminFromBody(body);
-    if (!roleHasPermission(callerRole, "roles")) {
-      return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
-    }
-    if (callerRole !== "SUPER_ADMIN") {
+    const ctx = await requirePermission(request, "roles", "PATCH");
+    if (ctx.role !== "SUPER_ADMIN") {
       return NextResponse.json({ error: "Super admin only" }, { status: 403 });
     }
-    const { targetWallet, role } = patchSchema.parse(body);
-    await setAdminRole(targetWallet, role as AdminRole, wallet);
-    await logAdminAction(wallet, "ROLE_CHANGE", { targetWallet, role }, request);
+    const { adminId, role } = patchSchema.parse(ctx.parsedBody);
+    await setAdminRoleById(adminId, role as AdminRole);
+    await logAdminAction(ctx.email, "ROLE_CHANGE", { adminId, role }, request, ctx.admin.id);
     return NextResponse.json({ ok: true });
   } catch (e) {
     if (e instanceof AdminAuthError) {

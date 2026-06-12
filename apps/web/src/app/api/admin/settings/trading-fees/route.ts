@@ -6,9 +6,6 @@ import { logAdminAction } from "@/lib/admin/audit-log";
 import { platformSettings, type TradingFeesConfig } from "@/lib/admin/platform-settings";
 
 const schema = z.object({
-  walletAddress: z.string(),
-  signature: z.string(),
-  message: z.string(),
   fees: z.object({
     totalTradingFeeBps: z.number().min(0).max(10_000),
     creatorShareBps: z.number().min(0).max(10_000),
@@ -32,7 +29,7 @@ export async function GET(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
-    const { wallet, parsedBody } = await requirePermission(request, "trading_fees", "PATCH");
+    const { email, admin, parsedBody } = await requirePermission(request, "trading_fees", "PATCH");
     const { fees } = schema.parse(parsedBody);
     const sum = fees.creatorShareBps + fees.treasuryShareBps + fees.poolShareBps;
     if (sum !== 10_000) {
@@ -41,8 +38,8 @@ export async function PATCH(request: NextRequest) {
         { status: 400 }
       );
     }
-    await platformSettings.setTradingFees(fees as TradingFeesConfig, wallet);
-    await logAdminAction(wallet, "FEE_CHANGE", { section: "trading_fees", fees }, request);
+    await platformSettings.setTradingFees(fees as TradingFeesConfig, email);
+    await logAdminAction(email, "FEE_CHANGE", { section: "trading_fees", fees }, request, admin.id);
     return NextResponse.json({ ok: true, fees });
   } catch (e) {
     if (e instanceof AdminAuthError) {

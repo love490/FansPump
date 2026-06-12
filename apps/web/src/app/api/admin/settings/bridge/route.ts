@@ -6,9 +6,6 @@ import { logAdminAction } from "@/lib/admin/audit-log";
 import { platformSettings, type BridgeConfig } from "@/lib/admin/platform-settings";
 
 const schema = z.object({
-  walletAddress: z.string(),
-  signature: z.string(),
-  message: z.string(),
   bridge: z.object({
     bridgeFeeBps: z.number().min(0).max(10_000),
     supportedChains: z.array(z.string()),
@@ -32,10 +29,10 @@ export async function GET(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
-    const { wallet, parsedBody } = await requirePermission(request, "bridge", "PATCH");
+    const { email, admin, parsedBody } = await requirePermission(request, "bridge", "PATCH");
     const { bridge } = schema.parse(parsedBody);
-    await platformSettings.setBridge(bridge as BridgeConfig, wallet);
-    await logAdminAction(wallet, "SETTINGS_UPDATE", { section: "bridge", bridge }, request);
+    await platformSettings.setBridge(bridge as BridgeConfig, email);
+    await logAdminAction(email, "SETTINGS_UPDATE", { section: "bridge", bridge }, request, admin.id);
     return NextResponse.json({ ok: true, bridge });
   } catch (e) {
     if (e instanceof AdminAuthError) {

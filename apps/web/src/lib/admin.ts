@@ -23,5 +23,5 @@ export function getAdminMessagePrefix(): string {
 export function getFactoryAdminAddress(): string | null {
   const addr = process.env.FACTORY_ADMIN_ADDRESS?.trim().toLowerCase();
   if (addr && /^0x[a-f0-9]{40}$/.test(addr)) return addr;
-  return getAdminWallets()[0] ?? null;
+  return null;
 }

@@ -1,83 +1,125 @@
 import type { NextRequest } from "next/server";
-import { AdminAuthError, verifyAdminAuth, isAdminMessageFresh } from "@/lib/admin-auth";
+import { AdminAuthError } from "@/lib/admin-auth";
 import type { AdminPermission } from "@/lib/admin/types";
-import { getAdminRole, roleHasPermission } from "@/lib/admin/roles";
+import {
+  getSessionFromRequest,
+  validateCsrf,
+  type AdminSessionContext,
+} from "@/lib/admin/server-session";
+import { roleHasPermission } from "@/lib/admin/roles";
 
-function authFromQuery(request: NextRequest) {
-  const { searchParams } = request.nextUrl;
-  return {
-    walletAddress: searchParams.get("walletAddress") ?? "",
-    signature: searchParams.get("signature") ?? "",
-    message: searchParams.get("message") ?? "",
-  };
-}
-
-function authFromBody(body: Record<string, unknown>) {
-  return {
-    walletAddress: String(body.walletAddress ?? ""),
-    signature: String(body.signature ?? ""),
-    message: String(body.message ?? ""),
-  };
-}
-
-export async function requireAdminFromQuery(request: NextRequest) {
-  const payload = authFromQuery(request);
-  const wallet = await verifyAdminAuth(payload);
-  if (!wallet || !isAdminMessageFresh(payload.message)) {
-    throw new AdminAuthError("Unauthorized admin");
+async function requireSession(
+  request: NextRequest,
+  options: { allowPending2FA?: boolean; requireCsrf?: boolean } = {}
+): Promise<AdminSessionContext & { token: string }> {
+  const ctx = await getSessionFromRequest(request);
+  if (!ctx) {
+    throw new AdminAuthError("Unauthorized — sign in required");
   }
-  const role = await getAdminRole(wallet);
-  if (!role) throw new AdminAuthError("Unauthorized admin");
-  return { wallet, role };
-}
-
-export async function requireAdminFromBody(body: unknown) {
-  const parsed = typeof body === "object" && body !== null ? (body as Record<string, unknown>) : {};
-  const payload = authFromBody(parsed);
-  const wallet = await verifyAdminAuth(payload);
-  if (!wallet || !isAdminMessageFresh(payload.message)) {
-    throw new AdminAuthError("Unauthorized admin");
+  if (ctx.session.pending2FA && !options.allowPending2FA) {
+    throw new AdminAuthError("Two-factor authentication required");
   }
-  const role = await getAdminRole(wallet);
-  if (!role) throw new AdminAuthError("Unauthorized admin");
-  return { wallet, role, body: parsed };
-}
-
-export async function requireAdminGet(request: NextRequest, permission: AdminPermission) {
-  const ctx = await requireAdminFromQuery(request);
-  if (!roleHasPermission(ctx.role, permission)) {
-    throw new AdminAuthError("Insufficient permissions");
+  if (options.requireCsrf && !validateCsrf(request, ctx.session)) {
+    throw new AdminAuthError("Invalid CSRF token");
   }
   return ctx;
 }
 
-export async function requireAdminPatch(request: NextRequest, permission: AdminPermission) {
-  const body = await request.json();
-  const ctx = await requireAdminFromBody(body);
-  if (!roleHasPermission(ctx.role, permission) && !roleHasPermission(ctx.role, "write")) {
-    throw new AdminAuthError("Insufficient permissions");
-  }
-  return { wallet: ctx.wallet, role: ctx.role, parsedBody: ctx.body };
+export async function requireAdminSession(request: NextRequest) {
+  const ctx = await requireSession(request);
+  return {
+    admin: ctx.admin,
+    email: ctx.admin.email,
+    role: ctx.admin.role,
+    csrfToken: ctx.csrfToken,
+    token: ctx.token,
+  };
 }
 
-type AdminGetContext = { wallet: `0x${string}`; role: import("@iopn/database").AdminRole };
-type AdminPatchContext = AdminGetContext & { parsedBody: Record<string, unknown> };
+export async function requireAdminSessionWithCsrf(request: NextRequest) {
+  return requireSession(request, { requireCsrf: true });
+}
+
+export async function requirePending2FASession(request: NextRequest) {
+  const ctx = await requireSession(request, { allowPending2FA: true });
+  if (!ctx.session.pending2FA) {
+    throw new AdminAuthError("Two-factor step not pending");
+  }
+  return ctx;
+}
 
 export async function requirePermission(
   request: NextRequest,
   permission: AdminPermission,
   method: "GET"
-): Promise<AdminGetContext>;
+): Promise<{
+  admin: AdminSessionContext["admin"];
+  email: string;
+  role: AdminSessionContext["admin"]["role"];
+  csrfToken: string;
+}>;
 export async function requirePermission(
   request: NextRequest,
   permission: AdminPermission,
   method: "PATCH" | "POST"
-): Promise<AdminPatchContext>;
+): Promise<{
+  admin: AdminSessionContext["admin"];
+  email: string;
+  role: AdminSessionContext["admin"]["role"];
+  csrfToken: string;
+  parsedBody: Record<string, unknown>;
+}>;
 export async function requirePermission(
   request: NextRequest,
   permission: AdminPermission,
   method: "GET" | "PATCH" | "POST" = "GET"
-): Promise<AdminGetContext | AdminPatchContext> {
-  if (method === "GET") return requireAdminGet(request, permission);
-  return requireAdminPatch(request, permission);
+) {
+  const ctx =
+    method === "GET"
+      ? await requireSession(request)
+      : await requireSession(request, { requireCsrf: true });
+
+  const base = {
+    admin: ctx.admin,
+    email: ctx.admin.email,
+    role: ctx.admin.role,
+    csrfToken: ctx.csrfToken,
+  };
+
+  if (method === "GET") {
+    if (!roleHasPermission(ctx.admin.role, permission)) {
+      throw new AdminAuthError("Insufficient permissions");
+    }
+    return base;
+  }
+
+  const parsedBody = (await request.json()) as Record<string, unknown>;
+  if (
+    !roleHasPermission(ctx.admin.role, permission) &&
+    !roleHasPermission(ctx.admin.role, "write")
+  ) {
+    throw new AdminAuthError("Insufficient permissions");
+  }
+  return { ...base, parsedBody };
+}
+
+/** @deprecated Wallet signature auth removed — use requirePermission */
+export async function requireAdminFromQuery(request: NextRequest) {
+  return requireAdminSession(request);
+}
+
+/** @deprecated Wallet signature auth removed */
+export async function requireAdminFromBody(body: unknown) {
+  void body;
+  throw new AdminAuthError("Wallet admin auth is no longer supported");
+}
+
+/** @deprecated */
+export async function requireAdminGet(request: NextRequest, permission: AdminPermission) {
+  return requirePermission(request, permission, "GET");
+}
+
+/** @deprecated */
+export async function requireAdminPatch(request: NextRequest, permission: AdminPermission) {
+  return requirePermission(request, permission, "PATCH");
 }

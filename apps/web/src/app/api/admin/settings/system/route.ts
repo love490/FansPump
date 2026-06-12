@@ -6,9 +6,6 @@ import { logAdminAction } from "@/lib/admin/audit-log";
 import { platformSettings, type SystemConfig } from "@/lib/admin/platform-settings";
 
 const schema = z.object({
-  walletAddress: z.string(),
-  signature: z.string(),
-  message: z.string(),
   system: z.object({
     platformName: z.string().min(1),
     platformDescription: z.string(),
@@ -39,10 +36,10 @@ export async function GET(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
-    const { wallet, parsedBody } = await requirePermission(request, "system", "PATCH");
+    const { email, admin, parsedBody } = await requirePermission(request, "system", "PATCH");
     const { system } = schema.parse(parsedBody);
-    await platformSettings.setSystem(system as SystemConfig, wallet);
-    await logAdminAction(wallet, "SETTINGS_UPDATE", { section: "system", system }, request);
+    await platformSettings.setSystem(system as SystemConfig, email);
+    await logAdminAction(email, "SETTINGS_UPDATE", { section: "system", system }, request, admin.id);
     return NextResponse.json({ ok: true, system });
   } catch (e) {
     if (e instanceof AdminAuthError) {

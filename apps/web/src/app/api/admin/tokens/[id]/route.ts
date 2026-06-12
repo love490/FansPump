@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@iopn/database";
-import { AdminAuthError, requireAdminAuth } from "@/lib/admin-auth";
+import { AdminAuthError } from "@/lib/admin-auth";
+import { requirePermission } from "@/lib/admin/api-auth";
+import { logAdminAction } from "@/lib/admin/audit-log";
 import { z } from "zod";
 
 const patchSchema = z.object({
-  walletAddress: z.string(),
-  signature: z.string(),
-  message: z.string(),
   isFeatured: z.boolean().optional(),
   trendingScore: z.number().optional(),
   isHidden: z.boolean().optional(),
@@ -19,8 +18,8 @@ export async function PATCH(
 ) {
   try {
     const { id } = await params;
-    const body = patchSchema.parse(await request.json());
-    await requireAdminAuth(body);
+    const ctx = await requirePermission(request, "discovery", "PATCH");
+    const body = patchSchema.parse(ctx.parsedBody);
 
     const data: {
       isFeatured?: boolean;
@@ -41,6 +40,14 @@ export async function PATCH(
       where: { id },
       data,
     });
+
+    await logAdminAction(
+      ctx.email,
+      "TOKEN_MODERATION",
+      { tokenId: id, ...data },
+      request,
+      ctx.admin.id
+    );
 
     return NextResponse.json({
       token: { ...token, featureFlags: token.featureFlags.toString() },

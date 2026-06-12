@@ -1,13 +1,9 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getAdminMessagePrefix, isAdminWallet } from "@/lib/admin";
+import { NextResponse } from "next/server";
 
-export async function GET(request: NextRequest) {
-  const wallet = request.nextUrl.searchParams.get("wallet")?.toLowerCase();
-  const messagePrefix = getAdminMessagePrefix();
-
-  if (!wallet) {
-    return NextResponse.json({ isAdmin: false, messagePrefix });
-  }
-
-  return NextResponse.json({ isAdmin: isAdminWallet(wallet), messagePrefix });
+export async function GET() {
+  return NextResponse.json({
+    isAdmin: false,
+    message:
+      "Wallet admin check is deprecated. Platform admins sign in at /admin/login with email and password.",
+  });
 }

@@ -1,23 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@iopn/database";
-import { AdminAuthError, verifyAdminAuth, isAdminMessageFresh } from "@/lib/admin-auth";
-
-async function requireAdminQuery(request: NextRequest) {
-  const { searchParams } = request.nextUrl;
-  const payload = {
-    walletAddress: searchParams.get("walletAddress") ?? "",
-    signature: searchParams.get("signature") ?? "",
-    message: searchParams.get("message") ?? "",
-  };
-  const wallet = await verifyAdminAuth(payload);
-  if (!wallet || !isAdminMessageFresh(payload.message)) {
-    throw new AdminAuthError("Unauthorized admin");
-  }
-}
+import { AdminAuthError } from "@/lib/admin-auth";
+import { requireAdminSession } from "@/lib/admin/api-auth";
 
 export async function GET(request: NextRequest) {
   try {
-    await requireAdminQuery(request);
+    await requireAdminSession(request);
 
     const q = request.nextUrl.searchParams.get("q")?.trim();
     const tokens = await prisma.tokenProject.findMany({

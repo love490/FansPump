@@ -27,6 +27,7 @@ const NAV: { id: string; label: string; perm: AdminPermission }[] = [
   { id: "security", label: "Protocol Security", perm: "security" },
   { id: "system", label: "System", perm: "system" },
   { id: "factory", label: "Factory (On-chain)", perm: "factory" },
+  { id: "account", label: "Account & 2FA", perm: "overview" },
   { id: "activity-logs", label: "Activity Logs", perm: "activity_logs" },
   { id: "roles", label: "Admin Roles", perm: "roles" },
 ];
@@ -35,7 +36,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const section = searchParams.get("section") ?? "overview";
-  const { address, role, signOut, can } = useAdmin();
+  const { email, role, signOut, can } = useAdmin();
 
   if (pathname === "/admin/login") {
     return <>{children}</>;
@@ -68,7 +69,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
             ))}
           </nav>
           <div className="mt-4 border-t border-border pt-4">
-            <p className="truncate font-mono text-[10px] text-muted-foreground">{address}</p>
+            <p className="truncate text-xs text-muted-foreground">{email}</p>
             <p className="text-xs text-muted-foreground">{role?.replace("_", " ")}</p>
             <Button variant="outline" size="sm" className="mt-2 w-full" onClick={signOut}>
               <LogOut className="h-3.5 w-3.5" /> Sign out

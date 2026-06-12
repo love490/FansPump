@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       logs: logs.map((l) => ({
         id: l.id,
-        admin: l.adminWallet,
+        admin: l.adminEmail,
         action: l.action,
         details: l.details,
         ipAddress: l.ipAddress,

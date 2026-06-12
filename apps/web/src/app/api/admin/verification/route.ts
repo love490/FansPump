@@ -6,9 +6,6 @@ import { requirePermission } from "@/lib/admin/api-auth";
 import { logAdminAction } from "@/lib/admin/audit-log";
 
 const patchSchema = z.object({
-  walletAddress: z.string(),
-  signature: z.string(),
-  message: z.string(),
   tokenId: z.string(),
   action: z.enum(["approve", "reject", "revoke", "submit"]),
 });
@@ -56,8 +53,8 @@ export async function GET(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
-    const { wallet, parsedBody } = await requirePermission(request, "verification", "PATCH");
-    const { tokenId, action } = patchSchema.parse(parsedBody);
+    const ctx = await requirePermission(request, "verification", "PATCH");
+    const { tokenId, action } = patchSchema.parse(ctx.parsedBody);
 
     const statusMap = {
       approve: "APPROVED" as const,
@@ -75,10 +72,11 @@ export async function PATCH(request: NextRequest) {
     });
 
     await logAdminAction(
-      wallet,
+      ctx.email,
       "VERIFICATION_DECISION",
       { tokenId, action, status: statusMap[action] },
-      request
+      request,
+      ctx.admin.id
     );
 
     return NextResponse.json({

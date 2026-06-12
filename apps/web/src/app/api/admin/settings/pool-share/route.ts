@@ -6,9 +6,6 @@ import { logAdminAction } from "@/lib/admin/audit-log";
 import { platformSettings, type PoolShareConfig } from "@/lib/admin/platform-settings";
 
 const schema = z.object({
-  walletAddress: z.string(),
-  signature: z.string(),
-  message: z.string(),
   poolShare: z.object({
     poolSharePercentage: z.number().min(0).max(100),
     poolReserveTarget: z.string(),
@@ -32,10 +29,10 @@ export async function GET(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
-    const { wallet, parsedBody } = await requirePermission(request, "pool_share", "PATCH");
+    const { email, admin, parsedBody } = await requirePermission(request, "pool_share", "PATCH");
     const { poolShare } = schema.parse(parsedBody);
-    await platformSettings.setPoolShare(poolShare as PoolShareConfig, wallet);
-    await logAdminAction(wallet, "SETTINGS_UPDATE", { section: "pool_share", poolShare }, request);
+    await platformSettings.setPoolShare(poolShare as PoolShareConfig, email);
+    await logAdminAction(email, "SETTINGS_UPDATE", { section: "pool_share", poolShare }, request, admin.id);
     return NextResponse.json({ ok: true, poolShare });
   } catch (e) {
     if (e instanceof AdminAuthError) {
