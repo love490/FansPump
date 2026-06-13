@@ -18,15 +18,6 @@ const NODES: Node[] = [
   { cx: 52, cy: 132, score: 88, label: "CV", color: "#22C55E" },
 ];
 
-const EDGES: [number, number][] = [
-  [0, 1],
-  [0, 2],
-  [1, 2],
-  [2, 3],
-  [2, 4],
-  [0, 4],
-];
-
 const STATS = [
   { label: "Avg Trust", value: "84", accent: "from-blue-500/30 to-blue-600/10" },
   { label: "Locked LP", value: "68%", accent: "from-emerald-500/30 to-emerald-600/10" },
@@ -118,25 +109,6 @@ export function LandingTrustVisual({ compact = false, className }: LandingTrustV
 
       <div className="relative rounded-xl border border-white/10 bg-black/25 p-2 backdrop-blur-sm">
         <svg viewBox="0 0 300 170" className="h-auto w-full" aria-hidden>
-          {EDGES.map(([a, b], i) => (
-            <line
-              key={`edge-${i}`}
-              x1={NODES[a].cx}
-              y1={NODES[a].cy}
-              x2={NODES[b].cx}
-              y2={NODES[b].cy}
-              stroke="url(#trustLineGrad)"
-              strokeWidth="1.5"
-              strokeDasharray="5 4"
-              opacity={0.7}
-            />
-          ))}
-          <defs>
-            <linearGradient id="trustLineGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#60A5FA" />
-              <stop offset="100%" stopColor="#A78BFA" />
-            </linearGradient>
-          </defs>
           {NODES.map((node) => (
             <g key={node.label}>
               <circle cx={node.cx} cy={node.cy} r="18" fill={node.color} opacity={0.25} />
