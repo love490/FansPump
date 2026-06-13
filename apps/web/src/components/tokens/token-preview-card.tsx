@@ -7,7 +7,7 @@ import { formatCompactNumber, shortenAddress, cn } from "@/lib/utils";
 import { formatCreatorDisplay } from "@/lib/username";
 import { motion } from "framer-motion";
 import type { TokenCardData } from "@/components/tokens/token-card";
-import { tokenCardShellClass } from "@/components/tokens/token-card-styles";
+import { tokenCardMetricsClass, tokenCardShellClass } from "@/components/tokens/token-card-styles";
 import { SecurityBadges } from "@/components/v2/security-badges";
 import { TokenCardHero, CreatorAvatar } from "@/components/tokens/token-card-hero";
 import { ContractVerifiedIcon } from "@/components/icons/contract-verified-icon";
@@ -31,7 +31,7 @@ function MetricCell({ label, value }: { label: string; value: string }) {
       <p className="truncate text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
         {label}
       </p>
-      <p className="mt-0.5 truncate text-xs font-semibold tabular-nums text-foreground sm:text-sm">
+      <p className="mt-0.5 truncate text-xs font-semibold tabular-nums text-foreground">
         {value}
       </p>
     </div>
@@ -63,41 +63,43 @@ export function TokenPreviewCard({
     token.holderCount > 0 ? formatCompactNumber(token.holderCount) : "—";
   const age = token.createdAt ? formatDurationLong(token.createdAt) : null;
   const creator = formatCreatorDisplay(token.creatorUsername, token.creatorAddress, shortenAddress);
+  const displayBadges = (token.badges ?? []).filter((b) => b.id !== "liquidity_locked");
+  const hasBadges =
+    displayBadges.length > 0 || (token.trustScore != null && token.trustScore > 0);
 
   return (
     <motion.div
-      className={cn("h-full min-w-0 w-full", className)}
+      className={cn("flex h-full min-h-0 w-full min-w-0", className)}
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.04 }}
     >
       <Link
         href={`/token/${token.contractAddress}`}
-        className={cn(tokenCardShellClass, "no-underline")}
+        className={cn(tokenCardShellClass, "flex h-full min-h-0 flex-col no-underline")}
       >
         <TokenCardHero
           logoUrl={token.logoUrl}
           symbol={token.symbol}
           name={token.name}
-          seed={token.contractAddress}
           priority={index < 4}
         />
 
-        <div className="flex min-h-0 flex-1 flex-col gap-1.5 p-3 sm:gap-2 sm:p-4">
-          <div className="flex items-start justify-between gap-2">
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-1.5">
-                <h3 className="truncate text-base font-bold leading-tight text-foreground group-hover/card:text-primary sm:text-lg">
+        <div className="flex min-h-0 flex-1 flex-col gap-1 p-2.5 sm:gap-1.5 sm:p-3">
+          <div className="min-w-0 flex-1">
+            <div className="min-h-[4.75rem] sm:min-h-[5rem]">
+              <div className="flex flex-wrap items-center gap-1">
+                <h3 className="truncate text-sm font-bold leading-tight text-foreground group-hover/card:text-primary sm:text-base">
                   {token.name}
                 </h3>
                 {token.creatorVerified && (
                   <CheckCircle2
-                    className="h-3.5 w-3.5 shrink-0 text-emerald-500"
+                    className="h-3 w-3 shrink-0 text-emerald-500"
                     aria-label="Verified creator"
                   />
                 )}
                 {token.contractVerified && (
-                  <ContractVerifiedIcon size={18} title="Contract verified" />
+                  <ContractVerifiedIcon size={16} title="Contract verified" />
                 )}
                 {token.isFeatured && (
                   <Badge variant="default" className="h-4 px-1.5 text-[9px]">
@@ -105,51 +107,60 @@ export function TokenPreviewCard({
                   </Badge>
                 )}
               </div>
-              <p className="mt-0.5 truncate text-sm text-muted-foreground">${token.symbol}</p>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
-            <CreatorAvatar username={token.creatorUsername} address={token.creatorAddress} />
-            {age && <span>{age}</span>}
-            {age && (
-              <>
-                <span className="text-border">·</span>
-                <span className="inline-flex items-center gap-1 text-emerald-500/90">
-                  <Sprout className="h-3.5 w-3.5" aria-hidden />
-                  {age}
+              <p className="mt-0.5 truncate text-xs text-muted-foreground sm:text-sm">${token.symbol}</p>
+              <div className="mt-1 flex items-baseline gap-1.5">
+                <span className="text-base font-bold tabular-nums text-foreground sm:text-lg">
+                  {marketCap !== "—" ? `$${marketCap}` : "—"}
                 </span>
-              </>
-            )}
-            <span className="hidden min-w-0 truncate sm:inline" title={creator}>
-              · {creator}
-            </span>
-          </div>
+                {marketCap !== "—" && (
+                  <span className="text-[11px] font-medium text-muted-foreground sm:text-xs">MC</span>
+                )}
+              </div>
+            </div>
 
-          {token.description?.trim() && (
-            <p className="line-clamp-2 text-xs leading-relaxed text-muted-foreground sm:text-sm">
-              {token.description.trim()}
+            <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 text-[11px] text-muted-foreground sm:text-xs">
+              <CreatorAvatar
+                username={token.creatorUsername}
+                address={token.creatorAddress}
+                imageUrl={token.creatorProfileImageUrl}
+              />
+              <span className="min-w-0 truncate" title={creator}>
+                {creator}
+              </span>
+              {age && (
+                <>
+                  <span className="text-border">·</span>
+                  <span className="inline-flex shrink-0 items-center gap-0.5 text-emerald-500/90">
+                    <Sprout className="h-3 w-3" aria-hidden />
+                    {age}
+                  </span>
+                </>
+              )}
+            </div>
+
+            <p
+              className={cn(
+                "mt-1.5 line-clamp-2 min-h-[2.25rem] text-[11px] leading-relaxed text-muted-foreground sm:min-h-[2.5rem] sm:text-xs",
+                !token.description?.trim() && "invisible"
+              )}
+            >
+              {token.description?.trim() || "No description"}
             </p>
-          )}
 
-          {(token.badges?.length || (token.trustScore != null && token.trustScore > 0)) && (
-            <div className="flex flex-wrap items-center gap-1.5 pt-1">
+            <div className={cn("mt-1.5 flex min-h-[20px] flex-wrap items-center gap-1", !hasBadges && "invisible")}>
               {token.trustScore != null && token.trustScore > 0 && (
                 <span className="rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-primary">
                   Trust {Math.round(token.trustScore)}
                 </span>
               )}
-              {token.badges && token.badges.length > 0 && (
-                <SecurityBadges badges={token.badges} max={2} />
-              )}
+              {displayBadges.length > 0 && <SecurityBadges badges={displayBadges} max={2} />}
             </div>
-          )}
+          </div>
 
-          <div className="mt-auto grid grid-cols-4 gap-2 border-t border-border/50 pt-3 sm:gap-3">
+          <div className={tokenCardMetricsClass}>
             <MetricCell label="Liquidity" value={liquidity} />
             <MetricCell label="Volume" value={volume} />
             <MetricCell label="Holders" value={holders} />
-            <MetricCell label="MC" value={marketCap} />
           </div>
         </div>
       </Link>

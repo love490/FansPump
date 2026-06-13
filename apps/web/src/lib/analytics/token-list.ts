@@ -27,7 +27,7 @@ export const tokenListSelect = {
   ownershipRenounced: true,
   trustScore: true,
   verificationStatus: true,
-  creator: { select: { username: true, verification: { select: { id: true } } } },
+  creator: { select: { username: true, profileImageUrl: true, verification: { select: { id: true } } } },
   liquidityLocks: { select: { id: true }, take: 1 },
   lpBurns: { select: { id: true }, take: 1 },
   poolStats: { select: { accumulatedPoolValue: true } },
@@ -71,7 +71,11 @@ export function mapTokenListRow(t: {
   ownershipRenounced?: boolean;
   trustScore?: number;
   verificationStatus?: string;
-  creator?: { username: string | null; verification: { id: string } | null } | null;
+  creator?: {
+    username: string | null;
+    profileImageUrl?: string | null;
+    verification: { id: string } | null;
+  } | null;
   liquidityLocks?: { id: string }[];
   lpBurns?: { id: string }[];
   poolStats?: { accumulatedPoolValue: string } | null;
@@ -91,6 +95,7 @@ export function mapTokenListRow(t: {
     createdAt: t.createdAt.toISOString(),
     creatorAddress: t.creatorAddress,
     creatorUsername: t.creator?.username ?? null,
+    creatorProfileImageUrl: t.creator?.profileImageUrl ?? null,
     volume24h: t.volume24h,
     volumeTotal: t.volumeTotal,
     txCount24h: t.txCount24h,

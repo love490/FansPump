@@ -25,9 +25,10 @@ async function uploadBuffer(
   buffer: Buffer,
   contentType: string,
   ext: string,
+  prefix = "projects",
   suffix = ""
 ) {
-  const key = `projects/${randomUUID()}${suffix}.${ext}`;
+  const key = `${prefix}/${randomUUID()}${suffix}.${ext}`;
   await r2.send(
     new PutObjectCommand({
       Bucket: bucket,
@@ -49,8 +50,8 @@ export async function POST(request: NextRequest) {
     if (!file || !(file instanceof File)) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 });
     }
-    if (!kind || (kind !== "logo" && kind !== "banner")) {
-      return NextResponse.json({ error: "Upload kind must be logo or banner" }, { status: 400 });
+    if (!kind || (kind !== "logo" && kind !== "banner" && kind !== "avatar")) {
+      return NextResponse.json({ error: "Upload kind must be logo, banner, or avatar" }, { status: 400 });
     }
     if (!ALLOWED_TYPES.has(file.type)) {
       return NextResponse.json({ error: "Use JPG, PNG, WebP, or GIF" }, { status: 400 });
@@ -70,9 +71,18 @@ export async function POST(request: NextRequest) {
 
     const raw = Buffer.from(await file.arrayBuffer());
     const processed =
-      kind === "logo" ? await processLogoUpload(raw) : await processBannerUpload(raw);
+      kind === "banner" ? await processBannerUpload(raw) : await processLogoUpload(raw);
 
-    const url = await uploadBuffer(r2, bucket, publicUrl, processed.main, processed.contentType, processed.ext);
+    const prefix = kind === "avatar" ? "profiles" : "projects";
+    const url = await uploadBuffer(
+      r2,
+      bucket,
+      publicUrl,
+      processed.main,
+      processed.contentType,
+      processed.ext,
+      prefix
+    );
 
     let thumbUrl: string | null = null;
     if (processed.thumb) {
@@ -83,6 +93,7 @@ export async function POST(request: NextRequest) {
         processed.thumb,
         processed.contentType,
         processed.ext,
+        prefix,
         "-thumb"
       );
     }

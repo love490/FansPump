@@ -86,11 +86,12 @@ enum QuestStatus {
 }
 
 model User {
-  id            String   @id @default(cuid())
-  walletAddress String   @unique @map("wallet_address")
-  username      String?  @map("username")
-  createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @updatedAt @map("updated_at")
+  id              String   @id @default(cuid())
+  walletAddress   String   @unique @map("wallet_address")
+  username        String?  @map("username")
+  profileImageUrl String?  @map("profile_image_url")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
 
   watchlist     WatchlistItem[]
   votes         TokenVote[]

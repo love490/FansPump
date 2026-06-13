@@ -6,7 +6,8 @@ import { isValidUsername, normalizeUsername } from "@/lib/username";
 
 const updateSchema = z.object({
   walletAddress: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
-  username: z.string().min(1).max(24),
+  username: z.string().max(24).optional(),
+  profileImageUrl: z.union([z.string().url(), z.literal(""), z.null()]).optional(),
 });
 
 export async function GET(request: NextRequest) {
@@ -17,13 +18,14 @@ export async function GET(request: NextRequest) {
 
   const user = await prisma.user.findUnique({
     where: { walletAddress: wallet },
-    select: { walletAddress: true, username: true },
+    select: { walletAddress: true, username: true, profileImageUrl: true },
   });
 
   return NextResponse.json({
     profile: {
       walletAddress: wallet,
       username: user?.username ?? null,
+      profileImageUrl: user?.profileImageUrl ?? null,
     },
   });
 }
@@ -32,32 +34,50 @@ export async function PATCH(request: NextRequest) {
   try {
     const body = updateSchema.parse(await request.json());
     const wallet = body.walletAddress.toLowerCase();
-    const username = normalizeUsername(body.username);
 
-    if (!isValidUsername(username)) {
-      return NextResponse.json(
-        { error: "Username must be 3–24 characters (letters, numbers, underscore only)" },
-        { status: 400 }
-      );
+    const data: { username?: string | null; profileImageUrl?: string | null } = {};
+
+    if (body.username !== undefined) {
+      const raw = normalizeUsername(body.username);
+      if (!raw) {
+        data.username = null;
+      } else {
+        if (!isValidUsername(raw)) {
+          return NextResponse.json(
+            { error: "Username must be 3–24 characters (letters, numbers, underscore only)" },
+            { status: 400 }
+          );
+        }
+
+        const taken = await prisma.user.findFirst({
+          where: {
+            username: { equals: raw, mode: "insensitive" },
+            NOT: { walletAddress: wallet },
+          },
+          select: { walletAddress: true },
+        });
+
+        if (taken) {
+          return NextResponse.json({ error: "Username is already taken" }, { status: 409 });
+        }
+
+        data.username = raw;
+      }
     }
 
-    const taken = await prisma.user.findFirst({
-      where: {
-        username: { equals: username, mode: "insensitive" },
-        NOT: { walletAddress: wallet },
-      },
-      select: { walletAddress: true },
-    });
+    if (body.profileImageUrl !== undefined) {
+      data.profileImageUrl = body.profileImageUrl || null;
+    }
 
-    if (taken) {
-      return NextResponse.json({ error: "Username is already taken" }, { status: 409 });
+    if (Object.keys(data).length === 0) {
+      return NextResponse.json({ error: "No profile fields to update" }, { status: 400 });
     }
 
     const user = await prisma.user.upsert({
       where: { walletAddress: wallet },
-      create: { walletAddress: wallet, username },
-      update: { username },
-      select: { walletAddress: true, username: true },
+      create: { walletAddress: wallet, ...data },
+      update: data,
+      select: { walletAddress: true, username: true, profileImageUrl: true },
     });
 
     return NextResponse.json({ profile: user });

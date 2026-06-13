@@ -1,21 +1,28 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAccount } from "wagmi";
+import Image from "next/image";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Shield, ExternalLink } from "lucide-react";
+import { CreatorAvatar } from "@/components/tokens/token-card-hero";
+import { Shield, ExternalLink, Loader2, Upload } from "lucide-react";
 import { shortenAddress } from "@/lib/utils";
+import { formatCreatorDisplay } from "@/lib/username";
 
 export default function SettingsPage() {
   const { address, isConnected } = useAccount();
+  const avatarInputRef = useRef<HTMLInputElement>(null);
   const [username, setUsername] = useState("");
   const [savedUsername, setSavedUsername] = useState<string | null>(null);
+  const [profileImageUrl, setProfileImageUrl] = useState<string | null>(null);
+  const [savedProfileImageUrl, setSavedProfileImageUrl] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
   const [profileMessage, setProfileMessage] = useState<string | null>(null);
 
@@ -23,19 +30,24 @@ export default function SettingsPage() {
     if (!address) {
       setUsername("");
       setSavedUsername(null);
+      setProfileImageUrl(null);
+      setSavedProfileImageUrl(null);
       return;
     }
     fetch(`/api/user/profile?wallet=${address.toLowerCase()}`)
       .then((r) => r.json())
       .then((data) => {
         const name = data.profile?.username ?? "";
+        const image = data.profile?.profileImageUrl ?? null;
         setUsername(name);
         setSavedUsername(name || null);
+        setProfileImageUrl(image);
+        setSavedProfileImageUrl(image);
       })
       .catch(() => undefined);
   }, [address]);
 
-  async function saveUsername() {
+  async function saveProfile() {
     if (!address) return;
     setSaving(true);
     setProfileError(null);
@@ -44,18 +56,56 @@ export default function SettingsPage() {
       const res = await fetch("/api/user/profile", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ walletAddress: address, username }),
+        body: JSON.stringify({
+          walletAddress: address,
+          username,
+          profileImageUrl,
+        }),
       });
-      const data = (await res.json()) as { error?: string; profile?: { username: string } };
-      if (!res.ok) throw new Error(data.error ?? "Failed to save username");
-      setSavedUsername(data.profile?.username ?? username);
-      setProfileMessage("Profile username saved.");
+      const data = (await res.json()) as {
+        error?: string;
+        profile?: { username: string | null; profileImageUrl: string | null };
+      };
+      if (!res.ok) throw new Error(data.error ?? "Failed to save profile");
+      setSavedUsername(data.profile?.username ?? null);
+      setSavedProfileImageUrl(data.profile?.profileImageUrl ?? null);
+      setProfileImageUrl(data.profile?.profileImageUrl ?? null);
+      setProfileMessage("Profile saved.");
     } catch (e) {
-      setProfileError(e instanceof Error ? e.message : "Failed to save username");
+      setProfileError(e instanceof Error ? e.message : "Failed to save profile");
     } finally {
       setSaving(false);
     }
   }
+
+  async function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+
+    setUploadingAvatar(true);
+    setProfileError(null);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("kind", "avatar");
+      const res = await fetch("/api/upload", { method: "POST", body: formData });
+      const data = (await res.json()) as { error?: string; url?: string | null };
+      if (!res.ok) throw new Error(data.error ?? "Upload failed");
+      if (!data.url) {
+        throw new Error("Image storage is not configured yet.");
+      }
+      setProfileImageUrl(data.url);
+    } catch (err) {
+      setProfileError(err instanceof Error ? err.message : "Upload failed");
+    } finally {
+      setUploadingAvatar(false);
+    }
+  }
+
+  const displayName = address
+    ? formatCreatorDisplay(savedUsername, address, shortenAddress)
+    : "—";
 
   return (
     <div className="mx-auto max-w-xl space-y-6 py-2 sm:py-4">
@@ -77,30 +127,95 @@ export default function SettingsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Profile username</CardTitle>
+          <CardTitle className="text-base">Profile</CardTitle>
           <CardDescription>
-            Shown as creator name on token cards across FansPump. 3–24 characters, letters, numbers, and underscore.
+            Set a display name and photo shown on token cards. Leave the name blank to show your wallet address.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-3">
+        <CardContent className="space-y-4">
+          <div className="flex items-center gap-4">
+            {profileImageUrl ? (
+              <Image
+                src={profileImageUrl}
+                alt="Profile"
+                width={64}
+                height={64}
+                className="h-16 w-16 rounded-full object-cover ring-2 ring-border"
+              />
+            ) : (
+              <CreatorAvatar
+                username={username || savedUsername}
+                address={address}
+                className="h-16 w-16 text-sm"
+              />
+            )}
+            <div className="space-y-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={!isConnected || uploadingAvatar}
+                onClick={() => avatarInputRef.current?.click()}
+              >
+                {uploadingAvatar ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Uploading…
+                  </>
+                ) : (
+                  <>
+                    <Upload className="mr-2 h-4 w-4" />
+                    Upload photo
+                  </>
+                )}
+              </Button>
+              {profileImageUrl && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  disabled={!isConnected || saving}
+                  onClick={() => setProfileImageUrl(null)}
+                >
+                  Remove photo
+                </Button>
+              )}
+              <input
+                ref={avatarInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/gif"
+                className="hidden"
+                onChange={(e) => void handleAvatarChange(e)}
+              />
+            </div>
+          </div>
+
           <div className="space-y-2">
-            <Label htmlFor="username">Username</Label>
+            <Label htmlFor="username">Display name</Label>
             <Input
               id="username"
               value={username}
               onChange={(e) => setUsername(e.target.value.replace(/\s/g, ""))}
-              placeholder="your_username"
+              placeholder={address ? shortenAddress(address, 4) : "your_username"}
               disabled={!isConnected || saving}
               maxLength={24}
             />
+            <p className="text-xs text-muted-foreground">
+              Optional. 3–24 characters: letters, numbers, underscore.
+            </p>
           </div>
+
           {profileError && <p className="text-sm text-red-600">{profileError}</p>}
           {profileMessage && <p className="text-sm text-green-600">{profileMessage}</p>}
-          {savedUsername && !profileMessage && (
-            <p className="text-sm text-muted-foreground">Current username: {savedUsername}</p>
+          {!profileMessage && isConnected && (
+            <p className="text-sm text-muted-foreground">Shown on cards as: {displayName}</p>
           )}
-          <Button type="button" onClick={() => void saveUsername()} disabled={!isConnected || saving || !username}>
-            {saving ? "Saving…" : "Save username"}
+          <Button
+            type="button"
+            onClick={() => void saveProfile()}
+            disabled={!isConnected || saving || uploadingAvatar}
+          >
+            {saving ? "Saving…" : "Save profile"}
           </Button>
         </CardContent>
       </Card>

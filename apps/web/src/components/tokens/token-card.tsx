@@ -25,6 +25,7 @@ export interface TokenCardData {
   createdAt?: string;
   creatorAddress?: string;
   creatorUsername?: string | null;
+  creatorProfileImageUrl?: string | null;
   marketCap?: number | null;
   trustScore?: number;
   contractVerified?: boolean;
