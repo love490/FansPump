@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { FansPumpLogo } from "@/components/brand/fans-pump-logo";
 import { DexNavDropdown } from "@/components/layout/swap-nav-dropdown";
+import { MobileNavDrawer } from "@/components/layout/mobile-nav-drawer";
 
 const nav = [
   { href: "/discover", label: "Discover" },
@@ -16,12 +17,9 @@ const nav = [
 export function LandingHeader() {
   const pathname = usePathname();
 
-  const linkClass = (href: string, mobile = false) =>
+  const linkClass = (href: string) =>
     cn(
-      mobile
-        ? "shrink-0 whitespace-nowrap rounded-md px-2 py-1.5 text-[11px] font-medium sm:px-2.5 sm:text-xs"
-        : "rounded-md px-3 py-2 text-sm font-medium",
-      "transition-colors",
+      "rounded-md px-3 py-2 text-sm font-medium transition-colors",
       pathname === href.split("?")[0] || pathname.startsWith(href.split("?")[0] + "/")
         ? "text-primary"
         : "text-muted-foreground hover:text-foreground"
@@ -32,29 +30,17 @@ export function LandingHeader() {
       <div className="flex h-14 w-full items-center gap-2 px-3 sm:h-16 sm:gap-3 sm:px-6 lg:px-8 xl:px-10">
         <FansPumpLogo size="sm" href="/" className="shrink-0" />
 
-        <nav className="flex min-w-0 flex-1 items-center justify-end gap-0.5 overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] md:justify-center md:gap-1 lg:gap-2 [&::-webkit-scrollbar]:hidden">
+        <nav className="hidden min-w-0 flex-1 items-center justify-center gap-1 md:flex lg:gap-2">
           {nav.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={cn(linkClass(item.href, true), "md:hidden")}
-            >
+            <Link key={item.href} href={item.href} className={linkClass(item.href)}>
               {item.label}
             </Link>
           ))}
-          <DexNavDropdown compact className="md:hidden" />
-
-          <div className="hidden min-w-0 flex-1 items-center justify-center gap-1 md:flex lg:gap-2">
-            {nav.map((item) => (
-              <Link key={item.href} href={item.href} className={linkClass(item.href)}>
-                {item.label}
-              </Link>
-            ))}
-            <DexNavDropdown />
-          </div>
+          <DexNavDropdown />
         </nav>
 
-        <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+        <div className="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2">
+          <MobileNavDrawer />
           <ThemeToggle />
           <ConnectButton showBalance={false} chainStatus="icon" accountStatus="avatar" />
         </div>

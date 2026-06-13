@@ -190,18 +190,22 @@ function SidebarContent({
   onNavigate,
   collapsed,
   onToggle,
+  compact,
 }: {
   pathname: string;
   searchParams: URLSearchParams;
   onNavigate?: () => void;
   collapsed?: boolean;
   onToggle?: () => void;
+  /** Hide logo/tagline block (mobile header drawer). */
+  compact?: boolean;
 }) {
   const settingsActive = isSidebarNavActive(settingsLink.id, pathname, searchParams);
   const isExpanded = collapsed !== true;
 
   return (
     <div className="flex h-full min-h-0 flex-col">
+      {!compact && (
       <div
         className={cn(
           "mb-3 shrink-0 overflow-visible border-b border-border/50 pb-3",
@@ -222,6 +226,7 @@ function SidebarContent({
           </div>
         )}
       </div>
+      )}
 
       <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <NavSection
@@ -273,6 +278,18 @@ function SidebarContent({
       </div>
     </div>
   );
+}
+
+/** Full app navigation — used in sidebar and mobile header drawer. */
+export function AppNavMenuContent(props: {
+  pathname: string;
+  searchParams: URLSearchParams;
+  onNavigate?: () => void;
+  collapsed?: boolean;
+  onToggle?: () => void;
+  compact?: boolean;
+}) {
+  return <SidebarContent {...props} />;
 }
 
 export function Sidebar() {

@@ -19,7 +19,7 @@ export function LandingTrendingPreview() {
   const { data: tokens = [], isLoading } = usePreviewTokens("trending", 24);
   return (
     <TokenGridCarousel
-      title="Trending on FansPump"
+      title="Trending"
       icon={<Flame className="h-6 w-6 text-orange-500" />}
       tokens={tokens}
       isLoading={isLoading}

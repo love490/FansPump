@@ -1,7 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useAccount } from "wagmi";
+import { formatUnits } from "viem";
 import type { PoolRecord } from "@iopn/shared";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -9,6 +11,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AddressCopyButton } from "@/components/ui/address-copy-button";
+import { DefiStatsOverview } from "@/components/defi/defi-stats-overview";
+import { useMyLiquidityPositions } from "@/hooks/liquidity/useMyLiquidityPositions";
+import { useBasePoolLpPositions } from "@/hooks/liquidity/useBasePoolLpPositions";
+import { formatReserve } from "@/lib/defi/format-reserve";
 import { BarChart3, Droplets, Plus, RefreshCw } from "lucide-react";
 import { shortenAddress } from "@/lib/utils";
 
@@ -25,6 +31,9 @@ type PoolsResponse = {
 };
 
 export default function PoolsPage() {
+  const { address, isConnected } = useAccount();
+  const { positions, loading: lpLoading } = useMyLiquidityPositions(address);
+  const { positions: basePools, loading: baseLoading } = useBasePoolLpPositions(address);
   const [data, setData] = useState<PoolsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [discovering, setDiscovering] = useState(false);
@@ -102,18 +111,18 @@ export default function PoolsPage() {
   const analytics = data?.analytics;
   const pools = data?.pools ?? [];
 
-  const stats = [
-    { label: "Total pools", value: analytics?.totalPools ?? 0 },
-    {
-      label: "Total liquidity",
-      value: analytics ? formatReserve(analytics.totalLiquidity) : "0",
-    },
-    {
-      label: "Volume tracked",
-      value: analytics ? formatReserve(analytics.totalVolume) : "0",
-    },
-    { label: "Providers (est.)", value: analytics?.totalProviders ?? 0 },
-  ];
+  const personal = useMemo(() => {
+    const tokenLp = positions.filter((p) => !p.pending && p.lpBalance > 0n);
+    const baseLp = basePools.filter((p) => p.lpBalance > 0n);
+    const lpDisplayParts = [
+      ...tokenLp.map((p) => `${formatUnits(p.lpBalance, p.lpDecimals)} ${p.tokenSymbol}/${p.pairLabel}`),
+      ...baseLp.map((p) => `${formatUnits(p.lpBalance, p.lpDecimals)} ${p.pairLabel}`),
+    ];
+    return {
+      positionCount: tokenLp.length + baseLp.length,
+      lpDisplayParts,
+    };
+  }, [positions, basePools]);
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6 lg:px-8">
@@ -148,16 +157,56 @@ export default function PoolsPage() {
         </div>
       )}
 
-      <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {stats.map((stat) => (
-          <Card key={stat.label}>
-            <CardHeader className="pb-2">
-              <CardDescription>{stat.label}</CardDescription>
-              <CardTitle className="text-xl">{loading ? "…" : stat.value}</CardTitle>
-            </CardHeader>
-          </Card>
-        ))}
-      </div>
+      <DefiStatsOverview
+        className="mb-8"
+        platformDescription="Total liquidity and activity across all indexed pools on FansPump."
+        personalDescription="Your LP holdings across platform pools."
+        platformLoading={loading}
+        platformStats={[
+          {
+            label: "Total liquidity added",
+            value: analytics ? formatReserve(analytics.totalLiquidity) : "0",
+            hint: "Across indexed pools",
+          },
+          {
+            label: "Total pools",
+            value: analytics ? String(analytics.totalPools) : "0",
+          },
+          {
+            label: "Volume tracked",
+            value: analytics ? formatReserve(analytics.totalVolume) : "0",
+          },
+          {
+            label: "Providers (est.)",
+            value: analytics ? String(analytics.totalProviders) : "0",
+          },
+        ]}
+        personalStats={[
+          {
+            label: "Your LP positions",
+            value: lpLoading || baseLoading ? "…" : String(personal.positionCount),
+          },
+          {
+            label: "Your liquidity",
+            value:
+              lpLoading || baseLoading
+                ? "…"
+                : personal.positionCount === 0
+                  ? "None yet"
+                  : personal.lpDisplayParts.slice(0, 2).join(" · ") +
+                    (personal.lpDisplayParts.length > 2
+                      ? ` · +${personal.lpDisplayParts.length - 2} more`
+                      : ""),
+            hint:
+              personal.positionCount > 0
+                ? "Manage positions on Liquidity"
+                : "Add liquidity to get started",
+          },
+        ]}
+        personalLoading={lpLoading || baseLoading}
+        isConnected={isConnected}
+        connectMessage="Connect your wallet to see your pool liquidity."
+      />
 
       <Card className="mb-8">
         <CardHeader>
@@ -250,15 +299,4 @@ function PoolRow({ pool }: { pool: PoolRecord }) {
       </div>
     </div>
   );
-}
-
-function formatReserve(value: string): string {
-  try {
-    const n = BigInt(value);
-    if (n === 0n) return "0";
-    if (n >= 10n ** 18n) return `${(Number(n) / 1e18).toFixed(4)}`;
-    return n.toString();
-  } catch {
-    return value || "0";
-  }
 }

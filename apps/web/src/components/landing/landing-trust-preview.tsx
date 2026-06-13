@@ -1,7 +1,18 @@
 import { ContractVerifiedIcon } from "@/components/icons/contract-verified-icon";
 import { cn } from "@/lib/utils";
 
-const TRUST_FEATURES = [
+type TrustFeature = {
+  emoji?: string;
+  customIcon?: typeof ContractVerifiedIcon;
+  title: string;
+  description: string;
+  badge?: string;
+  gradient: string;
+  border: string;
+  glow: string;
+};
+
+const TOP_TRUST_FEATURES: TrustFeature[] = [
   {
     emoji: "🔒",
     title: "Liquidity Lock Protection",
@@ -18,8 +29,10 @@ const TRUST_FEATURES = [
     border: "border-orange-500/30",
     glow: "hover:shadow-[0_0_28px_rgba(249,115,22,0.2)]",
   },
+];
+
+const MIDDLE_TRUST_FEATURES: TrustFeature[] = [
   {
-    emoji: "✅",
     customIcon: ContractVerifiedIcon,
     title: "Contract Verification",
     description: "Highlight verified projects with approved contract status.",
@@ -36,15 +49,51 @@ const TRUST_FEATURES = [
     border: "border-violet-500/30",
     glow: "hover:shadow-[0_0_28px_rgba(139,92,246,0.2)]",
   },
-  {
-    emoji: "🟢",
-    title: "Trust Score Engine",
-    description: "Composite 0–100 scores from ownership, liquidity, and contract signals.",
-    gradient: "from-teal-600/20 via-emerald-500/10 to-lime-500/5",
-    border: "border-teal-500/30",
-    glow: "hover:shadow-[0_0_28px_rgba(20,184,166,0.2)]",
-  },
-] as const;
+];
+
+const TRUST_SCORE_FEATURE: TrustFeature = {
+  emoji: "🟢",
+  title: "Trust Score Engine",
+  description: "Composite 0–100 scores from ownership, liquidity, and contract signals.",
+  gradient: "from-teal-600/20 via-emerald-500/10 to-lime-500/5",
+  border: "border-teal-500/30",
+  glow: "hover:shadow-[0_0_28px_rgba(20,184,166,0.2)]",
+};
+
+function TrustFeatureCard({ feature }: { feature: TrustFeature }) {
+  return (
+    <div
+      className={cn(
+        "group relative h-full overflow-hidden rounded-xl border bg-gradient-to-br p-5 shadow-sm transition-all duration-300",
+        feature.gradient,
+        feature.border,
+        feature.glow
+      )}
+    >
+      {feature.badge && (
+        <span className="absolute right-4 top-4 rounded-full border border-violet-400/30 bg-violet-500/20 px-2 py-0.5 text-[10px] font-medium text-violet-200">
+          {feature.badge}
+        </span>
+      )}
+      <div className="flex items-start gap-3">
+        {feature.customIcon ? (
+          <feature.customIcon size={28} className="mt-0.5 shrink-0" />
+        ) : (
+          <span
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-black/20 text-xl backdrop-blur-sm"
+            aria-hidden
+          >
+            {feature.emoji}
+          </span>
+        )}
+        <div>
+          <h3 className="font-semibold">{feature.title}</h3>
+          <p className="mt-1.5 text-sm text-muted-foreground">{feature.description}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export function LandingTrustPreview() {
   return (
@@ -57,40 +106,24 @@ export function LandingTrustPreview() {
         </p>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {TRUST_FEATURES.map((feature) => (
-          <div
-            key={feature.title}
-            className={cn(
-              "group relative overflow-hidden rounded-xl border bg-gradient-to-br p-5 shadow-sm transition-all duration-300",
-              feature.gradient,
-              feature.border,
-              feature.glow
-            )}
-          >
-            {"badge" in feature && feature.badge && (
-              <span className="absolute right-4 top-4 rounded-full border border-violet-400/30 bg-violet-500/20 px-2 py-0.5 text-[10px] font-medium text-violet-200">
-                {feature.badge}
-              </span>
-            )}
-            <div className="flex items-start gap-3">
-              {"customIcon" in feature && feature.customIcon ? (
-                <feature.customIcon size={28} className="mt-0.5 shrink-0" />
-              ) : (
-                <span
-                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-black/20 text-xl backdrop-blur-sm"
-                  aria-hidden
-                >
-                  {feature.emoji}
-                </span>
-              )}
-              <div>
-                <h3 className="font-semibold">{feature.title}</h3>
-                <p className="mt-1.5 text-sm text-muted-foreground">{feature.description}</p>
-              </div>
-            </div>
+      <div className="space-y-4">
+        <div className="grid gap-4 sm:grid-cols-2">
+          {TOP_TRUST_FEATURES.map((feature) => (
+            <TrustFeatureCard key={feature.title} feature={feature} />
+          ))}
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          {MIDDLE_TRUST_FEATURES.map((feature) => (
+            <TrustFeatureCard key={feature.title} feature={feature} />
+          ))}
+        </div>
+
+        <div className="flex justify-center pt-1">
+          <div className="w-full max-w-xl">
+            <TrustFeatureCard feature={TRUST_SCORE_FEATURE} />
           </div>
-        ))}
+        </div>
       </div>
     </section>
   );

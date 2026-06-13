@@ -17,6 +17,8 @@ import {
   type BasePoolLpPosition,
 } from "@/hooks/liquidity/useBasePoolLpPositions";
 import { stakingPositionGroupKey } from "@/lib/staking/position-key";
+import { DefiStatsOverview } from "@/components/defi/defi-stats-overview";
+import { formatReserve, formatTokenAmount } from "@/lib/defi/format-reserve";
 
 type StakingPosition = {
   id: string;
@@ -73,6 +75,14 @@ function positionLabel(
   return "LP Token";
 }
 
+type PlatformStakingStats = {
+  activeStakers: number;
+  activeStakePositions: number;
+  totalStakedOpnWei: string;
+  totalStakedLpAmount: string;
+  lpStakeCount: number;
+};
+
 export default function StakingPage() {
   const { address, isConnected } = useAccount();
   const { signMessageAsync } = useSignMessage();
@@ -89,6 +99,8 @@ export default function StakingPage() {
   const [loading, setLoading] = useState(false);
   const [unstakeAmounts, setUnstakeAmounts] = useState<Record<string, string>>({});
   const [unstakeLoadingId, setUnstakeLoadingId] = useState<string | null>(null);
+  const [platformStats, setPlatformStats] = useState<PlatformStakingStats | null>(null);
+  const [platformStatsLoading, setPlatformStatsLoading] = useState(true);
 
   const walletTokenLpPositions = useMemo(
     () => lpPositions.filter((p) => p.lpToken && p.lpBalance > 0n && !p.pending),
@@ -117,6 +129,25 @@ export default function StakingPage() {
     });
   }, [positions]);
 
+  const personalStakeTotals = useMemo(() => {
+    let opnWei = 0n;
+    let lpWei = 0n;
+    let lpCount = 0;
+    for (const p of groupedPositions) {
+      try {
+        const amount = BigInt(p.amount || "0");
+        if (p.stakingType === "OPN") opnWei += amount;
+        else {
+          lpWei += amount;
+          lpCount += 1;
+        }
+      } catch {
+        /* skip */
+      }
+    }
+    return { opnWei, lpWei, lpCount, positions: groupedPositions.length };
+  }, [groupedPositions]);
+
   useEffect(() => {
     if (walletTokenLpPositions.length === 1) {
       setStakeTarget({ kind: "token", lp: walletTokenLpPositions[0] });
@@ -136,6 +167,14 @@ export default function StakingPage() {
   useEffect(() => {
     load();
   }, [address]);
+
+  useEffect(() => {
+    fetch("/api/staking/stats")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => setPlatformStats(d))
+      .catch(() => setPlatformStats(null))
+      .finally(() => setPlatformStatsLoading(false));
+  }, []);
 
   useEffect(() => {
     fetch("/api/staking/config")
@@ -293,6 +332,64 @@ export default function StakingPage() {
           </Badge>
         )}
       </header>
+
+      <DefiStatsOverview
+        className="mb-8"
+        platformDescription="Total OPN and LP recorded as staked on FansPump."
+        personalDescription="Your active stake positions and tier."
+        platformLoading={platformStatsLoading}
+        platformStats={[
+          {
+            label: "Total OPN staked",
+            value: platformStats
+              ? formatTokenAmount(platformStats.totalStakedOpnWei, 18, "OPN")
+              : "0 OPN",
+          },
+          {
+            label: "Total LP staked",
+            value: platformStats
+              ? formatReserve(platformStats.totalStakedLpAmount)
+              : "0",
+            hint: platformStats ? `${platformStats.lpStakeCount} LP stake(s)` : undefined,
+          },
+          {
+            label: "Active stakers",
+            value: platformStats ? String(platformStats.activeStakers) : "0",
+          },
+          {
+            label: "Active positions",
+            value: platformStats ? String(platformStats.activeStakePositions) : "0",
+          },
+        ]}
+        personalStats={[
+          {
+            label: "Your OPN staked",
+            value: formatTokenAmount(personalStakeTotals.opnWei.toString(), 18, "OPN"),
+          },
+          {
+            label: "Your LP staked",
+            value:
+              personalStakeTotals.lpCount === 0
+                ? "None"
+                : `${formatReserve(personalStakeTotals.lpWei.toString())} LP`,
+            hint:
+              personalStakeTotals.lpCount > 0
+                ? `${personalStakeTotals.lpCount} LP position(s)`
+                : undefined,
+          },
+          {
+            label: "Your stake positions",
+            value: String(personalStakeTotals.positions),
+          },
+          {
+            label: "Your tier",
+            value: walletTier
+              ? STAKING_TIER_LABELS[walletTier as keyof typeof STAKING_TIER_LABELS] ?? walletTier
+              : "None",
+          },
+        ]}
+        isConnected={isConnected}
+      />
 
       <div className="mb-6 flex flex-wrap gap-2">
         {STAKING_TIERS.map((tier) => (
@@ -511,7 +608,7 @@ export default function StakingPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Your positions</CardTitle>
+          <CardTitle>Your stake details</CardTitle>
           <CardDescription>
             One row per asset — additional stakes merge here automatically (up to any number of deposits).
           </CardDescription>

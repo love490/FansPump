@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
         { holderCount: "desc" },
         { volume24h: "desc" },
         { txCount24h: "desc" },
-        { lastActivity: "desc" },
+        { createdAt: "desc" },
       ],
       take: limit,
       select: tokenListSelect,

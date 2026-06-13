@@ -1,5 +1,6 @@
 import { getActiveChainId } from "@/lib/chain-config/opn";
 import type { TokenCardData } from "@/components/tokens/token-card";
+import { buildHomePreviewSections } from "@/lib/tokens/home-sections";
 
 export type PlatformStats = {
   tokenCount: number;
@@ -34,6 +35,51 @@ function filterQuery(filters?: DiscoverFilters): string {
   return q ? `&${q}` : "";
 }
 
+/** Load home page token sections with API fallbacks. */
+export async function fetchHomeTokens(chainId = getActiveChainId()): Promise<{
+  market: TokenCardData[];
+  trending: TokenCardData[];
+  new: TokenCardData[];
+}> {
+  try {
+    const res = await fetch(`/api/tokens/home?chainId=${chainId}`, { cache: "no-store" });
+    if (res.ok) {
+      const data = (await res.json()) as {
+        market?: TokenCardData[];
+        trending?: TokenCardData[];
+        new?: TokenCardData[];
+      };
+      return {
+        market: data.market ?? [],
+        trending: data.trending ?? [],
+        new: data.new ?? [],
+      };
+    }
+  } catch {
+    /* fall through to legacy endpoints */
+  }
+
+  const [market, trending, newest, all] = await Promise.all([
+    fetchDiscoverTokens("top-token", 50).catch(() => [] as TokenCardData[]),
+    fetchDiscoverTokens("trending", 24).catch(() => [] as TokenCardData[]),
+    fetchDiscoverTokens("new", 24).catch(() => [] as TokenCardData[]),
+    fetchDiscoverTokens("all", 100).catch(() => [] as TokenCardData[]),
+  ]);
+
+  const pool = [...market, ...trending, ...newest, ...all];
+  const { trending: trendingFilled, newest: newestFilled } = buildHomePreviewSections({
+    market,
+    trending,
+    newest,
+  });
+
+  return {
+    market: market.length > 0 ? market : all.slice(0, 50),
+    trending: trendingFilled,
+    new: newestFilled,
+  };
+}
+
 /** Section-specific fetch for discover & landing previews. */
 export async function fetchDiscoverTokens(
   section: string,
@@ -44,7 +90,7 @@ export async function fetchDiscoverTokens(
   const fq = filterQuery(filters);
 
   if (section === "trending") {
-    const res = await fetch(`/api/tokens/trending?limit=${limit}&chainId=${chainId}${fq}`);
+    const res = await fetch(`/api/tokens?section=trending&limit=${limit}&chainId=${chainId}${fq}`);
     if (!res.ok) throw new Error("Failed to load trending tokens");
     const data = (await res.json()) as { tokens: TokenCardData[] };
     return data.tokens ?? [];
@@ -60,7 +106,7 @@ export async function fetchDiscoverTokens(
   }
 
   if (section === "latest" || section === "new") {
-    const res = await fetch(`/api/tokens/latest?limit=${limit}&chainId=${chainId}${fq}`);
+    const res = await fetch(`/api/tokens?section=new&limit=${limit}&chainId=${chainId}${fq}`);
     if (!res.ok) throw new Error("Failed to load latest tokens");
     const data = (await res.json()) as { tokens: TokenCardData[] };
     return data.tokens ?? [];
@@ -68,7 +114,7 @@ export async function fetchDiscoverTokens(
 
   if (section === "verified") {
     const query = filterQuery({ ...filters, verified: true });
-    const res = await fetch(`/api/tokens/latest?limit=${limit}&chainId=${chainId}${query}`);
+    const res = await fetch(`/api/tokens?section=new&limit=${limit}&chainId=${chainId}${query}`);
     if (!res.ok) throw new Error("Failed to load verified tokens");
     const data = (await res.json()) as { tokens: TokenCardData[] };
     return data.tokens ?? [];
@@ -102,6 +148,7 @@ export async function fetchDiscoverTokens(
 
 export const tokenQueryKeys = {
   myTokens: (wallet: string, chainId: number) => ["my-tokens", wallet.toLowerCase(), chainId] as const,
+  home: (chainId: number) => ["home-tokens", chainId] as const,
   discover: (section: string, chainId: number, filters?: DiscoverFilters) =>
     ["discover-tokens", section, chainId, filters ?? {}] as const,
   stats: (chainId: number) => ["platform-stats", chainId] as const,

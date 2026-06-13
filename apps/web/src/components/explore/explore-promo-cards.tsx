@@ -20,7 +20,7 @@ const DEFAULT_CARDS: PromoCard[] = [
   {
     id: "announce",
     href: "/discover?section=new",
-    label: "Announce",
+    label: "News",
     headline: "New launches",
     subtitle: "See latest tokens on OPN Network",
     icon: Megaphone,
@@ -113,14 +113,7 @@ export function ExplorePromoCards() {
   }));
 
   return (
-    <section className="space-y-4">
-      <div>
-        <h2 className="text-lg font-bold sm:text-xl">Featured on FansPump</h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Announcements, quests, and pool rewards on OPN Network.
-        </p>
-      </div>
-
+    <section>
       <div className="grid gap-4 sm:grid-cols-3">
         {cards.map((card) => (
           <Link

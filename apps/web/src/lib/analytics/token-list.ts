@@ -47,6 +47,20 @@ function estimateMarketCap(
   return volumeTotal > 0 ? volumeTotal : null;
 }
 
+export function mapTokenListRowSafe(
+  rows: Parameters<typeof mapTokenListRow>[0][]
+): ReturnType<typeof mapTokenListRow>[] {
+  const mapped: ReturnType<typeof mapTokenListRow>[] = [];
+  for (const row of rows) {
+    try {
+      mapped.push(mapTokenListRow(row));
+    } catch (e) {
+      console.warn("[mapTokenListRow] skipped row", row.id, e);
+    }
+  }
+  return mapped;
+}
+
 export function mapTokenListRow(t: {
   id: string;
   contractAddress: string;
