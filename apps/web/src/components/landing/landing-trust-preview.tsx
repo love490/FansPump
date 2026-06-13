@@ -30,7 +30,7 @@ const TRUST_FEATURES = [
   {
     emoji: "⭐",
     title: "Creator Reputation System",
-    description: "Reward builders who consistently deliver quality — coming soon.",
+    description: "Discover builders with solid reputation — coming soon.",
     badge: "Coming soon",
     gradient: "from-violet-600/20 via-purple-500/10 to-fuchsia-500/5",
     border: "border-violet-500/30",

@@ -5,7 +5,7 @@ import { ArrowRight, LayoutDashboard, PlusCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { LandingHeader } from "@/components/landing/landing-header";
 import { LandingHero } from "@/components/landing/landing-hero";
-import { LandingEcosystemStats } from "@/components/landing/landing-ecosystem-stats";
+import { LandingTrustDashboard } from "@/components/landing/landing-trust-dashboard";
 import { LandingTrustPreview } from "@/components/landing/landing-trust-preview";
 import { LandingTopBuilders } from "@/components/landing/landing-top-builders";
 import {
@@ -25,7 +25,7 @@ export function LandingPage() {
         <LandingHero />
 
         <div className="w-full space-y-14 px-4 pb-16 pt-8 sm:space-y-16 sm:px-6 lg:px-8 lg:pb-20 lg:pt-10 xl:px-10">
-          <LandingEcosystemStats />
+          <LandingTrustDashboard />
           <LandingTrustPreview />
           <LandingTrendingPreview />
           <LandingTopBuilders />

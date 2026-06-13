@@ -4,7 +4,6 @@ import Link from "next/link";
 import { ArrowRight, LayoutDashboard, PlusCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BRAND_BLUE } from "@/lib/brand";
-import { LandingTrustVisual } from "@/components/landing/landing-trust-visual";
 import { cn } from "@/lib/utils";
 
 const heroBtnClass = cn(
@@ -21,66 +20,54 @@ export function LandingHero() {
     <section className="relative w-full overflow-hidden px-3 pt-3 sm:px-6 sm:pt-4 lg:px-8 lg:pt-5">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,rgba(30,91,255,0.12),transparent_50%)]" />
 
-      <div className="relative mx-auto max-w-4xl rounded-xl border border-primary/20 bg-gradient-to-br from-[#0a1628]/80 via-card to-primary/10 p-3 shadow-lg shadow-primary/5 sm:p-5 lg:grid lg:grid-cols-[1.15fr_0.85fr] lg:items-center lg:gap-6 lg:p-6">
-        <div className="flex flex-col justify-center">
-          <p className="text-[10px] font-semibold uppercase tracking-widest text-primary sm:text-xs">
-            IOPn Ecosystem
-          </p>
-          <h1 className="mt-1 text-[1.4rem] font-extrabold leading-[1.2] tracking-tight sm:mt-1.5 sm:text-2xl lg:text-3xl">
-            Create, Discover &amp; Grow on OPN
-          </h1>
-          <p className="mt-1.5 text-sm font-medium text-foreground sm:mt-2 sm:text-base">
-            Launch tokens. Build communities. Earn trust.
-          </p>
-          <p className="mt-0.5 text-xs text-muted-foreground sm:text-sm">
-            The Trust &amp; Growth Platform for the IOPn Ecosystem.
-          </p>
+      <div className="relative mx-auto max-w-4xl rounded-xl border border-primary/20 bg-gradient-to-br from-[#0a1628]/80 via-card to-primary/10 p-4 shadow-lg shadow-primary/5 sm:p-6 lg:p-8">
+        <p className="text-[10px] font-semibold uppercase tracking-widest text-primary sm:text-xs">
+          IOPn Ecosystem
+        </p>
+        <h1 className="mt-1 text-[1.4rem] font-extrabold leading-[1.2] tracking-tight sm:mt-1.5 sm:text-2xl lg:text-3xl">
+          Create, Discover &amp; Grow on OPN
+        </h1>
+        <p className="mt-1.5 text-sm font-medium text-foreground sm:mt-2 sm:text-base">
+          Launch tokens. Build communities. Earn trust.
+        </p>
+        <p className="mt-0.5 text-xs text-muted-foreground sm:text-sm">
+          The Trust &amp; Growth Platform for the IOPn Ecosystem.
+        </p>
 
-          <div className="mt-3 flex w-full flex-col gap-2 sm:mt-4 sm:flex-row sm:flex-wrap">
-            <Button
-              asChild
-              size="sm"
-              className={heroBtnBlueClass}
-              style={{ backgroundColor: BRAND_BLUE }}
-            >
-              <Link href="/create" className="inline-flex items-center justify-center whitespace-nowrap">
-                <PlusCircle className="h-4 w-4 shrink-0" />
-                Create Token
-              </Link>
-            </Button>
-            <Button
-              asChild
-              size="sm"
-              className={heroBtnBlueClass}
-              style={{ backgroundColor: BRAND_BLUE }}
-            >
-              <Link href="/discover?section=trending" className="inline-flex items-center justify-center whitespace-nowrap">
-                Explore Projects
-                <ArrowRight className="h-4 w-4 shrink-0" />
-              </Link>
-            </Button>
-            <Button
-              asChild
-              size="sm"
-              className={heroBtnBlueClass}
-              style={{ backgroundColor: BRAND_BLUE }}
-            >
-              <Link href="/app" className="inline-flex items-center justify-center whitespace-nowrap">
-                <LayoutDashboard className="h-4 w-4 shrink-0" />
-                Launch App
-              </Link>
-            </Button>
-          </div>
-
-          <div className="mt-3 sm:mt-4 lg:hidden">
-            <LandingTrustVisual compact className="max-w-sm" />
-          </div>
-        </div>
-
-        <div className="hidden lg:flex lg:justify-end">
-          <div className="w-full max-w-[280px]">
-            <LandingTrustVisual />
-          </div>
+        <div className="mt-4 flex w-full flex-col gap-2 sm:mt-5 sm:flex-row sm:flex-wrap">
+          <Button
+            asChild
+            size="sm"
+            className={heroBtnBlueClass}
+            style={{ backgroundColor: BRAND_BLUE }}
+          >
+            <Link href="/create" className="inline-flex items-center justify-center whitespace-nowrap">
+              <PlusCircle className="h-4 w-4 shrink-0" />
+              Create Token
+            </Link>
+          </Button>
+          <Button
+            asChild
+            size="sm"
+            className={heroBtnBlueClass}
+            style={{ backgroundColor: BRAND_BLUE }}
+          >
+            <Link href="/discover?section=trending" className="inline-flex items-center justify-center whitespace-nowrap">
+              Explore Projects
+              <ArrowRight className="h-4 w-4 shrink-0" />
+            </Link>
+          </Button>
+          <Button
+            asChild
+            size="sm"
+            className={heroBtnBlueClass}
+            style={{ backgroundColor: BRAND_BLUE }}
+          >
+            <Link href="/app" className="inline-flex items-center justify-center whitespace-nowrap">
+              <LayoutDashboard className="h-4 w-4 shrink-0" />
+              Launch App
+            </Link>
+          </Button>
         </div>
       </div>
     </section>
