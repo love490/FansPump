@@ -54,13 +54,13 @@ export default function LeaderboardPage() {
         </p>
       </header>
 
-      <div className="mb-6 flex flex-wrap gap-2">
+      <div className="-mx-4 mb-6 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0">
         {CATEGORIES.map((c) => (
           <button
             key={c.id}
             type="button"
             onClick={() => setCategory(c.id)}
-            className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors sm:text-sm ${
+            className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors sm:text-sm ${
               category === c.id
                 ? "border-primary bg-primary text-primary-foreground"
                 : "border-border bg-muted hover:bg-muted/80"
@@ -79,36 +79,40 @@ export default function LeaderboardPage() {
         <div className="space-y-2">
           {entries.map((entry) => (
             <Card key={entry.walletAddress}>
-              <CardContent className="flex flex-wrap items-center gap-4 py-4">
-                <span className="w-8 text-lg font-bold tabular-nums text-muted-foreground">
-                  #{entry.rank}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <Link
-                    href={`/creator/${entry.walletAddress}`}
-                    className="font-semibold hover:text-primary hover:underline"
-                  >
-                    {shortenAddress(entry.walletAddress, 6)}
-                  </Link>
-                  <p className="text-xs capitalize text-muted-foreground">{entry.status.toLowerCase()}</p>
-                  <SecurityBadges badges={entry.badges} className="mt-1" max={4} />
+              <CardContent className="space-y-3 py-4">
+                <div className="flex items-start gap-3">
+                  <span className="w-8 shrink-0 text-lg font-bold tabular-nums text-muted-foreground">
+                    #{entry.rank}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <Link
+                      href={`/creator/${entry.walletAddress}`}
+                      className="block truncate font-semibold hover:text-primary hover:underline"
+                    >
+                      {shortenAddress(entry.walletAddress, 6)}
+                    </Link>
+                    <p className="text-xs capitalize text-muted-foreground">{entry.status.toLowerCase()}</p>
+                    {entry.badges.length > 0 && (
+                      <SecurityBadges badges={entry.badges} className="mt-1.5" max={3} />
+                    )}
+                  </div>
                 </div>
-                <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-xs sm:grid-cols-4">
-                  <div>
+                <div className="grid grid-cols-2 gap-3 border-t border-border/60 pt-3 text-xs sm:grid-cols-4 sm:gap-4">
+                  <div className="min-w-0">
                     <p className="text-muted-foreground">Tokens</p>
-                    <p className="font-semibold">{entry.tokensCreated}</p>
+                    <p className="font-semibold tabular-nums">{entry.tokensCreated}</p>
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <p className="text-muted-foreground">Views</p>
-                    <p className="font-semibold">{entry.totalViews}</p>
+                    <p className="font-semibold tabular-nums">{entry.totalViews}</p>
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <p className="text-muted-foreground">Reputation</p>
-                    <p className="font-semibold">{entry.reputationScore}</p>
+                    <p className="font-semibold tabular-nums">{entry.reputationScore}</p>
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <p className="text-muted-foreground">Avg Trust</p>
-                    <p className="font-semibold">{Math.round(entry.avgTrustScore)}</p>
+                    <p className="font-semibold tabular-nums">{Math.round(entry.avgTrustScore)}</p>
                   </div>
                 </div>
               </CardContent>

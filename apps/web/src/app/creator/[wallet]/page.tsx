@@ -8,6 +8,7 @@ import { tokenCardGridClass } from "@/components/tokens/token-card-styles";
 import { VerifiedCreatorBadge } from "@/components/creator/verified-creator-badge";
 import { SecurityBadges } from "@/components/v2/security-badges";
 import { CreatorQuestSection } from "@/components/v2/creator-quest-section";
+import { CreatorBountySection } from "@/components/bounties/creator-bounty-section";
 import type { SecurityBadge } from "@/lib/v2/badges";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -181,6 +182,16 @@ export default function CreatorProfilePage() {
           </CardContent>
         </Card>
       </div>
+
+      <CreatorBountySection
+        creatorWallet={wallet}
+        creatorTokens={profile.tokens.map((t) => ({
+          contractAddress: t.contractAddress,
+          symbol: t.symbol,
+          name: t.name,
+        }))}
+        onRefresh={loadProfile}
+      />
 
       <CreatorQuestSection
         creatorWallet={wallet}

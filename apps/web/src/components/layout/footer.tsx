@@ -33,10 +33,8 @@ export function Footer() {
       <div className="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-8 sm:px-6 lg:px-8">
         <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
           <p className="text-sm text-muted-foreground">
-            © {new Date().getFullYear()} FansPump. The official token creation & discovery platform on
-            OPNChain.
+            © {new Date().getFullYear()} FansPump. The Trust & Growth Platform for the IOPn Ecosystem
           </p>
-
           <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
             <Link href="/privacy" className="text-muted-foreground hover:text-primary">
               Privacy Policy

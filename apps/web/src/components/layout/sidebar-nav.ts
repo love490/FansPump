@@ -16,6 +16,7 @@ import {
   Layers,
   BarChart3,
   Trophy,
+  CircleDollarSign,
 } from "lucide-react";
 
 export type SidebarNavId =
@@ -24,6 +25,7 @@ export type SidebarNavId =
   | "explore"
   | "featured"
   | "leaderboard"
+  | "earn"
   | "how-it-works"
   | "docs"
   | "swap"
@@ -49,6 +51,7 @@ export const platformLinks: SidebarNavItem[] = [
   { id: "explore", href: "/discover?section=trending", label: "Explore Projects", icon: Compass },
   { id: "featured", href: "/discover?section=featured", label: "Featured", icon: Star },
   { id: "leaderboard", href: "/leaderboard", label: "Creators Leaderboard", icon: Trophy },
+  { id: "earn", href: "/earn", label: "Earn", icon: CircleDollarSign },
   { id: "how-it-works", href: "/docs/how-it-works", label: "How It Works", icon: HelpCircle },
   { id: "swap", href: "/swap", label: "Swap", icon: ArrowLeftRight },
   { id: "docs", href: "/docs", label: "Docs", icon: BookOpen },
@@ -89,6 +92,8 @@ export function isSidebarNavActive(
       return pathname === "/discover" && section === "featured";
     case "leaderboard":
       return pathname === "/leaderboard";
+    case "earn":
+      return pathname === "/earn";
     case "how-it-works":
       return pathname === "/docs/how-it-works";
     case "docs":

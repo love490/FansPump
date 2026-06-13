@@ -85,6 +85,28 @@ enum QuestStatus {
   COMPLETED
 }
 
+enum BountyStatus {
+  ACTIVE
+  ENDED
+  COMPLETED
+  CANCELLED
+}
+
+enum BountyRewardType {
+  OPN
+  TOKEN
+  CUSTOM
+  XP
+}
+
+enum BountyTaskType {
+  SOCIAL
+  CONTENT
+  REFERRAL
+  COMMUNITY
+  CUSTOM
+}
+
 model User {
   id              String   @id @default(cuid())
   walletAddress   String   @unique @map("wallet_address")
@@ -97,6 +119,8 @@ model User {
   votes         TokenVote[]
   verification  CreatorVerification?
   tokenProjects TokenProject[]
+  bounties      Bounty[]
+  bountyParticipations BountyParticipation[]
 
   @@index([username])
   @@map("users")
@@ -165,6 +189,7 @@ model TokenProject {
   trustScoreHistory TrustScoreHistory[]
   dailySnapshots  TokenDailySnapshot[]
   quests          CreatorQuest[]
+  bounties        Bounty[]
 
   @@index([category])
   @@index([trustScore])
@@ -585,4 +610,55 @@ model TrustScoreHistory {
   @@index([tokenId])
   @@index([recordedAt])
   @@map("trust_score_history")
+}
+
+model Bounty {
+  id                String           @id @default(cuid())
+  creatorWallet     String           @map("creator_wallet")
+  tokenId           String?          @map("token_id")
+  tokenAddress      String?          @map("token_address")
+  title             String
+  description       String           @db.Text
+  taskType          BountyTaskType   @default(CUSTOM) @map("task_type")
+  requirements      String?          @db.Text
+  rewardType        BountyRewardType @map("reward_type")
+  rewardAmount      String           @map("reward_amount")
+  rewardDescription String?          @map("reward_description")
+  maxParticipants   Int              @map("max_participants")
+  participantCount  Int              @default(0) @map("participant_count")
+  viewCount         Int              @default(0) @map("view_count")
+  status            BountyStatus     @default(ACTIVE)
+  startsAt          DateTime         @default(now()) @map("starts_at")
+  endsAt            DateTime?        @map("ends_at")
+  completedAt       DateTime?        @map("completed_at")
+  createdAt         DateTime         @default(now()) @map("created_at")
+  updatedAt         DateTime         @updatedAt @map("updated_at")
+
+  creator        User                  @relation(fields: [creatorWallet], references: [walletAddress], onDelete: Cascade)
+  token          TokenProject?         @relation(fields: [tokenId], references: [id], onDelete: SetNull)
+  participations BountyParticipation[]
+
+  @@index([creatorWallet])
+  @@index([tokenId])
+  @@index([status])
+  @@index([endsAt])
+  @@index([participantCount])
+  @@index([createdAt])
+  @@map("bounties")
+}
+
+model BountyParticipation {
+  id            String   @id @default(cuid())
+  bountyId      String   @map("bounty_id")
+  walletAddress String   @map("wallet_address")
+  status        String   @default("JOINED")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  bounty Bounty @relation(fields: [bountyId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [walletAddress], references: [walletAddress], onDelete: Cascade)
+
+  @@unique([bountyId, walletAddress])
+  @@index([walletAddress])
+  @@index([bountyId])
+  @@map("bounty_participations")
 }
