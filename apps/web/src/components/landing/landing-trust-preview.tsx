@@ -1,4 +1,5 @@
-import { Lock, Flame, BadgeCheck, Star, Shield } from "lucide-react";
+import { Lock, Flame, Star, Shield } from "lucide-react";
+import { ContractVerifiedIcon } from "@/components/icons/contract-verified-icon";
 
 const TRUST_FEATURES = [
   {
@@ -15,7 +16,8 @@ const TRUST_FEATURES = [
   },
   {
     emoji: "✅",
-    icon: BadgeCheck,
+    icon: null,
+    customIcon: ContractVerifiedIcon,
     title: "Contract Verification",
     description: "Highlight verified projects with approved contract status.",
   },
@@ -56,9 +58,13 @@ export function LandingTrustPreview() {
               </span>
             )}
             <div className="flex items-start gap-3">
-              <span className="text-2xl" aria-hidden>
-                {feature.emoji}
-              </span>
+              {"customIcon" in feature && feature.customIcon ? (
+                <feature.customIcon size={28} className="mt-0.5 shrink-0" />
+              ) : (
+                <span className="text-2xl" aria-hidden>
+                  {feature.emoji}
+                </span>
+              )}
               <div>
                 <h3 className="font-semibold">{feature.title}</h3>
                 <p className="mt-1.5 text-sm text-muted-foreground">{feature.description}</p>

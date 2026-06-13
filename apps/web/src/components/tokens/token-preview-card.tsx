@@ -10,6 +10,7 @@ import type { TokenCardData } from "@/components/tokens/token-card";
 import { tokenCardShellClass } from "@/components/tokens/token-card-styles";
 import { SecurityBadges } from "@/components/v2/security-badges";
 import { TokenCardHero, CreatorAvatar } from "@/components/tokens/token-card-hero";
+import { ContractVerifiedIcon } from "@/components/icons/contract-verified-icon";
 
 function formatDurationLong(iso: string | Date): string {
   const then = new Date(iso).getTime();
@@ -71,6 +72,9 @@ export function TokenPreviewCard({
                     className="h-3.5 w-3.5 shrink-0 text-emerald-500"
                     aria-label="Verified creator"
                   />
+                )}
+                {token.contractVerified && (
+                  <ContractVerifiedIcon size={18} title="Contract verified" />
                 )}
                 {token.isFeatured && (
                   <Badge variant="default" className="h-4 px-1.5 text-[9px]">
