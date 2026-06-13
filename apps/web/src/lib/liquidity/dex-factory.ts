@@ -1,7 +1,6 @@
 import type { Address, PublicClient } from "viem";
-import { DEX_ROUTER_ADDRESS } from "@/lib/wagmi";
 import { uniswapV2RouterAbi } from "@/lib/liquidity/abis";
-import { opnChainConfig } from "@/lib/chain-config/opn";
+import { DEX_ROUTER_ADDRESS, opnChainConfig } from "@/lib/chain-config/opn";
 
 const ZERO = "0x0000000000000000000000000000000000000000";
 

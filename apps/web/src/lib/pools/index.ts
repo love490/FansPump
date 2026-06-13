@@ -3,11 +3,10 @@ import { prisma } from "@iopn/database";
 import type { PoolPairType, PoolRecord } from "@iopn/shared";
 import { uniswapV2PairAbi } from "@/lib/liquidity/abis";
 import { erc20Abi } from "@/lib/swap/abis";
-import { opnChainConfig, getActiveChainId } from "@/lib/chain-config/opn";
+import { opnChainConfig, getActiveChainId, DEX_ROUTER_ADDRESS } from "@/lib/chain-config/opn";
 import { resolveDexFactory } from "@/lib/liquidity/dex-factory";
 import { findPairAddress, quoteCandidatesForPairId } from "@/lib/liquidity/pair-resolve";
 import { readRouterWeth } from "@/lib/liquidity/router-weth";
-import { DEX_ROUTER_ADDRESS } from "@/lib/wagmi";
 import type { LiquidityPairId } from "@/lib/liquidity/pair-tokens";
 
 function getPublicClient() {

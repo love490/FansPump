@@ -103,3 +103,9 @@ export function getActiveChainId(): number {
 export function getWopnAddress(): Address {
   return opnChainConfig.contracts.wopn;
 }
+
+/** Server-safe contract addresses — use in API routes instead of `@/lib/wagmi`. */
+export const DEX_ROUTER_ADDRESS = opnChainConfig.contracts.dexRouter;
+export const DEX_FACTORY_ADDRESS = opnChainConfig.contracts.dexFactory;
+export const FACTORY_ADDRESS = opnChainConfig.contracts.factory;
+export const LIQUIDITY_ROUTER_ADDRESS = opnChainConfig.contracts.liquidityRouter;
