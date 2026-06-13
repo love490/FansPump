@@ -115,7 +115,7 @@ export function DashboardStatsPanel() {
         ? `${stats.questsCreated} quests created`
         : "Launch on FansPump",
       icon: CircleDollarSign,
-      href: "/my-tokens",
+      href: "/dashboard",
     },
   ];
 

@@ -6,7 +6,6 @@ import {
   HelpCircle,
   BookOpen,
   LayoutDashboard,
-  Coins,
   Bookmark,
   Users,
   ArrowLeftRight,
@@ -14,9 +13,9 @@ import {
   Droplets,
   Layers,
   BarChart3,
-  Trophy,
   CircleDollarSign,
 } from "lucide-react";
+import { isSwapPath } from "@/lib/navigation/swap-nav";
 
 export type SidebarNavId =
   | "home"
@@ -27,11 +26,12 @@ export type SidebarNavId =
   | "swap"
   | "pools"
   | "my-liquidity"
+  | "lp-management"
+  | "analytics"
   | "staking"
   | "how-it-works"
   | "docs"
   | "dashboard"
-  | "my-tokens"
   | "watchlist"
   | "following"
   | "settings";
@@ -41,25 +41,35 @@ export type SidebarNavItem = {
   href: string;
   label: string;
   icon: LucideIcon;
+  children?: SidebarNavItem[];
 };
 
-export const platformLinks: SidebarNavItem[] = [
-  { id: "home", href: "/app", label: "Home", icon: Home },
-  { id: "create", href: "/create", label: "Create Token", icon: Rocket },
-  { id: "explore", href: "/discover?section=trending", label: "Explore Projects", icon: Compass },
-  { id: "leaderboard", href: "/leaderboard", label: "Explore Tokens", icon: Trophy },
-  { id: "earn", href: "/earn", label: "Earn", icon: CircleDollarSign },
-  { id: "swap", href: "/swap", label: "Swap", icon: ArrowLeftRight },
-  { id: "pools", href: "/pools", label: "Pools", icon: BarChart3 },
+export const swapNavChildren: SidebarNavItem[] = [
   { id: "my-liquidity", href: "/my-liquidity", label: "Liquidity", icon: Droplets },
+  { id: "pools", href: "/pools", label: "Pools", icon: Layers },
   { id: "staking", href: "/staking", label: "Staking", icon: Layers },
+  { id: "lp-management", href: "/my-liquidity", label: "LP Management", icon: Droplets },
+  { id: "analytics", href: "/pools", label: "Analytics", icon: BarChart3 },
+];
+
+export const platformLinks: SidebarNavItem[] = [
+  { id: "home", href: "/", label: "Home", icon: Home },
+  { id: "create", href: "/create", label: "Create Token", icon: Rocket },
+  { id: "explore", href: "/explore", label: "Explore", icon: Compass },
+  { id: "earn", href: "/earn", label: "Earn", icon: CircleDollarSign },
+  {
+    id: "swap",
+    href: "/swap",
+    label: "Swap",
+    icon: ArrowLeftRight,
+    children: swapNavChildren,
+  },
   { id: "how-it-works", href: "/docs/how-it-works", label: "How It Works", icon: HelpCircle },
   { id: "docs", href: "/docs", label: "Docs", icon: BookOpen },
 ];
 
 export const userLinks: SidebarNavItem[] = [
   { id: "dashboard", href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { id: "my-tokens", href: "/my-tokens", label: "My Tokens", icon: Coins },
   { id: "watchlist", href: "/watchlist", label: "Watchlist", icon: Bookmark },
   { id: "following", href: "/following", label: "Following", icon: Users },
 ];
@@ -78,13 +88,13 @@ export function isSidebarNavActive(
 ): boolean {
   switch (id) {
     case "home":
-      return pathname === "/app";
+      return pathname === "/";
     case "create":
       return pathname === "/create";
     case "explore":
-      return pathname === "/discover";
+      return pathname === "/discover" || pathname === "/explore";
     case "leaderboard":
-      return pathname === "/leaderboard";
+      return pathname === "/explore";
     case "earn":
       return pathname === "/earn";
     case "how-it-works":
@@ -92,17 +102,17 @@ export function isSidebarNavActive(
     case "docs":
       return pathname === "/docs";
     case "swap":
-      return pathname === "/swap" || pathname.startsWith("/swap/");
+      return isSwapPath(pathname);
     case "pools":
-      return pathname === "/pools";
+    case "analytics":
+      return pathname === "/pools" || pathname.startsWith("/pools/");
     case "my-liquidity":
+    case "lp-management":
       return pathname === "/my-liquidity" || pathname.startsWith("/liquidity/");
     case "staking":
       return pathname === "/staking";
     case "dashboard":
       return pathname === "/dashboard";
-    case "my-tokens":
-      return pathname === "/my-tokens";
     case "watchlist":
       return pathname === "/watchlist";
     case "following":

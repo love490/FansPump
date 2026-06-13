@@ -157,7 +157,7 @@ export default function TokenPage() {
           </Button>
           <Button asChild variant="outline" size="sm">
             <Link href={`/swap/${address}`}>
-              <ArrowLeftRight className="h-4 w-4" /> Open DEX
+              <ArrowLeftRight className="h-4 w-4" /> Swap
             </Link>
           </Button>
           <Button asChild variant="outline" size="sm">

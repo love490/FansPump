@@ -24,7 +24,7 @@ const steps = [
   {
     icon: ArrowLeftRight,
     title: "Swap & add liquidity",
-    description: "Trade via the DEX router and add liquidity when you're ready.",
+    description: "Trade via the swap router and add liquidity when you're ready.",
     href: "/swap",
   },
 ] as const;
@@ -66,7 +66,7 @@ export function LandingHowItWorks() {
 
         <div className="mt-10 flex flex-wrap justify-center gap-3">
           <Button asChild size="lg">
-            <Link href="/swap">DEX</Link>
+            <Link href="/swap">Swap</Link>
           </Button>
           <Button asChild variant="outline" size="lg">
             <Link href="/docs/how-it-works">Read full guide</Link>

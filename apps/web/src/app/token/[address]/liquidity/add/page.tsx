@@ -33,7 +33,7 @@ export default function TokenLiquidityAddPage() {
       <header>
         <h1 className="text-2xl font-bold">Add Liquidity</h1>
         <p className="mt-1 text-muted-foreground">
-          Pair your token with OPN, WOPN, or USDT on the OPNChain DEX.
+          Pair your token with OPN, WOPN, or USDT on OPNChain Swap.
         </p>
       </header>
 

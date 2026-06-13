@@ -13,13 +13,19 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 
-const DEFAULT_SECTION = "trending";
+const DEFAULT_SECTION = "all";
 
 const browseSections = [
   {
+    id: "all",
+    label: "Discover Projects",
+    description: "All tokens created on FansPump — newest launches first.",
+    variant: "grid" as const,
+  },
+  {
     id: "trending",
     label: "Trending",
-    description: "Tokens with the highest trending score right now.",
+    description: "Tokens ranked by popularity — profile views, holders, and activity.",
     variant: "trending" as const,
   },
   {
@@ -235,7 +241,7 @@ function DiscoverContent() {
 
   const { data: tokens = [], isLoading } = useQuery({
     queryKey: tokenQueryKeys.discover(activeSection, chainId, queryFilters),
-    queryFn: () => fetchDiscoverTokens(activeSection, 24, queryFilters),
+    queryFn: () => fetchDiscoverTokens(activeSection, activeSection === "all" ? 100 : 24, queryFilters),
     staleTime: 15_000,
   });
 
@@ -302,9 +308,13 @@ function DiscoverContent() {
     <div className="space-y-8 py-2 sm:space-y-10 sm:py-4">
       <header className="relative z-40 flex items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold">Explore</h1>
+          <h1 className="text-2xl font-bold">
+            {activeSection === "all" ? "Discover Projects" : "Explore"}
+          </h1>
           <p className="mt-1 text-muted-foreground">
-            Browse {meta.label.toLowerCase()} projects — filter by category, verified, and more.
+            {activeSection === "all"
+              ? "Browse every token created on FansPump — filter by category, verified, and more."
+              : `Browse ${meta.label.toLowerCase()} projects — filter by category, verified, and more.`}
           </p>
         </div>
         <div ref={filtersRef} className="relative shrink-0">
@@ -388,7 +398,7 @@ function DiscoverContent() {
         tokens={tokens}
         isLoading={isLoading}
         variant={meta.variant}
-        fetchLimit={24}
+        fetchLimit={activeSection === "all" ? 100 : 24}
       />
     </div>
   );

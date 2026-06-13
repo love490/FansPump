@@ -1,17 +1,18 @@
 "use client";
 
 import type { ReactNode } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import {
+  ArrowLeftRight,
   CircleDollarSign,
+  Compass,
   Megaphone,
   Rocket,
   ShieldCheck,
   Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { dexNavLinks } from "@/lib/navigation/dex-nav";
+import { swapNavLinks } from "@/lib/navigation/swap-nav";
 
 type QuickAction = {
   href: string;
@@ -22,24 +23,29 @@ type QuickAction = {
 
 const primaryActions: QuickAction[] = [
   {
-    href: "/swap",
-    label: "Dex",
-    icon: (
-      <Image
-        src="/images/quick-actions/dex.png"
-        alt=""
-        width={56}
-        height={56}
-        className="h-14 w-14 object-contain"
-      />
-    ),
-  },
-  {
     href: "/create",
     label: "Create Token",
     icon: (
       <span className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-primary/30 bg-primary/5">
         <Rocket className="h-7 w-7 text-primary" strokeWidth={1.75} />
+      </span>
+    ),
+  },
+  {
+    href: "/explore",
+    label: "Explore",
+    icon: (
+      <span className="flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm">
+        <Compass className="h-7 w-7" strokeWidth={1.75} />
+      </span>
+    ),
+  },
+  {
+    href: "/swap",
+    label: "Swap",
+    icon: (
+      <span className="flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm">
+        <ArrowLeftRight className="h-7 w-7" strokeWidth={1.75} />
       </span>
     ),
   },
@@ -88,7 +94,7 @@ function QuickActionCard({ action }: { action: QuickAction }) {
   return (
     <Link
       href={action.href}
-      className="group flex flex-col items-center gap-2 rounded-xl px-2 py-3 text-center transition-colors hover:bg-muted/40"
+      className="group flex w-full min-w-0 flex-col items-center justify-center gap-2.5 rounded-xl border border-border/60 bg-card/40 px-3 py-4 text-center transition-colors hover:border-primary/30 hover:bg-muted/50 sm:gap-3 sm:px-4 sm:py-5"
     >
       <div className="transition-transform group-hover:scale-105">{action.icon}</div>
       <span
@@ -106,19 +112,19 @@ function QuickActionCard({ action }: { action: QuickAction }) {
 export function LandingQuickActions() {
   return (
     <section className="w-full px-4 sm:px-6 lg:px-8 xl:px-10">
-      <div className="mx-auto max-w-3xl space-y-5">
-        <div className="grid grid-cols-3 gap-2 sm:gap-4">
+      <div className="mx-auto w-full max-w-7xl space-y-5">
+        <div className="grid grid-cols-3 gap-2 sm:grid-cols-6 sm:gap-3 lg:gap-4">
           {primaryActions.map((action) => (
-            <QuickActionCard key={action.label} action={action} />
+            <QuickActionCard key={action.href} action={action} />
           ))}
         </div>
 
         <div className="rounded-2xl border border-border bg-muted/20 p-3 sm:p-4">
           <p className="mb-2 text-center text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-            DEX
+            Swap
           </p>
           <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-2">
-            {dexNavLinks.map((link) => (
+            {swapNavLinks.map((link) => (
               <Link
                 key={link.label}
                 href={link.href}

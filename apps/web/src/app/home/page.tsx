@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 
-/** Legacy route — dashboard lives at /app. */
-export default function HomeRedirect() {
-  redirect("/app");
+/** Legacy route — home lives at `/`. */
+export default function HomeRedirectPage() {
+  redirect("/");
 }

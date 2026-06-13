@@ -575,7 +575,7 @@ export function AddLiquidityPanel({
         <Card>
           <CardHeader>
             <CardTitle>2. Pair with</CardTitle>
-            <CardDescription>Choose which asset to pair your token with on the DEX.</CardDescription>
+            <CardDescription>Choose which asset to pair your token with on Swap.</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="flex flex-wrap gap-2">

@@ -11,6 +11,7 @@ import { DashboardProfilePanel } from "@/components/dashboard/dashboard-profile-
 import { DashboardStatsPanel } from "@/components/dashboard/dashboard-stats-panel";
 import { DashboardBalancePanel } from "@/components/dashboard/dashboard-balance-panel";
 import { DashboardActivityFeed } from "@/components/dashboard/dashboard-activity-feed";
+import { DashboardMyTokensPanel } from "@/components/dashboard/dashboard-my-tokens-panel";
 import { CreatorBountySection } from "@/components/bounties/creator-bounty-section";
 import { fetchDiscoverTokens, tokenQueryKeys } from "@/lib/tokens-api";
 import { fetchMyTokens } from "@/lib/token-register";
@@ -43,8 +44,8 @@ export default function DashboardPage() {
           </p>
         </div>
         <Button asChild variant="outline" size="sm">
-          <Link href="/discover?section=trending">
-            Explore Projects
+          <Link href="/explore">
+            Explore
             <Compass className="ml-2 h-4 w-4" />
           </Link>
         </Button>
@@ -63,6 +64,7 @@ export default function DashboardPage() {
           <DashboardStatsPanel />
           <DashboardActivityFeed />
           <DashboardProfilePanel />
+          <DashboardMyTokensPanel />
 
           <CreatorBountySection
             creatorWallet={address!.toLowerCase()}

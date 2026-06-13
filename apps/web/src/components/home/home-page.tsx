@@ -12,7 +12,8 @@ import { LandingHowItWorks } from "@/components/landing/landing-how-it-works";
 import { LandingTrustDashboard } from "@/components/landing/landing-trust-dashboard";
 import { Footer } from "@/components/layout/footer";
 
-export function LandingPage() {
+/** Home page — full copy of the former landing page layout. */
+export function HomePage() {
   return (
     <div className="flex min-h-screen w-full flex-col bg-background">
       <LandingHeader />

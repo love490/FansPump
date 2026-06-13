@@ -102,7 +102,7 @@ export default function EarnPage() {
         <div className="rounded-2xl border border-dashed p-10 text-center">
           <p className="text-muted-foreground">No bounties in this section yet.</p>
           <Button asChild variant="outline" className="mt-4">
-            <Link href="/discover?section=trending">Explore projects</Link>
+            <Link href="/explore">Explore</Link>
           </Button>
         </div>
       ) : (

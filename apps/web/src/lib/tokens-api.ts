@@ -50,6 +50,15 @@ export async function fetchDiscoverTokens(
     return data.tokens ?? [];
   }
 
+  if (section === "all") {
+    const res = await fetch(
+      `/api/tokens?section=all&limit=${limit}&chainId=${chainId}${fq}`
+    );
+    if (!res.ok) throw new Error("Failed to load tokens");
+    const data = (await res.json()) as { tokens: TokenCardData[] };
+    return data.tokens ?? [];
+  }
+
   if (section === "latest" || section === "new") {
     const res = await fetch(`/api/tokens/latest?limit=${limit}&chainId=${chainId}${fq}`);
     if (!res.ok) throw new Error("Failed to load latest tokens");

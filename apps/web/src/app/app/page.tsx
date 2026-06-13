@@ -1,6 +1,6 @@
-import { HomeDashboard } from "@/components/home/home-dashboard";
+import { redirect } from "next/navigation";
 
-/** In-app home — token dashboard. */
+/** Legacy in-app home — unified with landing at `/`. */
 export default function AppHomePage() {
-  return <HomeDashboard />;
+  redirect("/");
 }

@@ -51,7 +51,7 @@ export function TokenLiquidityOverview({
         <CardHeader>
           <CardTitle>No liquidity pools yet</CardTitle>
           <CardDescription>
-            This token has no active OPN or USDT pairs on the DEX.
+            This token has no active OPN or USDT pairs on Swap.
           </CardDescription>
         </CardHeader>
       </Card>

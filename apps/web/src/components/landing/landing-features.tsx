@@ -12,11 +12,11 @@ import { BRAND_BLUE } from "@/lib/brand";
 
 const features = [
   { icon: Layers, label: "Create Tokens", href: "/create" },
-  { icon: Compass, label: "Discover Projects", href: "/discover" },
+  { icon: Compass, label: "Discover Projects", href: "/discover?section=all" },
   { icon: ShieldCheck, label: "Verify Ownership", href: "/verify" },
   { icon: Users, label: "Build Communities", href: "/discover?section=featured" },
   { icon: Eye, label: "Gain Visibility", href: "/discover?section=trending" },
-  { icon: TrendingUp, label: "Grow Together", href: "/app" },
+  { icon: TrendingUp, label: "Grow Together", href: "/" },
 ] as const;
 
 export function LandingFeatures() {

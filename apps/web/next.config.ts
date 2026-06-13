@@ -37,6 +37,13 @@ const nextConfig: NextConfig = {
       { protocol: "http", hostname: "localhost" },
     ],
   },
+  async redirects() {
+    return [
+      { source: "/app", destination: "/", permanent: true },
+      { source: "/home", destination: "/", permanent: true },
+      { source: "/leaderboard", destination: "/explore", permanent: true },
+    ];
+  },
   async headers() {
     return [
       {

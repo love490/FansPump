@@ -43,15 +43,15 @@ export function LandingCtaSection({ className }: { className?: string }) {
             </Link>
           </Button>
           <Button asChild size="lg" variant="outline" className={ctaBtnSecondary}>
-            <Link href="/discover?section=trending" className="inline-flex items-center whitespace-nowrap">
-              Explore Projects
+            <Link href="/explore" className="inline-flex items-center whitespace-nowrap">
+              Explore
               <ArrowRight className="h-4 w-4 shrink-0" />
             </Link>
           </Button>
           <Button asChild size="lg" variant="outline" className={ctaBtnSecondary}>
             <Link href="/swap" className="inline-flex items-center whitespace-nowrap">
               <ArrowLeftRight className="h-4 w-4 shrink-0" />
-              DEX
+              Swap
             </Link>
           </Button>
         </div>

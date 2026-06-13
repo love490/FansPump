@@ -6,14 +6,20 @@ import { buildDiscoverWhere, parseDiscoverFilters } from "@/lib/discover-filters
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
-  const limit = Math.min(Number(searchParams.get("limit") ?? 24), 100);
+  const limit = Math.min(Number(searchParams.get("limit") ?? 24), 500);
   const chainId = Number(searchParams.get("chainId") ?? getActiveChainId());
   const filters = parseDiscoverFilters(searchParams);
 
   try {
     const tokens = await prisma.tokenProject.findMany({
       where: buildDiscoverWhere(chainId, filters),
-      orderBy: [{ volume24h: "desc" }, { txCount24h: "desc" }, { lastActivity: "desc" }],
+      orderBy: [
+        { viewCount: "desc" },
+        { holderCount: "desc" },
+        { volume24h: "desc" },
+        { txCount24h: "desc" },
+        { lastActivity: "desc" },
+      ],
       take: limit,
       select: tokenListSelect,
     });

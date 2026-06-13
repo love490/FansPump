@@ -6,15 +6,15 @@ import {
   Layers,
 } from "lucide-react";
 
-export const DEX_HOME = "/swap";
+export const SWAP_HOME = "/swap";
 
-export type DexNavLink = {
+export type SwapNavLink = {
   href: string;
   label: string;
   icon: LucideIcon;
 };
 
-export const dexNavLinks: DexNavLink[] = [
+export const swapNavLinks: SwapNavLink[] = [
   { href: "/swap", label: "Swap", icon: ArrowLeftRight },
   { href: "/my-liquidity", label: "Liquidity", icon: Droplets },
   { href: "/pools", label: "Pools", icon: Layers },
@@ -23,7 +23,7 @@ export const dexNavLinks: DexNavLink[] = [
   { href: "/pools", label: "Analytics", icon: BarChart3 },
 ];
 
-export function isDexPath(pathname: string): boolean {
+export function isSwapPath(pathname: string): boolean {
   return (
     pathname === "/swap" ||
     pathname.startsWith("/swap/") ||

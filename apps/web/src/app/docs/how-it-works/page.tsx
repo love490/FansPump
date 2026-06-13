@@ -27,7 +27,7 @@ const steps = [
     icon: ArrowLeftRight,
     title: "Swap & add liquidity",
     description:
-      "Buy and sell with OPN, USDT, or USDC via the configured DEX router, then onboard liquidity when ready.",
+      "Buy and sell with OPN, USDT, or USDC via the configured swap router, then onboard liquidity when ready.",
     href: "/swap",
   },
 ];

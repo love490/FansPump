@@ -1,12 +1,14 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useAccount } from "wagmi";
 import { ArrowDown, ArrowUp, ChevronDown, ChevronUp, Star } from "lucide-react";
 import { TokenLogo } from "@/components/tokens/token-logo";
 import { Button } from "@/components/ui/button";
+import { TablePagination } from "@/components/ui/table-pagination";
 import { cn } from "@/lib/utils";
+import { getPageSlice } from "@/lib/pagination";
 import {
   buildMarketTableRows,
   formatMarketCompact,
@@ -27,7 +29,10 @@ type TokenMarketTableProps = {
   favoriteIds?: Set<string>;
   onToggleFavorite?: (tokenId: string) => void;
   emptyMessage?: string;
+  pageSize?: number;
 };
+
+const DEFAULT_PAGE_SIZE = 10;
 
 const columns: { key: MarketSortKey | "name"; label: string; align?: "right" }[] = [
   { key: "rank", label: "#" },
@@ -76,16 +81,30 @@ export function TokenMarketTable({
   favoriteIds,
   onToggleFavorite,
   emptyMessage = "No tokens to display yet.",
+  pageSize = DEFAULT_PAGE_SIZE,
 }: TokenMarketTableProps) {
   const { isConnected } = useAccount();
   const [sortKey, setSortKey] = useState<MarketSortKey>("rank");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const [page, setPage] = useState(1);
 
   const rows = useMemo(() => {
     const built = buildMarketTableRows(tokens, { includeBaseTokens });
     if (sortKey === "rank") return built;
     return sortMarketRows(built, sortKey, sortDir);
   }, [tokens, includeBaseTokens, sortKey, sortDir]);
+
+  const pagination = useMemo(() => getPageSlice(rows, page, pageSize), [rows, page, pageSize]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [tokens, sortKey, sortDir, pageSize]);
+
+  useEffect(() => {
+    if (page > pagination.totalPages) {
+      setPage(pagination.totalPages);
+    }
+  }, [page, pagination.totalPages]);
 
   function toggleSort(key: MarketSortKey) {
     if (sortKey === key) {
@@ -103,11 +122,11 @@ export function TokenMarketTable({
         {description && <p className="mt-1 text-sm text-muted-foreground">{description}</p>}
       </div>
 
-      <div className="overflow-hidden rounded-2xl border border-border bg-[#0b1220] text-slate-100 shadow-xl dark:border-slate-800">
+      <div className="overflow-hidden rounded-2xl border border-border bg-card text-card-foreground shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[920px] border-collapse text-sm">
             <thead>
-              <tr className="border-b border-slate-800 text-xs font-medium uppercase tracking-wide text-slate-400">
+              <tr className="border-b border-border text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 <th className="w-10 px-3 py-3" aria-label="Favorite" />
                 {columns.map((col) => (
                   <th
@@ -115,7 +134,7 @@ export function TokenMarketTable({
                     className={cn(
                       "px-3 py-3",
                       col.align === "right" ? "text-right" : "text-left",
-                      col.key !== "name" && "cursor-pointer select-none hover:text-slate-200"
+                      col.key !== "name" && "cursor-pointer select-none hover:text-foreground"
                     )}
                     onClick={() => col.key !== "name" && toggleSort(col.key as MarketSortKey)}
                   >
@@ -135,20 +154,20 @@ export function TokenMarketTable({
             <tbody>
               {isLoading ? (
                 [...Array(8)].map((_, i) => (
-                  <tr key={i} className="border-b border-slate-800/80">
+                  <tr key={i} className="border-b border-border">
                     <td colSpan={9} className="px-3 py-4">
-                      <div className="h-8 animate-pulse rounded bg-slate-800/80" />
+                      <div className="h-8 animate-pulse rounded bg-muted" />
                     </td>
                   </tr>
                 ))
               ) : rows.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-4 py-10 text-center text-slate-400">
+                  <td colSpan={9} className="px-4 py-10 text-center text-muted-foreground">
                     {emptyMessage}
                   </td>
                 </tr>
               ) : (
-                rows.map((row) => (
+                pagination.items.map((row) => (
                   <MarketRow
                     key={row.id}
                     row={row}
@@ -161,6 +180,16 @@ export function TokenMarketTable({
             </tbody>
           </table>
         </div>
+        {!isLoading && rows.length > 0 && (
+          <TablePagination
+            page={pagination.page}
+            totalPages={pagination.totalPages}
+            startIndex={pagination.startIndex}
+            endIndex={pagination.endIndex}
+            totalCount={pagination.total}
+            onPageChange={setPage}
+          />
+        )}
       </div>
     </section>
   );
@@ -178,7 +207,7 @@ function MarketRow({
   onToggleFavorite?: (tokenId: string) => void;
 }) {
   return (
-    <tr className="border-b border-slate-800/80 transition-colors hover:bg-slate-900/70">
+    <tr className="border-b border-border transition-colors hover:bg-muted/50">
       <td className="px-3 py-3">
         <button
           type="button"
@@ -186,23 +215,23 @@ function MarketRow({
           onClick={() => onToggleFavorite?.(row.id)}
           className={cn(
             "rounded p-1 transition-colors",
-            canToggleFavorite ? "hover:bg-slate-800" : "cursor-default opacity-40"
+            canToggleFavorite ? "hover:bg-muted" : "cursor-default opacity-40"
           )}
           aria-label={isFavorite ? "Remove from favorites" : "Add to favorites"}
         >
           <Star
-            className={cn("h-4 w-4", isFavorite ? "fill-amber-400 text-amber-400" : "text-slate-500")}
+            className={cn("h-4 w-4", isFavorite ? "fill-amber-400 text-amber-400" : "text-muted-foreground")}
           />
         </button>
       </td>
-      <td className="px-3 py-3 tabular-nums text-slate-400">{row.rank}</td>
+      <td className="px-3 py-3 tabular-nums text-muted-foreground">{row.rank}</td>
       <td className="px-3 py-3">
         <div className="flex items-center gap-3">
           <TokenLogo src={row.logoUrl} symbol={row.symbol} name={row.name} layout="fixed" size={32} />
           <div className="min-w-0">
             <Link href={tokenHref(row)} className="group inline-flex flex-wrap items-center gap-2">
-              <span className="font-semibold text-white group-hover:text-primary">{row.name}</span>
-              <span className="text-xs uppercase text-slate-400">{row.symbol}</span>
+              <span className="font-semibold text-foreground group-hover:text-primary">{row.name}</span>
+              <span className="text-xs uppercase text-muted-foreground">{row.symbol}</span>
             </Link>
             <div className="mt-1">
               <Button
@@ -217,7 +246,7 @@ function MarketRow({
           </div>
         </div>
       </td>
-      <td className="px-3 py-3 text-right tabular-nums text-white">{formatMarketPrice(row.price)}</td>
+      <td className="px-3 py-3 text-right tabular-nums text-foreground">{formatMarketPrice(row.price)}</td>
       <td className="px-3 py-3 text-right">
         <ChangeCell value={row.change1h} />
       </td>
@@ -227,8 +256,8 @@ function MarketRow({
       <td className="px-3 py-3 text-right">
         <ChangeCell value={row.change7d} />
       </td>
-      <td className="px-3 py-3 text-right tabular-nums text-white">{formatMarketCompact(row.marketCap)}</td>
-      <td className="px-3 py-3 text-right tabular-nums text-white">{formatMarketCompact(row.volume24h)}</td>
+      <td className="px-3 py-3 text-right tabular-nums text-foreground">{formatMarketCompact(row.marketCap)}</td>
+      <td className="px-3 py-3 text-right tabular-nums text-foreground">{formatMarketCompact(row.volume24h)}</td>
     </tr>
   );
 }

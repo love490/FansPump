@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { Menu, X } from "lucide-react";
+import { Menu, X, ChevronDown } from "lucide-react";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { FansPumpTagline } from "@/components/brand/fans-pump-brand";
@@ -17,6 +17,134 @@ import {
   isSidebarNavActive,
   type SidebarNavItem,
 } from "@/components/layout/sidebar-nav";
+import { isSwapPath } from "@/lib/navigation/swap-nav";
+
+function NavLink({
+  link,
+  pathname,
+  searchParams,
+  onNavigate,
+  collapsed,
+  nested,
+}: {
+  link: SidebarNavItem;
+  pathname: string;
+  searchParams: URLSearchParams;
+  onNavigate?: () => void;
+  collapsed?: boolean;
+  nested?: boolean;
+}) {
+  const { id, href, label, icon: Icon } = link;
+  const active = isSidebarNavActive(id, pathname, searchParams);
+
+  return (
+    <Link
+      href={href}
+      onClick={onNavigate}
+      title={collapsed ? label : undefined}
+      className={cn(
+        "flex items-center rounded-lg py-2 text-sm font-medium transition-colors",
+        collapsed ? "justify-center px-2" : cn("gap-3", nested ? "pl-9 pr-3" : "px-3"),
+        nested && "text-[13px]",
+        active
+          ? "bg-primary/10 text-primary"
+          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+      )}
+    >
+      <Icon className={cn("shrink-0", nested ? "h-3.5 w-3.5" : "h-4 w-4")} />
+      {!collapsed && label}
+    </Link>
+  );
+}
+
+function NavItemWithChildren({
+  link,
+  pathname,
+  searchParams,
+  onNavigate,
+  collapsed,
+}: {
+  link: SidebarNavItem;
+  pathname: string;
+  searchParams: URLSearchParams;
+  onNavigate?: () => void;
+  collapsed?: boolean;
+}) {
+  const swapOpenDefault = isSwapPath(pathname);
+  const [open, setOpen] = useState(swapOpenDefault);
+  const parentActive = isSidebarNavActive(link.id, pathname, searchParams);
+
+  useEffect(() => {
+    if (swapOpenDefault) setOpen(true);
+  }, [swapOpenDefault]);
+
+  if (!link.children?.length) {
+    return (
+      <NavLink
+        link={link}
+        pathname={pathname}
+        searchParams={searchParams}
+        onNavigate={onNavigate}
+        collapsed={collapsed}
+      />
+    );
+  }
+
+  if (collapsed) {
+    return (
+      <NavLink
+        link={link}
+        pathname={pathname}
+        searchParams={searchParams}
+        onNavigate={onNavigate}
+        collapsed={collapsed}
+      />
+    );
+  }
+
+  return (
+    <div className="space-y-0.5">
+      <div className="flex items-center gap-0.5">
+        <Link
+          href={link.href}
+          onClick={onNavigate}
+          className={cn(
+            "flex min-w-0 flex-1 items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+            parentActive
+              ? "bg-primary/10 text-primary"
+              : "text-muted-foreground hover:bg-muted hover:text-foreground"
+          )}
+        >
+          <link.icon className="h-4 w-4 shrink-0" />
+          {link.label}
+        </Link>
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+          aria-expanded={open}
+          aria-label={`${open ? "Collapse" : "Expand"} ${link.label} menu`}
+        >
+          <ChevronDown className={cn("h-4 w-4 transition-transform", open && "rotate-180")} />
+        </button>
+      </div>
+      {open && (
+        <div className="space-y-0.5 border-l border-border/60 ml-5 pl-1">
+          {link.children.map((child) => (
+            <NavLink
+              key={child.id}
+              link={child}
+              pathname={pathname}
+              searchParams={searchParams}
+              onNavigate={onNavigate}
+              nested
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function NavSection({
   title,
@@ -41,28 +169,16 @@ function NavSection({
         </p>
       )}
       <nav className="space-y-0.5">
-        {links.map((link) => {
-          const { id, href, label, icon: Icon } = link;
-          const active = isSidebarNavActive(id, pathname, searchParams);
-          return (
-            <Link
-              key={id}
-              href={href}
-              onClick={onNavigate}
-              title={collapsed ? label : undefined}
-              className={cn(
-                "flex items-center rounded-lg py-2 text-sm font-medium transition-colors",
-                collapsed ? "justify-center px-2" : "gap-3 px-3",
-                active
-                  ? "bg-primary/10 text-primary"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
-              )}
-            >
-              <Icon className="h-4 w-4 shrink-0" />
-              {!collapsed && label}
-            </Link>
-          );
-        })}
+        {links.map((link) => (
+          <NavItemWithChildren
+            key={link.id}
+            link={link}
+            pathname={pathname}
+            searchParams={searchParams}
+            onNavigate={onNavigate}
+            collapsed={collapsed}
+          />
+        ))}
       </nav>
     </div>
   );

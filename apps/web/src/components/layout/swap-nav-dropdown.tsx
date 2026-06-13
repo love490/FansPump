@@ -5,19 +5,19 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { DEX_HOME, dexNavLinks, isDexPath } from "@/lib/navigation/dex-nav";
+import { SWAP_HOME, swapNavLinks, isSwapPath } from "@/lib/navigation/swap-nav";
 
-type DexNavDropdownProps = {
+type SwapNavDropdownProps = {
   linkClassName?: string;
   menuClassName?: string;
   compact?: boolean;
 };
 
-export function DexNavDropdown({ linkClassName, menuClassName, compact }: DexNavDropdownProps) {
+export function SwapNavDropdown({ linkClassName, menuClassName, compact }: SwapNavDropdownProps) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
-  const active = isDexPath(pathname);
+  const active = isSwapPath(pathname);
 
   useEffect(() => {
     if (!open) return;
@@ -47,14 +47,14 @@ export function DexNavDropdown({ linkClassName, menuClassName, compact }: DexNav
       onMouseLeave={() => setOpen(false)}
     >
       <div className={triggerClass}>
-        <Link href={DEX_HOME} onClick={() => setOpen(false)}>
-          DEX
+        <Link href={SWAP_HOME} onClick={() => setOpen(false)}>
+          Swap
         </Link>
         <button
           type="button"
           className="rounded p-0.5 hover:bg-muted/60"
           aria-expanded={open}
-          aria-label="Open DEX menu"
+          aria-label="Open Swap menu"
           onClick={() => setOpen((o) => !o)}
         >
           <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", open && "rotate-180")} />
@@ -68,7 +68,7 @@ export function DexNavDropdown({ linkClassName, menuClassName, compact }: DexNav
             menuClassName
           )}
         >
-          {dexNavLinks.map((link) => (
+          {swapNavLinks.map((link) => (
             <Link
               key={link.label}
               href={link.href}
@@ -90,7 +90,7 @@ export function DexNavDropdown({ linkClassName, menuClassName, compact }: DexNav
   );
 }
 
-export function DexNavMobileLinks({
+export function SwapNavMobileLinks({
   pathname,
   onNavigate,
   className,
@@ -102,17 +102,17 @@ export function DexNavMobileLinks({
   return (
     <div className={cn("space-y-1", className)}>
       <Link
-        href={DEX_HOME}
+        href={SWAP_HOME}
         className={cn(
           "block rounded-lg px-3 py-2.5 text-sm font-semibold",
-          isDexPath(pathname) ? "bg-primary/10 text-primary" : "hover:bg-muted"
+          isSwapPath(pathname) ? "bg-primary/10 text-primary" : "hover:bg-muted"
         )}
         onClick={onNavigate}
       >
-        DEX
+        Swap
       </Link>
       <div className="ml-2 space-y-0.5 border-l border-border pl-2">
-        {dexNavLinks.map((link) => (
+        {swapNavLinks.map((link) => (
           <Link
             key={link.label}
             href={link.href}

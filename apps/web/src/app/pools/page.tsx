@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { AddressCopyButton } from "@/components/ui/address-copy-button";
 import { BarChart3, Droplets, Plus, RefreshCw } from "lucide-react";
 import { shortenAddress } from "@/lib/utils";
 
@@ -99,6 +100,8 @@ export default function PoolsPage() {
   }
 
   const analytics = data?.analytics;
+  const pools = data?.pools ?? [];
+
   const stats = [
     { label: "Total pools", value: analytics?.totalPools ?? 0 },
     {
@@ -162,7 +165,7 @@ export default function PoolsPage() {
             <Plus className="h-5 w-5" /> Add pool
           </CardTitle>
           <CardDescription>
-            Paste a DEX pair (LP) contract address to index it, or use Discover pools to scan platform tokens.
+            Paste a swap pair (LP) contract address to index it, or use Discover pools to scan platform tokens.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-end">
@@ -195,7 +198,7 @@ export default function PoolsPage() {
         <CardContent>
           {loading ? (
             <p className="text-sm text-muted-foreground">Loading pools…</p>
-          ) : !data?.pools.length ? (
+          ) : !pools.length ? (
             <div className="space-y-4 rounded-lg border border-dashed p-6 text-sm text-muted-foreground">
               <p>No pools indexed yet.</p>
               <div className="flex flex-wrap gap-2">
@@ -209,31 +212,42 @@ export default function PoolsPage() {
             </div>
           ) : (
             <div className="space-y-3">
-              {data.pools.map((pool) => (
-                <div
-                  key={pool.poolAddress}
-                  className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border p-4 text-sm"
-                >
-                  <div>
-                    <p className="font-medium">
-                      {pool.token0Symbol ?? shortenAddress(pool.token0)} /{" "}
-                      {pool.token1Symbol ?? shortenAddress(pool.token1)}
-                    </p>
-                    <p className="font-mono text-xs text-muted-foreground">{pool.poolAddress}</p>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Badge variant="outline">{pool.pairType.replace(/_/g, "/")}</Badge>
-                    <span className="font-medium">TVL: {formatReserve(pool.totalLiquidity)}</span>
-                    <span className="text-muted-foreground">
-                      Vol: {formatReserve(pool.totalVolume)}
-                    </span>
-                  </div>
-                </div>
+              {pools.map((pool) => (
+                <PoolRow key={pool.poolAddress} pool={pool} />
               ))}
             </div>
           )}
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+function PoolRow({ pool }: { pool: PoolRecord }) {
+  return (
+    <div className="grid gap-3 rounded-lg border border-border p-4 text-sm sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+      <div className="min-w-0 space-y-1">
+        <p className="truncate font-medium">
+          {pool.token0Symbol ?? shortenAddress(pool.token0, 4)} /{" "}
+          {pool.token1Symbol ?? shortenAddress(pool.token1, 4)}
+        </p>
+        <div className="flex min-w-0 items-center gap-0.5">
+          <span
+            className="truncate font-mono text-xs text-muted-foreground"
+            title={pool.poolAddress}
+          >
+            {shortenAddress(pool.poolAddress, 4)}
+          </span>
+          <AddressCopyButton value={pool.poolAddress} />
+        </div>
+      </div>
+      <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+        <Badge variant="outline" className="shrink-0">
+          {pool.pairType.replace(/_/g, "/")}
+        </Badge>
+        <span className="shrink-0 font-medium">TVL: {formatReserve(pool.totalLiquidity)}</span>
+        <span className="shrink-0 text-muted-foreground">Vol: {formatReserve(pool.totalVolume)}</span>
+      </div>
     </div>
   );
 }

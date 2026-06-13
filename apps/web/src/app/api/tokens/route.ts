@@ -60,7 +60,7 @@ export async function GET(request: NextRequest) {
   const q = searchParams.get("q")?.trim() ?? "";
   const creator = searchParams.get("creator")?.trim() ?? "";
   const creatorNormalized = creator ? creator.toLowerCase() : "";
-  const limit = Math.min(Number(searchParams.get("limit") ?? 24), 100);
+  const limit = Math.min(Number(searchParams.get("limit") ?? 24), 500);
   const chainId = Number(searchParams.get("chainId") ?? getActiveChainId());
   const discoverFilters = parseDiscoverFilters(searchParams);
   const hasDiscoverFilters =
@@ -90,8 +90,15 @@ export async function GET(request: NextRequest) {
     : { chainId };
 
   const orderBy =
-    section === "trending"
-      ? { trendingScore: "desc" as const }
+    section === "all"
+      ? { createdAt: "desc" as const }
+      : section === "trending"
+      ? [
+          { viewCount: "desc" as const },
+          { holderCount: "desc" as const },
+          { volume24h: "desc" as const },
+          { txCount24h: "desc" as const },
+        ]
       : section === "hot" || section === "fastest-growing"
         ? [{ holderCount: "desc" as const }, { trendingScore: "desc" as const }]
         : section === "views"

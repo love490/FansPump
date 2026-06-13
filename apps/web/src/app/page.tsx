@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { LandingPage } from "@/components/landing/landing-page";
+import { HomePage } from "@/components/home/home-page";
 
 export const metadata: Metadata = {
   title: "FansPump — Trust & Growth Platform on OPNChain",
@@ -13,6 +13,6 @@ export const metadata: Metadata = {
   },
 };
 
-export default function HomePage() {
-  return <LandingPage />;
+export default function Page() {
+  return <HomePage />;
 }
