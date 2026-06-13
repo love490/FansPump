@@ -16,7 +16,7 @@ export function LandingHero() {
     <section className="relative w-full overflow-hidden px-3 pt-3 sm:px-6 sm:pt-6 lg:px-8 lg:pt-8 xl:px-10">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,rgba(30,91,255,0.12),transparent_50%)]" />
 
-      <div className="relative rounded-2xl border border-border/60 bg-gradient-to-br from-card via-background to-primary/5 p-4 shadow-lg sm:p-8 lg:grid lg:grid-cols-2 lg:gap-10 lg:p-10">
+      <div className="relative rounded-2xl border border-primary/20 bg-gradient-to-br from-[#0a1628]/80 via-card to-primary/10 p-4 shadow-lg shadow-primary/5 sm:p-8 lg:grid lg:grid-cols-2 lg:gap-10 lg:p-10">
         <div className="flex flex-col justify-center">
           <p className="text-[10px] font-semibold uppercase tracking-widest text-primary sm:text-sm">
             IOPn Ecosystem
@@ -56,9 +56,13 @@ export function LandingHero() {
               </Link>
             </Button>
           </div>
+
+          <div className="mt-4 lg:hidden">
+            <LandingTrustVisual compact />
+          </div>
         </div>
 
-        <div className="mt-5 hidden items-center lg:mt-0 lg:flex lg:justify-end">
+        <div className="hidden items-center lg:mt-0 lg:flex lg:justify-end">
           <div className="w-full max-w-md lg:max-w-none">
             <LandingTrustVisual />
           </div>

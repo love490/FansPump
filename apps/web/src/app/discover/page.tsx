@@ -274,9 +274,9 @@ function DiscoverContent() {
     <div className="space-y-10 py-2 sm:space-y-12 sm:py-4">
       <header className="relative z-40 flex items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold">Explore Tokens</h1>
+          <h1 className="text-2xl font-bold">Explore Projects</h1>
           <p className="mt-1 text-muted-foreground">
-            Browse every category — use the arrows to scroll through tokens in each section.
+            Browse, evaluate trust, and discover the best projects on OPNChain.
           </p>
         </div>
         <div ref={filtersRef} className="relative shrink-0">

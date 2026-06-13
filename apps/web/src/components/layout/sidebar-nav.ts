@@ -15,6 +15,7 @@ import {
   Droplets,
   Layers,
   BarChart3,
+  Trophy,
 } from "lucide-react";
 
 export type SidebarNavId =
@@ -22,6 +23,7 @@ export type SidebarNavId =
   | "create"
   | "explore"
   | "featured"
+  | "leaderboard"
   | "how-it-works"
   | "docs"
   | "swap"
@@ -44,8 +46,9 @@ export type SidebarNavItem = {
 export const platformLinks: SidebarNavItem[] = [
   { id: "home", href: "/app", label: "Home", icon: Home },
   { id: "create", href: "/create", label: "Create Token", icon: Rocket },
-  { id: "explore", href: "/discover?section=new", label: "Explore", icon: Compass },
+  { id: "explore", href: "/discover?section=trending", label: "Explore Projects", icon: Compass },
   { id: "featured", href: "/discover?section=featured", label: "Featured", icon: Star },
+  { id: "leaderboard", href: "/leaderboard", label: "Creators Leaderboard", icon: Trophy },
   { id: "how-it-works", href: "/docs/how-it-works", label: "How It Works", icon: HelpCircle },
   { id: "swap", href: "/swap", label: "Swap", icon: ArrowLeftRight },
   { id: "docs", href: "/docs", label: "Docs", icon: BookOpen },
@@ -84,6 +87,8 @@ export function isSidebarNavActive(
       return pathname === "/discover" && section !== "featured";
     case "featured":
       return pathname === "/discover" && section === "featured";
+    case "leaderboard":
+      return pathname === "/leaderboard";
     case "how-it-works":
       return pathname === "/docs/how-it-works";
     case "docs":

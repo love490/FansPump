@@ -60,7 +60,7 @@ export function HomeDashboard() {
             </Link>
           </Button>
           <Button asChild variant="outline" size="sm">
-            <Link href="/discover?section=new">Explore Tokens</Link>
+            <Link href="/discover?section=trending">Explore Projects</Link>
           </Button>
         </div>
       </header>
