@@ -66,6 +66,10 @@ function formatLiquidity(n: number): string {
   return `$${n}`;
 }
 
+function showCreatorStatus(status: string): boolean {
+  return status === "VERIFIED" || status === "TRUSTED";
+}
+
 export function LandingTopBuilders() {
   const [builders, setBuilders] = useState<BuilderPreview[]>(FALLBACK_BUILDERS);
 
@@ -128,19 +132,17 @@ export function LandingTopBuilders() {
           >
             <div className="flex items-start justify-between gap-2">
               <span className="text-xs font-bold text-muted-foreground">#{i + 1}</span>
-              <Badge variant="outline" className="text-[10px] capitalize">
-                {builder.status.toLowerCase()}
-              </Badge>
+              {showCreatorStatus(builder.status) && (
+                <Badge variant="outline" className="text-[10px] capitalize">
+                  {builder.status.toLowerCase()}
+                </Badge>
+              )}
             </div>
             <p className="mt-2 font-semibold group-hover:text-primary">
               {builder.displayName ?? shortenAddress(builder.walletAddress, 4)}
             </p>
             <SecurityBadges badges={builder.badges} className="mt-2" max={2} />
             <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
-              <div>
-                <p className="text-muted-foreground">Tokens</p>
-                <p className="font-semibold tabular-nums">{builder.tokensCreated}</p>
-              </div>
               <div>
                 <p className="text-muted-foreground">Liquidity</p>
                 <p className="font-semibold tabular-nums">{formatLiquidity(builder.liquidityAdded)}</p>
