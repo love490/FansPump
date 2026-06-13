@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 
 const nav = [
   { href: "/discover", label: "Discover" },
-  { href: "/leaderboard", label: "Creators Leaderboard" },
+  { href: "/leaderboard", label: "Leaderboard" },
   { href: "/create", label: "Create Token" },
   { href: "/swap", label: "Swap" },
   { href: "/app", label: "Launch App" },
