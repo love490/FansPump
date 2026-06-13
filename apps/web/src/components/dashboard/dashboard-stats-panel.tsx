@@ -20,9 +20,9 @@ type DashboardStats = {
   tokensCreated: number;
   liquidityLocks: number;
   liquidityLockedAmount: string;
-  bountiesCreated: number;
-  bountiesJoined: number;
-  bountiesCompleted: number;
+  questsCreated: number;
+  questsJoined: number;
+  questsCompleted: number;
   rewardsEarned: string[];
   rewardsEarnedOpn: number;
   activeStakes: number;
@@ -63,6 +63,20 @@ export function DashboardStatsPanel() {
 
   const statCards = [
     {
+      label: "FansPump stakes",
+      value: loading ? "…" : String(stats?.activeStakes ?? 0),
+      detail: "Staked via FansPump",
+      icon: Layers,
+      href: "/staking",
+    },
+    {
+      label: "OPN liquidity",
+      value: lpLoading ? "…" : String(activeLpCount),
+      detail: "Live LP on OPNChain",
+      icon: Droplets,
+      href: "/my-liquidity",
+    },
+    {
       label: "Liquidity locked",
       value: loading ? "…" : String(stats?.liquidityLocks ?? 0),
       detail: stats?.liquidityLockedAmount
@@ -72,18 +86,11 @@ export function DashboardStatsPanel() {
       href: "/my-liquidity",
     },
     {
-      label: "Liquidity added",
-      value: lpLoading ? "…" : String(activeLpCount),
-      detail: activeLpCount === 1 ? "1 active position" : `${activeLpCount} active positions`,
-      icon: Droplets,
-      href: "/my-liquidity",
-    },
-    {
-      label: "Bounties completed",
-      value: loading ? "…" : String(stats?.bountiesCompleted ?? 0),
-      detail: stats?.bountiesJoined
-        ? `${stats.bountiesJoined} joined total`
-        : "Join bounties on Earn",
+      label: "Quests completed",
+      value: loading ? "…" : String(stats?.questsCompleted ?? 0),
+      detail: stats?.questsJoined
+        ? `${stats.questsJoined} joined total`
+        : "Join quests on Earn",
       icon: Trophy,
       href: "/earn",
     },
@@ -97,22 +104,15 @@ export function DashboardStatsPanel() {
       detail:
         stats?.rewardsEarned && stats.rewardsEarned.length > 0
           ? stats.rewardsEarned.slice(0, 2).join(" · ")
-          : "Complete bounties to earn",
+          : "Complete quests to earn",
       icon: Gift,
       href: "/earn",
     },
     {
-      label: "Active stakes",
-      value: loading ? "…" : String(stats?.activeStakes ?? 0),
-      detail: "OPN & LP staking positions",
-      icon: Layers,
-      href: "/staking",
-    },
-    {
       label: "Tokens created",
       value: loading ? "…" : String(stats?.tokensCreated ?? 0),
-      detail: stats?.bountiesCreated
-        ? `${stats.bountiesCreated} bounties created`
+      detail: stats?.questsCreated
+        ? `${stats.questsCreated} quests created`
         : "Launch on FansPump",
       icon: CircleDollarSign,
       href: "/my-tokens",
@@ -122,9 +122,9 @@ export function DashboardStatsPanel() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Your activity</CardTitle>
+        <CardTitle className="text-base">Overview</CardTitle>
         <CardDescription>
-          Liquidity, locks, bounties, and rewards across your FansPump account.
+          Summary across FansPump and OPN Network — see full timeline below.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -147,23 +147,12 @@ export function DashboardStatsPanel() {
           ))}
         </div>
 
-        {stats?.rewardsEarned && stats.rewardsEarned.length > 0 && (
-          <div className="mt-4 rounded-lg border border-border bg-muted/20 p-4">
-            <p className="text-sm font-medium">Completed bounty rewards</p>
-            <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
-              {stats.rewardsEarned.map((reward, i) => (
-                <li key={`${reward}-${i}`}>• {reward}</li>
-              ))}
-            </ul>
-          </div>
-        )}
-
         <div className="mt-4 flex flex-wrap gap-2">
           <Button asChild variant="outline" size="sm">
             <Link href="/my-liquidity">Manage liquidity</Link>
           </Button>
           <Button asChild variant="outline" size="sm">
-            <Link href="/earn">View bounties</Link>
+            <Link href="/earn">View quests</Link>
           </Button>
         </div>
       </CardContent>

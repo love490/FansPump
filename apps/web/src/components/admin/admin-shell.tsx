@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { useAdmin } from "@/components/admin/admin-context";
 import { Button } from "@/components/ui/button";
 import { FansPumpLogo } from "@/components/brand/fans-pump-logo";
-import { LogIn, LogOut, Shield } from "lucide-react";
+import { LogIn, LogOut, Menu, Shield, X } from "lucide-react";
 import type { AdminPermission } from "@/lib/admin/types";
 
 const NAV: { id: string; label: string; perm: AdminPermission }[] = [
@@ -37,12 +38,50 @@ function isSignInPath(pathname: string) {
   return pathname === "/admin/login" || pathname === "/admin/signin";
 }
 
+function AdminNavLinks({
+  section,
+  onSignInPage,
+  authorized,
+  can,
+  navLinkClass,
+  onNavigate,
+}: {
+  section: string;
+  onSignInPage: boolean;
+  authorized: boolean;
+  can: (perm: AdminPermission) => boolean;
+  navLinkClass: (active: boolean) => string;
+  onNavigate?: () => void;
+}) {
+  return (
+    <>
+      <Link href="/admin/login" className={navLinkClass(onSignInPage)} onClick={onNavigate}>
+        <LogIn className="h-4 w-4 shrink-0" />
+        Sign in
+      </Link>
+
+      {authorized &&
+        NAV.filter((n) => can(n.perm)).map((item) => (
+          <Link
+            key={item.id}
+            href={`/admin/dashboard?section=${item.id}`}
+            className={navLinkClass(!onSignInPage && section === item.id)}
+            onClick={onNavigate}
+          >
+            {item.label}
+          </Link>
+        ))}
+    </>
+  );
+}
+
 export function AdminShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const section = searchParams.get("section") ?? "overview";
   const { email, role, authorized, signOut, can } = useAdmin();
   const onSignInPage = isSignInPath(pathname ?? "");
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   const navLinkClass = (active: boolean) =>
     cn(
@@ -51,6 +90,24 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
         ? "bg-primary/10 text-primary"
         : "text-muted-foreground hover:bg-muted hover:text-foreground"
     );
+
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMobileOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = prev;
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [mobileOpen]);
+
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [pathname, section]);
 
   return (
     <div className="flex min-h-screen bg-background">
@@ -64,21 +121,13 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
           </p>
 
           <nav className="min-h-0 flex-1 space-y-0.5 overflow-y-auto">
-            <Link href="/admin/login" className={navLinkClass(onSignInPage)}>
-              <LogIn className="h-4 w-4 shrink-0" />
-              Sign in
-            </Link>
-
-            {authorized &&
-              NAV.filter((n) => can(n.perm)).map((item) => (
-                <Link
-                  key={item.id}
-                  href={`/admin/dashboard?section=${item.id}`}
-                  className={navLinkClass(!onSignInPage && section === item.id)}
-                >
-                  {item.label}
-                </Link>
-              ))}
+            <AdminNavLinks
+              section={section}
+              onSignInPage={onSignInPage}
+              authorized={authorized}
+              can={can}
+              navLinkClass={navLinkClass}
+            />
           </nav>
 
           <div className="mt-4 border-t border-border pt-4">
@@ -99,25 +148,84 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
         </div>
       </aside>
 
-      {/* Mobile: sign-in shortcut when sidebar is hidden */}
       <div className="flex min-w-0 flex-1 flex-col">
-        <div className="flex items-center justify-between border-b border-border px-4 py-3 lg:hidden">
-          <Link href="/" className="flex items-center gap-2">
+        <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3 lg:hidden">
+          <Link href="/" className="flex min-w-0 items-center gap-2">
             <FansPumpLogo showText size="sm" />
           </Link>
-          {!authorized && (
-            <Button asChild size="sm" variant={onSignInPage ? "default" : "outline"}>
-              <Link href="/admin/login">
-                <LogIn className="h-4 w-4" /> Sign in
-              </Link>
+          <div className="flex shrink-0 items-center gap-2">
+            {!authorized && (
+              <Button asChild size="sm" variant={onSignInPage ? "default" : "outline"}>
+                <Link href="/admin/login">
+                  <LogIn className="h-4 w-4" /> Sign in
+                </Link>
+              </Button>
+            )}
+            <Button
+              type="button"
+              size="icon"
+              variant="outline"
+              className="h-9 w-9"
+              onClick={() => setMobileOpen(true)}
+              aria-label="Open admin menu"
+            >
+              <Menu className="h-5 w-5" />
             </Button>
-          )}
-          {authorized && (
-            <Button variant="outline" size="sm" onClick={() => void signOut()}>
-              <LogOut className="h-4 w-4" /> Sign out
-            </Button>
-          )}
+          </div>
         </div>
+
+        {mobileOpen && (
+          <div className="fixed inset-0 z-[100] lg:hidden" role="dialog" aria-modal="true" aria-label="Admin menu">
+            <button
+              type="button"
+              className="absolute inset-0 bg-black/50"
+              onClick={() => setMobileOpen(false)}
+              aria-label="Close menu"
+            />
+            <aside className="absolute left-0 top-0 flex h-full w-[min(18rem,88vw)] flex-col border-r bg-background shadow-xl">
+              <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
+                <div>
+                  <p className="text-sm font-semibold">Admin menu</p>
+                  {authorized && email && (
+                    <p className="truncate text-xs text-muted-foreground">{email}</p>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  className="flex h-10 w-10 items-center justify-center rounded-lg hover:bg-muted"
+                  onClick={() => setMobileOpen(false)}
+                  aria-label="Close menu"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              <nav className="min-h-0 flex-1 space-y-0.5 overflow-y-auto p-4">
+                <AdminNavLinks
+                  section={section}
+                  onSignInPage={onSignInPage}
+                  authorized={authorized}
+                  can={can}
+                  navLinkClass={navLinkClass}
+                  onNavigate={() => setMobileOpen(false)}
+                />
+              </nav>
+
+              <div className="border-t border-border p-4">
+                {authorized ? (
+                  <Button variant="outline" size="sm" className="w-full" onClick={() => void signOut()}>
+                    <LogOut className="h-3.5 w-3.5" /> Sign out
+                  </Button>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    Sign in with your admin email and password to access dashboard sections.
+                  </p>
+                )}
+              </div>
+            </aside>
+          </div>
+        )}
+
         <main className="min-w-0 flex-1 p-4 sm:p-6 lg:p-8">{children}</main>
       </div>
     </div>

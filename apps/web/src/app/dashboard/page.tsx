@@ -9,6 +9,7 @@ import { ArrowRight, Compass, Flame } from "lucide-react";
 import { TokenGridCarousel } from "@/components/tokens/token-grid-carousel";
 import { DashboardProfilePanel } from "@/components/dashboard/dashboard-profile-panel";
 import { DashboardStatsPanel } from "@/components/dashboard/dashboard-stats-panel";
+import { DashboardActivityFeed } from "@/components/dashboard/dashboard-activity-feed";
 import { CreatorBountySection } from "@/components/bounties/creator-bounty-section";
 import { fetchDiscoverTokens, tokenQueryKeys } from "@/lib/tokens-api";
 import { fetchMyTokens } from "@/lib/token-register";
@@ -36,7 +37,9 @@ export default function DashboardPage() {
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold">Dashboard</h1>
-          <p className="mt-1 text-muted-foreground">Manage your profile, bounties, and discover projects.</p>
+          <p className="mt-1 text-muted-foreground">
+            Track stakes, liquidity, and quests across FansPump and OPN Network.
+          </p>
         </div>
         <Button asChild variant="outline" size="sm">
           <Link href="/discover?section=trending">
@@ -50,12 +53,13 @@ export default function DashboardPage() {
         <Card>
           <CardHeader>
             <CardTitle>Connect your wallet</CardTitle>
-            <CardDescription>Connect wallet to manage your profile and bounties.</CardDescription>
+            <CardDescription>Connect wallet to view your OPN Network activity.</CardDescription>
           </CardHeader>
         </Card>
       ) : (
         <>
           <DashboardStatsPanel />
+          <DashboardActivityFeed />
           <DashboardProfilePanel />
 
           <CreatorBountySection

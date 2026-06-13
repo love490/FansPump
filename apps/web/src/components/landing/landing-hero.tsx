@@ -17,7 +17,7 @@ const heroBtnPrimary = cn(
 
 const heroBtnSecondary = cn(
   heroBtnBase,
-  "border border-white/10 bg-[#151c28]/80 text-foreground backdrop-blur-sm hover:bg-[#1c2536]/90 dark:bg-[#151c28]/80 dark:hover:bg-[#1c2536]/90"
+  "border border-white/40 bg-white/10 text-white shadow-sm hover:bg-white/20 hover:text-white"
 );
 
 export function LandingHero() {
@@ -28,12 +28,12 @@ export function LandingHero() {
         style={{
           backgroundImage: "url(/images/hero-banner-bg.png)",
           backgroundSize: "cover",
-          backgroundPosition: "center right",
+          backgroundPosition: "right center",
           backgroundRepeat: "no-repeat",
         }}
       >
-        {/* Left-side scrim so copy stays readable over the banner art */}
-        <div className="absolute inset-0 bg-gradient-to-r from-[#050a14]/95 via-[#050a14]/75 to-[#050a14]/15" />
+        {/* Light left scrim — banner art is already dark on the left */}
+        <div className="absolute inset-0 bg-gradient-to-r from-[#050a14]/80 via-[#050a14]/35 to-transparent" />
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,rgba(30,91,255,0.15),transparent_55%)]" />
 
         <div className="relative px-5 py-10 sm:px-8 sm:py-12 lg:max-w-[62%] lg:px-10 lg:py-14">
@@ -52,9 +52,7 @@ export function LandingHero() {
 
           <div
             className={cn(
-              "mt-6 flex flex-row flex-nowrap items-center gap-2 overflow-x-auto pb-0.5 sm:mt-8",
-              "[-ms-overflow-style:none] [scrollbar-width:none] sm:flex-wrap sm:overflow-visible",
-              "[&::-webkit-scrollbar]:hidden"
+              "mt-6 flex flex-wrap items-center gap-2 sm:mt-8",
             )}
           >
             <Button
@@ -68,13 +66,13 @@ export function LandingHero() {
                 Create Token
               </Link>
             </Button>
-            <Button asChild size="sm" variant="secondary" className={heroBtnSecondary}>
+            <Button asChild size="sm" variant="outline" className={heroBtnSecondary}>
               <Link href="/discover?section=trending" className="inline-flex items-center whitespace-nowrap">
                 Explore Projects
                 <ArrowRight className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
               </Link>
             </Button>
-            <Button asChild size="sm" variant="secondary" className={heroBtnSecondary}>
+            <Button asChild size="sm" variant="outline" className={heroBtnSecondary}>
               <Link href="/app" className="inline-flex items-center whitespace-nowrap">
                 <LayoutDashboard className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
                 Launch App

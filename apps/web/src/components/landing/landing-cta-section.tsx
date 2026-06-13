@@ -17,7 +17,7 @@ const ctaBtnPrimary = cn(
 
 const ctaBtnSecondary = cn(
   ctaBtnBase,
-  "border border-white/10 bg-[#151c28] text-foreground hover:bg-[#1c2536] dark:bg-[#151c28] dark:hover:bg-[#1c2536]"
+  "border-border bg-muted text-foreground shadow-sm hover:bg-muted/80"
 );
 
 export function LandingCtaSection({ className }: { className?: string }) {
@@ -35,26 +35,20 @@ export function LandingCtaSection({ className }: { className?: string }) {
         <p className="mt-2 text-muted-foreground">
           Create tokens, discover projects, evaluate trust, and track builders — all on OPNChain.
         </p>
-        <div
-          className={cn(
-            "mt-6 flex flex-row flex-nowrap items-center justify-center gap-2 overflow-x-auto pb-0.5",
-            "[-ms-overflow-style:none] [scrollbar-width:none] sm:flex-wrap sm:overflow-visible sm:gap-3",
-            "[&::-webkit-scrollbar]:hidden"
-          )}
-        >
+        <div className="mt-6 flex flex-wrap items-center justify-center gap-2 sm:gap-3">
           <Button asChild size="lg" className={ctaBtnPrimary} style={{ backgroundColor: BRAND_BLUE }}>
             <Link href="/create" className="inline-flex items-center whitespace-nowrap">
               <PlusCircle className="h-4 w-4 shrink-0" />
               Create Token
             </Link>
           </Button>
-          <Button asChild size="lg" variant="secondary" className={ctaBtnSecondary}>
+          <Button asChild size="lg" variant="outline" className={ctaBtnSecondary}>
             <Link href="/discover?section=trending" className="inline-flex items-center whitespace-nowrap">
               Explore Projects
               <ArrowRight className="h-4 w-4 shrink-0" />
             </Link>
           </Button>
-          <Button asChild size="lg" variant="secondary" className={ctaBtnSecondary}>
+          <Button asChild size="lg" variant="outline" className={ctaBtnSecondary}>
             <Link href="/app" className="inline-flex items-center whitespace-nowrap">
               <LayoutDashboard className="h-4 w-4 shrink-0" />
               Launch App
