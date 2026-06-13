@@ -56,8 +56,8 @@ export function LandingHero() {
               </Link>
             </Button>
             <Button asChild size="sm" variant="outline" className={heroBtnSecondary}>
-              <Link href="/explore" className="inline-flex w-full items-center justify-center whitespace-nowrap sm:w-auto">
-                Explore
+              <Link href="/discover" className="inline-flex w-full items-center justify-center whitespace-nowrap sm:w-auto">
+                Discover
                 <ArrowRight className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
               </Link>
             </Button>

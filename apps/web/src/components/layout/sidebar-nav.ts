@@ -12,17 +12,18 @@ import {
   Settings,
   Droplets,
   Layers,
+  Wallet,
   BarChart3,
   CircleDollarSign,
 } from "lucide-react";
-import { isSwapPath } from "@/lib/navigation/swap-nav";
+import { isDexPath } from "@/lib/navigation/swap-nav";
 
 export type SidebarNavId =
   | "home"
   | "create"
-  | "explore"
-  | "leaderboard"
+  | "discover"
   | "earn"
+  | "dex"
   | "swap"
   | "pools"
   | "my-liquidity"
@@ -44,25 +45,29 @@ export type SidebarNavItem = {
   children?: SidebarNavItem[];
 };
 
-export const swapNavChildren: SidebarNavItem[] = [
+export const dexNavChildren: SidebarNavItem[] = [
+  { id: "swap", href: "/swap", label: "Swap", icon: ArrowLeftRight },
   { id: "my-liquidity", href: "/my-liquidity", label: "Liquidity", icon: Droplets },
-  { id: "pools", href: "/pools", label: "Pools", icon: Layers },
+  { id: "lp-management", href: "/my-liquidity", label: "LP Management", icon: Wallet },
+  { id: "pools", href: "/pools", label: "Pool", icon: Layers },
   { id: "staking", href: "/staking", label: "Staking", icon: Layers },
-  { id: "lp-management", href: "/my-liquidity", label: "LP Management", icon: Droplets },
   { id: "analytics", href: "/pools", label: "Analytics", icon: BarChart3 },
 ];
+
+/** @deprecated Use dexNavChildren */
+export const swapNavChildren = dexNavChildren;
 
 export const platformLinks: SidebarNavItem[] = [
   { id: "home", href: "/", label: "Home", icon: Home },
   { id: "create", href: "/create", label: "Create Token", icon: Rocket },
-  { id: "explore", href: "/explore", label: "Explore", icon: Compass },
+  { id: "discover", href: "/discover?section=all", label: "Discover", icon: Compass },
   { id: "earn", href: "/earn", label: "Earn", icon: CircleDollarSign },
   {
-    id: "swap",
+    id: "dex",
     href: "/swap",
-    label: "Swap",
+    label: "DEX",
     icon: ArrowLeftRight,
-    children: swapNavChildren,
+    children: dexNavChildren,
   },
   { id: "how-it-works", href: "/docs/how-it-works", label: "How It Works", icon: HelpCircle },
   { id: "docs", href: "/docs", label: "Docs", icon: BookOpen },
@@ -91,26 +96,27 @@ export function isSidebarNavActive(
       return pathname === "/";
     case "create":
       return pathname === "/create";
-    case "explore":
-      return pathname === "/discover" || pathname === "/explore";
-    case "leaderboard":
-      return pathname === "/explore";
+    case "discover":
+      return pathname === "/discover";
     case "earn":
       return pathname === "/earn";
     case "how-it-works":
       return pathname === "/docs/how-it-works";
     case "docs":
       return pathname === "/docs";
+    case "dex":
+      return isDexPath(pathname);
     case "swap":
-      return isSwapPath(pathname);
+      return pathname === "/swap" || pathname.startsWith("/swap/");
     case "pools":
-    case "analytics":
       return pathname === "/pools" || pathname.startsWith("/pools/");
     case "my-liquidity":
     case "lp-management":
       return pathname === "/my-liquidity" || pathname.startsWith("/liquidity/");
     case "staking":
       return pathname === "/staking";
+    case "analytics":
+      return pathname === "/pools" || pathname.startsWith("/pools/");
     case "dashboard":
       return pathname === "/dashboard";
     case "watchlist":

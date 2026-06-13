@@ -5,215 +5,27 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { Settings2 } from "lucide-react";
 import { TokenGridCarousel } from "@/components/tokens/token-grid-carousel";
+import {
+  countDiscoverFilters,
+  DiscoverFilterPanel,
+} from "@/components/discover/discover-filter-panel";
 import { cn } from "@/lib/utils";
 import { fetchDiscoverTokens, tokenQueryKeys, type DiscoverFilters } from "@/lib/tokens-api";
 import { getActiveChainId } from "@/lib/chain-config/opn";
-import { TOKEN_CATEGORIES, TOKEN_CATEGORY_LABELS, type TokenCategoryId } from "@iopn/shared";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
+import {
+  DISCOVER_DEFAULT_SECTION,
+  getDiscoverSectionMeta,
+  isDiscoverBrowseSectionId,
+  type DiscoverBrowseSectionId,
+} from "@/lib/discover-sections";
+import { TOKEN_CATEGORY_LABELS, type TokenCategoryId } from "@iopn/shared";
 import { Button } from "@/components/ui/button";
-
-const DEFAULT_SECTION = "all";
-
-const browseSections = [
-  {
-    id: "all",
-    label: "Discover Projects",
-    description: "All tokens created on FansPump — newest launches first.",
-    variant: "grid" as const,
-  },
-  {
-    id: "trending",
-    label: "Trending",
-    description: "Tokens ranked by popularity — profile views, holders, and activity.",
-    variant: "trending" as const,
-  },
-  {
-    id: "new",
-    label: "New",
-    description: "Newly launched tokens — sorted by launch date.",
-    variant: "grid" as const,
-  },
-  {
-    id: "top-token",
-    label: "Top Token",
-    description: "Highest-ranked tokens by trust and volume.",
-    variant: "grid" as const,
-  },
-  {
-    id: "views",
-    label: "Most Viewed Token",
-    description: "Tokens with the most profile views.",
-    variant: "grid" as const,
-  },
-  {
-    id: "hot",
-    label: "Hot",
-    description: "Fast-moving tokens gaining holders and attention.",
-    variant: "trending" as const,
-  },
-  {
-    id: "gainer",
-    label: "Gainer",
-    description: "Tokens with the strongest 24h volume momentum.",
-    variant: "grid" as const,
-  },
-  {
-    id: "loser",
-    label: "Loser",
-    description: "Tokens with the weakest recent volume activity.",
-    variant: "grid" as const,
-  },
-  {
-    id: "latest",
-    label: "Latest",
-    description: "Most recently added tokens on the platform.",
-    variant: "grid" as const,
-  },
-  {
-    id: "verified",
-    label: "Verified",
-    description: "Projects from verified creators.",
-    variant: "grid" as const,
-  },
-  {
-    id: "featured",
-    label: "Featured",
-    description: "Hand-picked featured projects.",
-    variant: "grid" as const,
-  },
-  {
-    id: "recently-verified",
-    label: "Recently Verified",
-    description: "Projects with approved contract verification.",
-    variant: "grid" as const,
-  },
-  {
-    id: "holders",
-    label: "Most Holders",
-    description: "Tokens with the largest holder counts.",
-    variant: "grid" as const,
-  },
-  {
-    id: "updated",
-    label: "Recently Updated",
-    description: "Projects updated most recently.",
-    variant: "grid" as const,
-  },
-] as const;
-
-type BrowseSectionId = (typeof browseSections)[number]["id"];
-
-function isBrowseSectionId(value: string | null): value is BrowseSectionId {
-  return browseSections.some((s) => s.id === value);
-}
-
-function sectionMeta(sectionId: BrowseSectionId) {
-  return browseSections.find((s) => s.id === sectionId)!;
-}
 
 function sectionFilters(sectionId: string, global: DiscoverFilters): DiscoverFilters {
   if (sectionId === "verified") {
     return { ...global, verified: true };
   }
   return global;
-}
-
-function DiscoverExplorePanel({
-  activeSection,
-  filters,
-  onSelectSection,
-  onToggle,
-  onClear,
-}: {
-  activeSection: BrowseSectionId;
-  filters: DiscoverFilters;
-  onSelectSection: (sectionId: BrowseSectionId) => void;
-  onToggle: (key: keyof DiscoverFilters, value?: string) => void;
-  onClear: () => void;
-}) {
-  const activeFilterCount =
-    (filters.category ? 1 : 0) +
-    (filters.verified ? 1 : 0) +
-    (filters.liquidityLocked ? 1 : 0) +
-    (filters.ownershipRenounced ? 1 : 0);
-
-  return (
-    <div className="max-h-[min(70vh,520px)] space-y-5 overflow-y-auto overscroll-contain pr-1">
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-sm font-semibold text-foreground">Browse Explore</p>
-        {activeFilterCount > 0 && (
-          <button
-            type="button"
-            onClick={onClear}
-            className="shrink-0 text-xs text-primary hover:underline"
-          >
-            Clear filters
-          </button>
-        )}
-      </div>
-
-      <div className="space-y-2">
-        <Label className="text-xs font-medium text-muted-foreground">Sections</Label>
-        <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-1">
-          {browseSections.map((section) => (
-            <button
-              key={section.id}
-              type="button"
-              onClick={() => onSelectSection(section.id)}
-              className={cn(
-                "rounded-lg border px-3 py-2 text-left text-xs font-medium transition-colors sm:text-sm",
-                activeSection === section.id
-                  ? "border-primary bg-primary/10 text-primary"
-                  : "border-border bg-muted/40 text-foreground hover:bg-muted"
-              )}
-            >
-              {section.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="space-y-3 border-t border-border pt-4">
-        <Label className="text-xs font-medium text-muted-foreground">Category</Label>
-        <div className="flex max-h-32 flex-wrap gap-2 overflow-y-auto overscroll-contain">
-          {TOKEN_CATEGORIES.map((cat) => (
-            <button
-              key={cat}
-              type="button"
-              onClick={() => onToggle("category", cat)}
-              className={cn(
-                "rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
-                filters.category === cat
-                  ? "border-primary bg-primary text-primary-foreground"
-                  : "border-border bg-muted text-foreground hover:bg-muted/80"
-              )}
-            >
-              {TOKEN_CATEGORY_LABELS[cat as TokenCategoryId]}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="space-y-3 border-t border-border pt-4">
-        <Label className="text-xs font-medium text-muted-foreground">Trust filters</Label>
-        <div className="space-y-2.5">
-          {(
-            [
-              ["verified", "Verified Creator"],
-              ["liquidityLocked", "Liquidity Locked"],
-              ["ownershipRenounced", "Ownership Renounced"],
-            ] as const
-          ).map(([key, label]) => (
-            <label key={key} className="flex cursor-pointer items-center gap-2.5 text-sm text-foreground">
-              <Checkbox checked={!!filters[key]} onCheckedChange={() => onToggle(key)} />
-              {label}
-            </label>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
 }
 
 function DiscoverContent() {
@@ -224,9 +36,9 @@ function DiscoverContent() {
   const filtersRef = useRef<HTMLDivElement>(null);
 
   const sectionParam = searchParams.get("section");
-  const activeSection: BrowseSectionId = isBrowseSectionId(sectionParam)
+  const activeSection: DiscoverBrowseSectionId = isDiscoverBrowseSectionId(sectionParam)
     ? sectionParam
-    : DEFAULT_SECTION;
+    : DISCOVER_DEFAULT_SECTION;
 
   const [filters, setFilters] = useState<DiscoverFilters>(() => ({
     category: searchParams.get("category") ?? undefined,
@@ -236,22 +48,20 @@ function DiscoverContent() {
   }));
 
   const chainId = getActiveChainId();
-  const meta = sectionMeta(activeSection);
+  const meta = getDiscoverSectionMeta(activeSection);
   const queryFilters = sectionFilters(activeSection, filters);
 
   const { data: tokens = [], isLoading } = useQuery({
     queryKey: tokenQueryKeys.discover(activeSection, chainId, queryFilters),
-    queryFn: () => fetchDiscoverTokens(activeSection, activeSection === "all" ? 100 : 24, queryFilters),
+    queryFn: () =>
+      fetchDiscoverTokens(activeSection, activeSection === "all" ? 100 : 24, queryFilters),
     staleTime: 15_000,
   });
 
-  const activeFilterCount =
-    (filters.category ? 1 : 0) +
-    (filters.verified ? 1 : 0) +
-    (filters.liquidityLocked ? 1 : 0) +
-    (filters.ownershipRenounced ? 1 : 0);
+  const activeFilterCount = countDiscoverFilters(filters);
+  const activeBadgeCount = activeFilterCount + (activeSection !== DISCOVER_DEFAULT_SECTION ? 1 : 0);
 
-  function buildUrl(section: BrowseSectionId, nextFilters: DiscoverFilters) {
+  function buildUrl(section: DiscoverBrowseSectionId, nextFilters: DiscoverFilters) {
     const params = new URLSearchParams();
     params.set("section", section);
     if (nextFilters.category) params.set("category", nextFilters.category);
@@ -261,14 +71,14 @@ function DiscoverContent() {
     return `${pathname}?${params.toString()}`;
   }
 
-  function updateUrl(section: BrowseSectionId, nextFilters: DiscoverFilters) {
+  function updateUrl(section: DiscoverBrowseSectionId, nextFilters: DiscoverFilters) {
     router.replace(buildUrl(section, nextFilters), { scroll: false });
   }
 
   useEffect(() => {
     if (sectionParam) return;
     const params = new URLSearchParams(searchParams.toString());
-    params.set("section", DEFAULT_SECTION);
+    params.set("section", DISCOVER_DEFAULT_SECTION);
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
   }, [sectionParam, pathname, router, searchParams]);
 
@@ -279,12 +89,18 @@ function DiscoverContent() {
         setFiltersOpen(false);
       }
     }
+    function handleEscape(e: KeyboardEvent) {
+      if (e.key === "Escape") setFiltersOpen(false);
+    }
     document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleEscape);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleEscape);
+    };
   }, [filtersOpen]);
 
-  function selectSection(sectionId: BrowseSectionId) {
-    setFiltersOpen(false);
+  function selectSection(sectionId: DiscoverBrowseSectionId) {
     updateUrl(sectionId, filters);
   }
 
@@ -304,56 +120,74 @@ function DiscoverContent() {
     updateUrl(activeSection, {});
   }
 
+  function resetAll() {
+    setFilters({});
+    setFiltersOpen(false);
+    updateUrl(DISCOVER_DEFAULT_SECTION, {});
+  }
+
   return (
     <div className="space-y-8 py-2 sm:space-y-10 sm:py-4">
       <header className="relative z-40 flex items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold">
-            {activeSection === "all" ? "Discover Projects" : "Explore"}
-          </h1>
+        <div className="min-w-0 flex-1">
+          <h1 className="text-2xl font-bold">Discover</h1>
           <p className="mt-1 text-muted-foreground">
             {activeSection === "all"
-              ? "Browse every token created on FansPump — filter by category, verified, and more."
-              : `Browse ${meta.label.toLowerCase()} projects — filter by category, verified, and more.`}
+              ? "Browse every token created on FansPump."
+              : meta.description}
           </p>
         </div>
+
         <div ref={filtersRef} className="relative shrink-0">
           <Button
             type="button"
             variant="outline"
-            size="icon"
+            size="sm"
             className={cn(
-              "relative h-9 w-9",
+              "relative h-9 gap-1.5 px-2.5 sm:px-3",
               filtersOpen && "border-primary/40 bg-primary/5 text-primary"
             )}
-            aria-label="Browse sections and filters"
-            title="Browse & filter"
+            aria-label="Open discover filters"
+            aria-expanded={filtersOpen}
+            title="Filter by category, verified, new, and more"
             onClick={() => setFiltersOpen((o) => !o)}
           >
-            <Settings2 className="h-4 w-4" />
-            {(activeFilterCount > 0 || activeSection !== DEFAULT_SECTION) && (
-              <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-foreground">
-                {activeFilterCount + (activeSection !== DEFAULT_SECTION ? 1 : 0)}
+            <Settings2 className="h-4 w-4 shrink-0" />
+            <span className="text-xs font-medium sm:text-sm">Filters</span>
+            {activeBadgeCount > 0 && (
+              <span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-foreground">
+                {activeBadgeCount}
               </span>
             )}
           </Button>
+
           {filtersOpen && (
-            <div className="absolute right-0 top-full z-[100] mt-2 w-[min(calc(100vw-2rem),380px)] rounded-xl border border-border bg-background p-4 shadow-2xl">
-              <DiscoverExplorePanel
-                activeSection={activeSection}
-                filters={filters}
-                onSelectSection={selectSection}
-                onToggle={toggleFilter}
-                onClear={clearFilters}
+            <>
+              <button
+                type="button"
+                className="fixed inset-0 z-[90] bg-black/20 sm:hidden"
+                aria-label="Close filters"
+                onClick={() => setFiltersOpen(false)}
               />
-            </div>
+              <div className="fixed inset-x-4 bottom-4 top-auto z-[100] max-h-[min(80vh,560px)] overflow-hidden rounded-xl border border-border bg-background p-4 shadow-2xl sm:absolute sm:inset-auto sm:right-0 sm:top-full sm:mt-2 sm:w-[min(calc(100vw-2rem),400px)]">
+                <DiscoverFilterPanel
+                  activeSection={activeSection}
+                  filters={filters}
+                  onSelectSection={selectSection}
+                  onToggle={toggleFilter}
+                  onClearFilters={clearFilters}
+                  onResetAll={resetAll}
+                  onClose={() => setFiltersOpen(false)}
+                />
+              </div>
+            </>
           )}
         </div>
       </header>
 
-      {(activeFilterCount > 0 || activeSection !== DEFAULT_SECTION) && (
+      {activeBadgeCount > 0 && (
         <div className="flex flex-wrap items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 px-4 py-2 text-sm">
-          {activeSection !== DEFAULT_SECTION && (
+          {activeSection !== DISCOVER_DEFAULT_SECTION && (
             <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
               {meta.label}
             </span>
@@ -381,10 +215,7 @@ function DiscoverContent() {
           <button
             type="button"
             className="ml-auto text-xs text-primary hover:underline"
-            onClick={() => {
-              setFilters({});
-              updateUrl(DEFAULT_SECTION, {});
-            }}
+            onClick={resetAll}
           >
             Reset
           </button>

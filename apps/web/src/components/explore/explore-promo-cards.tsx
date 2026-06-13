@@ -50,9 +50,33 @@ const DEFAULT_CARDS: PromoCard[] = [
 ];
 
 function formatRewardTotal(value: number): string {
-  if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(1)}M`;
-  if (value >= 1_000) return `$${Math.round(value / 1_000).toLocaleString()},000`;
+  if (!Number.isFinite(value) || value <= 0) return "$0";
+  if (value >= 1_000_000_000) return `$${trimAmount(value / 1_000_000_000)}B`;
+  if (value >= 1_000_000) return `$${trimAmount(value / 1_000_000)}M`;
+  if (value >= 1_000) return `$${trimAmount(value / 1_000)}K`;
   return `$${Math.round(value).toLocaleString()}`;
+}
+
+function trimAmount(n: number): string {
+  return n.toFixed(n >= 10 ? 0 : 1).replace(/\.0$/, "");
+}
+
+function formatLiquidityHeadline(raw: string): string | null {
+  try {
+    const n = BigInt(raw);
+    if (n <= 0n) return null;
+    const scaled = Number(n / 10n ** 18n);
+    if (!Number.isFinite(scaled) || scaled <= 0) return null;
+    return formatRewardTotal(scaled);
+  } catch {
+    return null;
+  }
+}
+
+function headlineClass(text: string): string {
+  if (text.length > 12) return "mt-5 text-lg font-extrabold tracking-tight sm:text-xl";
+  if (text.length > 8) return "mt-5 text-xl font-extrabold tracking-tight sm:text-2xl";
+  return "mt-5 text-2xl font-extrabold tracking-tight sm:text-3xl";
 }
 
 export function ExplorePromoCards() {
@@ -76,10 +100,8 @@ export function ExplorePromoCards() {
     fetch("/api/pools?limit=1")
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
-        const liquidity = Number(data?.analytics?.totalLiquidity ?? 0);
-        if (liquidity > 0) {
-          setPoolHeadline(formatRewardTotal(liquidity));
-        }
+        const formatted = formatLiquidityHeadline(String(data?.analytics?.totalLiquidity ?? "0"));
+        if (formatted) setPoolHeadline(formatted);
       })
       .catch(() => {});
   }, []);
@@ -115,7 +137,7 @@ export function ExplorePromoCards() {
                 card.gradient
               )}
             />
-            <div className="relative flex h-full flex-col">
+            <div className="relative flex h-full min-h-[11rem] flex-col sm:min-h-[12rem]">
               <div className="flex items-start justify-between gap-3">
                 <span
                   className={cn(
@@ -125,12 +147,14 @@ export function ExplorePromoCards() {
                 >
                   <card.icon className="h-5 w-5" strokeWidth={1.75} />
                 </span>
-                <span className="rounded-full border border-border bg-background/80 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                <span className="shrink-0 rounded-full border border-border bg-background/80 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                   {card.label}
                 </span>
               </div>
 
-              <p className="mt-5 text-2xl font-extrabold tracking-tight sm:text-3xl">{card.headline}</p>
+              <p className={cn(headlineClass(card.headline), "min-w-0 break-words")} title={card.headline}>
+                {card.headline}
+              </p>
               <p className="mt-2 text-sm font-medium text-muted-foreground">{card.subtitle}</p>
 
               <span className="mt-auto flex items-center gap-1 pt-5 text-sm font-semibold text-primary">

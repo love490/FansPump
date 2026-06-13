@@ -44,8 +44,8 @@ export default function DashboardPage() {
           </p>
         </div>
         <Button asChild variant="outline" size="sm">
-          <Link href="/explore">
-            Explore
+          <Link href="/discover?section=all">
+            Discover
             <Compass className="ml-2 h-4 w-4" />
           </Link>
         </Button>
@@ -92,14 +92,14 @@ export default function DashboardPage() {
       <Card className="border-primary/20 bg-gradient-to-r from-primary/5 to-transparent">
         <CardContent className="flex flex-col items-start justify-between gap-4 py-6 sm:flex-row sm:items-center">
           <div>
-            <h2 className="text-lg font-semibold">Explore all projects</h2>
+            <h2 className="text-lg font-semibold">Discover all projects</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Filter by newly created, verified, category, and more from Explore.
+              Filter by newly created, verified, category, and more on Discover.
             </p>
           </div>
           <Button asChild>
-            <Link href="/discover?section=trending">
-              Open Explore
+            <Link href="/discover?section=all">
+              Open Discover
               <ArrowRight className="ml-2 h-4 w-4" />
             </Link>
           </Button>

@@ -10,10 +10,10 @@ import { motion } from "framer-motion";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { FansPumpLogo } from "@/components/brand/fans-pump-logo";
 import { Button } from "@/components/ui/button";
-import { SwapNavDropdown, SwapNavMobileLinks } from "@/components/layout/swap-nav-dropdown";
+import { DexNavDropdown, DexNavMobileLinks } from "@/components/layout/swap-nav-dropdown";
 
 const nav = [
-  { href: "/explore", label: "Explore" },
+  { href: "/discover", label: "Discover" },
   { href: "/create", label: "Create Token" },
 ] as const;
 
@@ -34,13 +34,17 @@ export function Header() {
                 href={item.href}
                 className={cn(
                   "relative rounded-md px-3 py-2 text-sm font-medium transition-colors",
-                  pathname === item.href || pathname.startsWith(item.href + "/")
+                  pathname === item.href ||
+                  pathname.startsWith(`${item.href.split("?")[0]}/`) ||
+                  (item.href.startsWith("/discover") && pathname === "/discover")
                     ? "text-primary"
                     : "text-muted-foreground hover:text-foreground"
                 )}
               >
                 {item.label}
-                {(pathname === item.href || pathname.startsWith(item.href + "/")) && (
+                {(pathname === item.href ||
+                  pathname.startsWith(`${item.href.split("?")[0]}/`) ||
+                  (item.href.startsWith("/discover") && pathname === "/discover")) && (
                   <motion.span
                     layoutId="nav-indicator"
                     className="absolute inset-x-1 -bottom-[17px] h-0.5 bg-primary"
@@ -48,7 +52,7 @@ export function Header() {
                 )}
               </Link>
             ))}
-            <SwapNavDropdown />
+            <DexNavDropdown />
           </nav>
 
           <div className="flex items-center gap-1.5 sm:gap-2">
@@ -95,7 +99,9 @@ export function Header() {
                   href={item.href}
                   className={cn(
                     "block rounded-lg px-3 py-2.5 text-sm font-medium",
-                    pathname === item.href || pathname.startsWith(item.href + "/")
+                    pathname === item.href ||
+                  pathname.startsWith(`${item.href.split("?")[0]}/`) ||
+                  (item.href.startsWith("/discover") && pathname === "/discover")
                       ? "bg-primary/10 text-primary"
                       : "hover:bg-muted"
                   )}
@@ -104,7 +110,7 @@ export function Header() {
                   {item.label}
                 </Link>
               ))}
-              <SwapNavMobileLinks pathname={pathname} onNavigate={() => setMenuOpen(false)} className="pt-1" />
+              <DexNavMobileLinks pathname={pathname} onNavigate={() => setMenuOpen(false)} className="pt-1" />
             </nav>
           </aside>
         </div>

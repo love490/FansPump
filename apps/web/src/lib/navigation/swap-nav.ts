@@ -4,26 +4,35 @@ import {
   BarChart3,
   Droplets,
   Layers,
+  Wallet,
 } from "lucide-react";
 
-export const SWAP_HOME = "/swap";
+export const DEX_LABEL = "DEX";
+export const DEX_HOME = "/swap";
 
-export type SwapNavLink = {
+/** @deprecated Use DEX_HOME */
+export const SWAP_HOME = DEX_HOME;
+
+export type DexNavLink = {
+  id: string;
   href: string;
   label: string;
   icon: LucideIcon;
 };
 
-export const swapNavLinks: SwapNavLink[] = [
-  { href: "/swap", label: "Swap", icon: ArrowLeftRight },
-  { href: "/my-liquidity", label: "Liquidity", icon: Droplets },
-  { href: "/pools", label: "Pools", icon: Layers },
-  { href: "/staking", label: "Staking", icon: Layers },
-  { href: "/my-liquidity", label: "LP Management", icon: Droplets },
-  { href: "/pools", label: "Analytics", icon: BarChart3 },
+export const dexNavLinks: DexNavLink[] = [
+  { id: "swap", href: "/swap", label: "Swap", icon: ArrowLeftRight },
+  { id: "liquidity", href: "/my-liquidity", label: "Liquidity", icon: Droplets },
+  { id: "lp-management", href: "/my-liquidity", label: "LP Management", icon: Wallet },
+  { id: "pool", href: "/pools", label: "Pool", icon: Layers },
+  { id: "staking", href: "/staking", label: "Staking", icon: Layers },
+  { id: "analytics", href: "/pools", label: "Analytics", icon: BarChart3 },
 ];
 
-export function isSwapPath(pathname: string): boolean {
+/** @deprecated Use dexNavLinks */
+export const swapNavLinks = dexNavLinks;
+
+export function isDexPath(pathname: string): boolean {
   return (
     pathname === "/swap" ||
     pathname.startsWith("/swap/") ||
@@ -34,3 +43,6 @@ export function isSwapPath(pathname: string): boolean {
     pathname === "/staking"
   );
 }
+
+/** @deprecated Use isDexPath */
+export const isSwapPath = isDexPath;

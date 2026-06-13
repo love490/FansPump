@@ -4,6 +4,7 @@ import { LandingHeader } from "@/components/landing/landing-header";
 import { LandingHero } from "@/components/landing/landing-hero";
 import { LandingQuickActions } from "@/components/landing/landing-quick-actions";
 import { LandingTrustPreview } from "@/components/landing/landing-trust-preview";
+import { HomeMarketSection } from "@/components/home/home-market-section";
 import {
   LandingNewlyCreatedPreview,
   LandingTrendingPreview,
@@ -26,6 +27,7 @@ export function HomePage() {
         </div>
 
         <div className="w-full space-y-14 px-4 pb-16 pt-2 sm:space-y-16 sm:px-6 lg:px-8 lg:pb-20 lg:pt-3 xl:px-10">
+          <HomeMarketSection />
           <LandingTrendingPreview />
           <LandingNewlyCreatedPreview />
         </div>

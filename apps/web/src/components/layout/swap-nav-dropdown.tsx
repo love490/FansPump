@@ -5,19 +5,25 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { SWAP_HOME, swapNavLinks, isSwapPath } from "@/lib/navigation/swap-nav";
+import {
+  DEX_HOME,
+  DEX_LABEL,
+  dexNavLinks,
+  isDexPath,
+} from "@/lib/navigation/swap-nav";
 
-type SwapNavDropdownProps = {
+type DexNavDropdownProps = {
   linkClassName?: string;
   menuClassName?: string;
   compact?: boolean;
+  className?: string;
 };
 
-export function SwapNavDropdown({ linkClassName, menuClassName, compact }: SwapNavDropdownProps) {
+export function DexNavDropdown({ linkClassName, menuClassName, compact, className }: DexNavDropdownProps) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
-  const active = isSwapPath(pathname);
+  const active = isDexPath(pathname);
 
   useEffect(() => {
     if (!open) return;
@@ -42,19 +48,19 @@ export function SwapNavDropdown({ linkClassName, menuClassName, compact }: SwapN
   return (
     <div
       ref={ref}
-      className="relative inline-flex"
+      className={cn("relative inline-flex", className)}
       onMouseEnter={() => setOpen(true)}
       onMouseLeave={() => setOpen(false)}
     >
       <div className={triggerClass}>
-        <Link href={SWAP_HOME} onClick={() => setOpen(false)}>
-          Swap
+        <Link href={DEX_HOME} onClick={() => setOpen(false)}>
+          {DEX_LABEL}
         </Link>
         <button
           type="button"
           className="rounded p-0.5 hover:bg-muted/60"
           aria-expanded={open}
-          aria-label="Open Swap menu"
+          aria-label={`Open ${DEX_LABEL} menu`}
           onClick={() => setOpen((o) => !o)}
         >
           <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", open && "rotate-180")} />
@@ -68,9 +74,9 @@ export function SwapNavDropdown({ linkClassName, menuClassName, compact }: SwapN
             menuClassName
           )}
         >
-          {swapNavLinks.map((link) => (
+          {dexNavLinks.map((link) => (
             <Link
-              key={link.label}
+              key={link.id}
               href={link.href}
               className={cn(
                 "flex items-center gap-2 px-3 py-2 text-sm transition-colors hover:bg-muted",
@@ -90,7 +96,10 @@ export function SwapNavDropdown({ linkClassName, menuClassName, compact }: SwapN
   );
 }
 
-export function SwapNavMobileLinks({
+/** @deprecated Use DexNavDropdown */
+export const SwapNavDropdown = DexNavDropdown;
+
+export function DexNavMobileLinks({
   pathname,
   onNavigate,
   className,
@@ -101,33 +110,27 @@ export function SwapNavMobileLinks({
 }) {
   return (
     <div className={cn("space-y-1", className)}>
-      <Link
-        href={SWAP_HOME}
-        className={cn(
-          "block rounded-lg px-3 py-2.5 text-sm font-semibold",
-          isSwapPath(pathname) ? "bg-primary/10 text-primary" : "hover:bg-muted"
-        )}
-        onClick={onNavigate}
-      >
-        Swap
-      </Link>
-      <div className="ml-2 space-y-0.5 border-l border-border pl-2">
-        {swapNavLinks.map((link) => (
-          <Link
-            key={link.label}
-            href={link.href}
-            className={cn(
-              "block rounded-md px-3 py-2 text-sm",
-              pathname === link.href || pathname.startsWith(`${link.href}/`)
-                ? "text-primary"
-                : "text-muted-foreground hover:bg-muted hover:text-foreground"
-            )}
-            onClick={onNavigate}
-          >
-            {link.label}
-          </Link>
-        ))}
-      </div>
+      <p className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+        {DEX_LABEL}
+      </p>
+      {dexNavLinks.map((link) => (
+        <Link
+          key={link.id}
+          href={link.href}
+          className={cn(
+            "block rounded-lg px-3 py-2.5 text-sm font-medium",
+            pathname === link.href || pathname.startsWith(`${link.href}/`)
+              ? "bg-primary/10 text-primary"
+              : "hover:bg-muted"
+          )}
+          onClick={onNavigate}
+        >
+          {link.label}
+        </Link>
+      ))}
     </div>
   );
 }
+
+/** @deprecated Use DexNavMobileLinks */
+export const SwapNavMobileLinks = DexNavMobileLinks;

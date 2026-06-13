@@ -17,7 +17,7 @@ import {
   isSidebarNavActive,
   type SidebarNavItem,
 } from "@/components/layout/sidebar-nav";
-import { isSwapPath } from "@/lib/navigation/swap-nav";
+import { isDexPath } from "@/lib/navigation/swap-nav";
 
 function NavLink({
   link,
@@ -70,13 +70,13 @@ function NavItemWithChildren({
   onNavigate?: () => void;
   collapsed?: boolean;
 }) {
-  const swapOpenDefault = isSwapPath(pathname);
-  const [open, setOpen] = useState(swapOpenDefault);
+  const dexOpenDefault = isDexPath(pathname);
+  const [open, setOpen] = useState(dexOpenDefault);
   const parentActive = isSidebarNavActive(link.id, pathname, searchParams);
 
   useEffect(() => {
-    if (swapOpenDefault) setOpen(true);
-  }, [swapOpenDefault]);
+    if (dexOpenDefault) setOpen(true);
+  }, [dexOpenDefault]);
 
   if (!link.children?.length) {
     return (
