@@ -57,7 +57,7 @@ export const DEFAULT_SUPPORTED_LP_POOLS: SupportedLpPool[] = [
     label: "OPN/USDC",
     token0: "native",
     token1: "usdc",
-    enabled: false,
+    enabled: true,
   },
   {
     id: "opn-token",

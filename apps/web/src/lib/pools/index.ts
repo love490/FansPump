@@ -3,7 +3,12 @@ import { prisma } from "@iopn/database";
 import type { PoolPairType, PoolRecord } from "@iopn/shared";
 import { uniswapV2PairAbi } from "@/lib/liquidity/abis";
 import { erc20Abi } from "@/lib/swap/abis";
-import { opnChainConfig } from "@/lib/chain-config/opn";
+import { opnChainConfig, getActiveChainId } from "@/lib/chain-config/opn";
+import { resolveDexFactory } from "@/lib/liquidity/dex-factory";
+import { findPairAddress, quoteCandidatesForPairId } from "@/lib/liquidity/pair-resolve";
+import { readRouterWeth } from "@/lib/liquidity/router-weth";
+import { DEX_ROUTER_ADDRESS } from "@/lib/wagmi";
+import type { LiquidityPairId } from "@/lib/liquidity/pair-tokens";
 
 function getPublicClient() {
   return createPublicClient({
@@ -150,4 +155,68 @@ export async function getLiquidityPoolAnalytics() {
     totalProviders,
     trackingOnly: true,
   };
+}
+
+const PAIR_IDS: LiquidityPairId[] = ["OPN", "WOPN", "USDT"];
+
+async function pairHasLiquidity(client: ReturnType<typeof getPublicClient>, pair: Address): Promise<boolean> {
+  try {
+    const reserves = await client.readContract({
+      address: pair,
+      abi: uniswapV2PairAbi,
+      functionName: "getReserves",
+    });
+    return BigInt(reserves[0]) > 0n || BigInt(reserves[1]) > 0n;
+  } catch {
+    return false;
+  }
+}
+
+/** Scan platform tokens and base OPN pairs on-chain, then index pools with liquidity. */
+export async function discoverPlatformPools(tokenLimit = 80): Promise<PoolRecord[]> {
+  const chainId = getActiveChainId();
+  const client = getPublicClient();
+  const [factory, weth] = await Promise.all([
+    resolveDexFactory(client),
+    readRouterWeth(client, DEX_ROUTER_ADDRESS),
+  ]);
+  const wopn = opnChainConfig.contracts.wopnExplicit;
+  const usdt = opnChainConfig.contracts.usdt;
+
+  const poolAddresses = new Set<string>();
+
+  const basePair = await findPairAddress(client, factory, weth, [usdt]);
+  if (basePair) poolAddresses.add(basePair.toLowerCase());
+
+  const tokens = await prisma.tokenProject.findMany({
+    where: { chainId, isHidden: false },
+    select: { contractAddress: true },
+    orderBy: { createdAt: "desc" },
+    take: tokenLimit,
+  });
+
+  await Promise.all(
+    tokens.map(async ({ contractAddress }) => {
+      const token = contractAddress.toLowerCase() as Address;
+      for (const pairId of PAIR_IDS) {
+        const quotes = quoteCandidatesForPairId(pairId, weth, wopn, usdt);
+        const pair = await findPairAddress(client, factory, token, quotes);
+        if (pair) poolAddresses.add(pair.toLowerCase());
+      }
+    })
+  );
+
+  const synced: PoolRecord[] = [];
+  for (const poolAddress of poolAddresses) {
+    try {
+      const hasLiq = await pairHasLiquidity(client, poolAddress as Address);
+      if (!hasLiq) continue;
+      const pool = await syncPoolFromChain(poolAddress);
+      if (pool) synced.push(pool);
+    } catch (e) {
+      console.warn("[pools] discover sync failed for", poolAddress, e);
+    }
+  }
+
+  return synced;
 }

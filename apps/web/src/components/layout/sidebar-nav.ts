@@ -3,7 +3,6 @@ import {
   Home,
   Rocket,
   Compass,
-  Star,
   HelpCircle,
   BookOpen,
   LayoutDashboard,
@@ -23,17 +22,16 @@ export type SidebarNavId =
   | "home"
   | "create"
   | "explore"
-  | "featured"
   | "leaderboard"
   | "earn"
-  | "how-it-works"
-  | "docs"
   | "swap"
-  | "dashboard"
-  | "my-tokens"
+  | "pools"
   | "my-liquidity"
   | "staking"
-  | "pools"
+  | "how-it-works"
+  | "docs"
+  | "dashboard"
+  | "my-tokens"
   | "watchlist"
   | "following"
   | "settings";
@@ -49,20 +47,19 @@ export const platformLinks: SidebarNavItem[] = [
   { id: "home", href: "/app", label: "Home", icon: Home },
   { id: "create", href: "/create", label: "Create Token", icon: Rocket },
   { id: "explore", href: "/discover?section=trending", label: "Explore Projects", icon: Compass },
-  { id: "featured", href: "/discover?section=featured", label: "Featured", icon: Star },
   { id: "leaderboard", href: "/leaderboard", label: "Creators Leaderboard", icon: Trophy },
   { id: "earn", href: "/earn", label: "Earn", icon: CircleDollarSign },
-  { id: "how-it-works", href: "/docs/how-it-works", label: "How It Works", icon: HelpCircle },
   { id: "swap", href: "/swap", label: "Swap", icon: ArrowLeftRight },
+  { id: "pools", href: "/pools", label: "Pools", icon: BarChart3 },
+  { id: "my-liquidity", href: "/my-liquidity", label: "Liquidity", icon: Droplets },
+  { id: "staking", href: "/staking", label: "Staking", icon: Layers },
+  { id: "how-it-works", href: "/docs/how-it-works", label: "How It Works", icon: HelpCircle },
   { id: "docs", href: "/docs", label: "Docs", icon: BookOpen },
 ];
 
 export const userLinks: SidebarNavItem[] = [
   { id: "dashboard", href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { id: "my-tokens", href: "/my-tokens", label: "My Tokens", icon: Coins },
-  { id: "my-liquidity", href: "/my-liquidity", label: "Liquidity", icon: Droplets },
-  { id: "staking", href: "/staking", label: "Staking", icon: Layers },
-  { id: "pools", href: "/pools", label: "Pools", icon: BarChart3 },
   { id: "watchlist", href: "/watchlist", label: "Watchlist", icon: Bookmark },
   { id: "following", href: "/following", label: "Following", icon: Users },
 ];
@@ -79,17 +76,13 @@ export function isSidebarNavActive(
   pathname: string,
   searchParams: URLSearchParams
 ): boolean {
-  const section = searchParams.get("section");
-
   switch (id) {
     case "home":
       return pathname === "/app";
     case "create":
       return pathname === "/create";
     case "explore":
-      return pathname === "/discover" && section !== "featured";
-    case "featured":
-      return pathname === "/discover" && section === "featured";
+      return pathname === "/discover";
     case "leaderboard":
       return pathname === "/leaderboard";
     case "earn":
@@ -100,16 +93,16 @@ export function isSidebarNavActive(
       return pathname === "/docs";
     case "swap":
       return pathname === "/swap" || pathname.startsWith("/swap/");
+    case "pools":
+      return pathname === "/pools";
+    case "my-liquidity":
+      return pathname === "/my-liquidity" || pathname.startsWith("/liquidity/");
+    case "staking":
+      return pathname === "/staking";
     case "dashboard":
       return pathname === "/dashboard";
     case "my-tokens":
       return pathname === "/my-tokens";
-    case "my-liquidity":
-      return pathname === "/my-liquidity";
-    case "staking":
-      return pathname === "/staking";
-    case "pools":
-      return pathname === "/pools";
     case "watchlist":
       return pathname === "/watchlist";
     case "following":

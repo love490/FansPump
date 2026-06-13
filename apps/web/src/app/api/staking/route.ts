@@ -4,6 +4,8 @@ import { z } from "zod";
 import { requireCreatorActionAuth, CreatorAuthError } from "@/lib/creator-auth";
 import { getStakingPlatformConfig, serializeStakingPosition } from "@/lib/staking/config";
 import { computeWalletStakingTier } from "@/lib/staking/tier";
+import { consolidateStakingPositions } from "@/lib/staking/consolidate";
+import { stakingPositionGroupWhere } from "@/lib/staking/position-key";
 
 const stakeSchema = z.object({
   wallet: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
@@ -24,6 +26,8 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    await consolidateStakingPositions(wallet);
+
     const [positions, config] = await Promise.all([
       prisma.stakingPosition.findMany({
         where: { wallet, isActive: true },
@@ -63,6 +67,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "LP staking is disabled" }, { status: 403 });
     }
 
+    const normalizedAsset = body.assetType === "OPN" ? "opn" : body.asset.toLowerCase();
     const extraOpnWei = body.assetType === "OPN" ? BigInt(body.amount) : 0n;
     const tier =
       body.tier ??
@@ -70,17 +75,35 @@ export async function POST(request: NextRequest) {
         ? await computeWalletStakingTier(wallet, config, extraOpnWei)
         : null);
 
-    const position = await prisma.stakingPosition.create({
-      data: {
-        wallet,
-        assetType: body.assetType,
-        asset: body.asset.toLowerCase(),
-        amount: body.amount,
-        poolAddress: body.poolAddress?.toLowerCase() ?? null,
-        tokenAddress: body.tokenAddress?.toLowerCase() ?? null,
-        tier,
-      },
+    const existing = await prisma.stakingPosition.findFirst({
+      where: stakingPositionGroupWhere(wallet, body.assetType, normalizedAsset),
     });
+
+    let position;
+    if (existing) {
+      const mergedAmount = (BigInt(existing.amount) + BigInt(body.amount)).toString();
+      position = await prisma.stakingPosition.update({
+        where: { id: existing.id },
+        data: {
+          amount: mergedAmount,
+          poolAddress: body.poolAddress?.toLowerCase() ?? existing.poolAddress,
+          tokenAddress: body.tokenAddress?.toLowerCase() ?? existing.tokenAddress,
+          tier: body.assetType === "OPN" ? tier : existing.tier,
+        },
+      });
+    } else {
+      position = await prisma.stakingPosition.create({
+        data: {
+          wallet,
+          assetType: body.assetType,
+          asset: normalizedAsset,
+          amount: body.amount,
+          poolAddress: body.poolAddress?.toLowerCase() ?? null,
+          tokenAddress: body.tokenAddress?.toLowerCase() ?? null,
+          tier,
+        },
+      });
+    }
 
     return NextResponse.json({
       position: serializeStakingPosition(position),

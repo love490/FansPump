@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { z } from "zod";
-import { getLiquidityPoolAnalytics, listLiquidityPools } from "@/lib/pools/index";
+import { discoverPlatformPools, getLiquidityPoolAnalytics, listLiquidityPools } from "@/lib/pools/index";
 
 export async function GET(request: NextRequest) {
   try {
     const limit = Number(request.nextUrl.searchParams.get("limit") ?? "50");
     const token = request.nextUrl.searchParams.get("token")?.toLowerCase();
+    const shouldDiscover = request.nextUrl.searchParams.get("discover") === "true";
+
+    if (shouldDiscover) {
+      await discoverPlatformPools();
+    }
 
     let pools = await listLiquidityPools(Number.isFinite(limit) ? limit : 50);
 

@@ -1,21 +1,22 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useAccount } from "wagmi";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Bookmark, Coins, Compass, Shield } from "lucide-react";
+import { ArrowRight, Compass, Flame } from "lucide-react";
+import { TokenGridCarousel } from "@/components/tokens/token-grid-carousel";
+import { DashboardProfilePanel } from "@/components/dashboard/dashboard-profile-panel";
+import { DashboardStatsPanel } from "@/components/dashboard/dashboard-stats-panel";
+import { CreatorBountySection } from "@/components/bounties/creator-bounty-section";
+import { fetchDiscoverTokens, tokenQueryKeys } from "@/lib/tokens-api";
 import { fetchMyTokens } from "@/lib/token-register";
 import { getActiveChainId } from "@/lib/chain-config/opn";
-import { tokenQueryKeys } from "@/lib/tokens-api";
 
 export default function DashboardPage() {
   const { address, isConnected } = useAccount();
   const chainId = getActiveChainId();
-  const [watchlistCount, setWatchlistCount] = useState(0);
-  const [verified, setVerified] = useState(false);
 
   const { data: myTokens = [] } = useQuery({
     queryKey: tokenQueryKeys.myTokens(address ?? "", chainId),
@@ -24,97 +25,78 @@ export default function DashboardPage() {
     staleTime: 30_000,
   });
 
-  useEffect(() => {
-    if (!address) return;
-    fetch(`/api/watchlist?wallet=${address}`)
-      .then((r) => r.json())
-      .then((d) => setWatchlistCount(d.tokens?.length ?? 0));
-    fetch(`/api/verify?wallet=${address}`)
-      .then((r) => r.json())
-      .then((d) => setVerified(!!d.verified))
-      .catch((e) => {
-        console.error("[dashboard] Failed to load verification status:", e);
-        setVerified(false);
-      });
-  }, [address]);
+  const { data: trending = [], isLoading: loadingTrending } = useQuery({
+    queryKey: tokenQueryKeys.discover("trending", chainId),
+    queryFn: () => fetchDiscoverTokens("trending", 12),
+    staleTime: 15_000,
+  });
 
   return (
-    <div className="mx-auto max-w-4xl space-y-8 py-2 sm:py-4">
-      <header>
-        <h1 className="text-2xl font-bold">Dashboard</h1>
-        <p className="mt-1 text-muted-foreground">Your FansPump activity at a glance.</p>
+    <div className="mx-auto max-w-6xl space-y-8 py-2 sm:py-4">
+      <header className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold">Dashboard</h1>
+          <p className="mt-1 text-muted-foreground">Manage your profile, bounties, and discover projects.</p>
+        </div>
+        <Button asChild variant="outline" size="sm">
+          <Link href="/discover?section=trending">
+            Explore Projects
+            <Compass className="ml-2 h-4 w-4" />
+          </Link>
+        </Button>
       </header>
 
       {!isConnected ? (
         <Card>
           <CardHeader>
             <CardTitle>Connect your wallet</CardTitle>
-            <CardDescription>Connect wallet to have access to your dashboard.</CardDescription>
+            <CardDescription>Connect wallet to manage your profile and bounties.</CardDescription>
           </CardHeader>
         </Card>
       ) : (
         <>
-          <div className="grid gap-4 sm:grid-cols-3">
-            <Card>
-              <CardHeader className="pb-2">
-                <CardDescription>My tokens</CardDescription>
-                <CardTitle className="text-3xl">{myTokens.length}</CardTitle>
-              </CardHeader>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardDescription>Watchlist</CardDescription>
-                <CardTitle className="text-3xl">{watchlistCount}</CardTitle>
-              </CardHeader>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardDescription>Creator status</CardDescription>
-                <CardTitle className="text-lg">{verified ? "Verified" : "Not verified"}</CardTitle>
-              </CardHeader>
-            </Card>
-          </div>
+          <DashboardStatsPanel />
+          <DashboardProfilePanel />
 
-          <div className="grid gap-3 sm:grid-cols-2">
-            <Button asChild variant="outline" className="h-auto justify-start gap-3 py-4">
-              <Link href="/my-tokens">
-                <Coins className="h-5 w-5" />
-                <span className="text-left">
-                  <span className="block font-semibold">My Tokens</span>
-                  <span className="text-xs font-normal text-muted-foreground">Projects you launched</span>
-                </span>
-              </Link>
-            </Button>
-            <Button asChild variant="outline" className="h-auto justify-start gap-3 py-4">
-              <Link href="/watchlist">
-                <Bookmark className="h-5 w-5" />
-                <span className="text-left">
-                  <span className="block font-semibold">Watchlist</span>
-                  <span className="text-xs font-normal text-muted-foreground">Tokens you track</span>
-                </span>
-              </Link>
-            </Button>
-            <Button asChild variant="outline" className="h-auto justify-start gap-3 py-4">
-              <Link href="/discover">
-                <Compass className="h-5 w-5" />
-                <span className="text-left">
-                  <span className="block font-semibold">Explore</span>
-                  <span className="text-xs font-normal text-muted-foreground">Discover projects</span>
-                </span>
-              </Link>
-            </Button>
-            <Button asChild variant="outline" className="h-auto justify-start gap-3 py-4">
-              <Link href="/verify">
-                <Shield className="h-5 w-5" />
-                <span className="text-left">
-                  <span className="block font-semibold">Creator verification</span>
-                  <span className="text-xs font-normal text-muted-foreground">Get your verified badge</span>
-                </span>
-              </Link>
-            </Button>
-          </div>
+          <CreatorBountySection
+            creatorWallet={address!.toLowerCase()}
+            creatorTokens={myTokens.map((t) => ({
+              contractAddress: t.contractAddress,
+              symbol: t.symbol,
+              name: t.name,
+            }))}
+          />
         </>
       )}
+
+      <TokenGridCarousel
+        title="Trending"
+        icon={<Flame className="h-6 w-6 text-orange-500" />}
+        description="Hot projects on FansPump right now."
+        tokens={trending}
+        isLoading={loadingTrending}
+        viewAllHref="/discover?section=trending"
+        variant="trending"
+        fetchLimit={12}
+        emptyMessage="No trending tokens yet."
+      />
+
+      <Card className="border-primary/20 bg-gradient-to-r from-primary/5 to-transparent">
+        <CardContent className="flex flex-col items-start justify-between gap-4 py-6 sm:flex-row sm:items-center">
+          <div>
+            <h2 className="text-lg font-semibold">Explore all projects</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Filter by newly created, verified, category, and more from Explore.
+            </p>
+          </div>
+          <Button asChild>
+            <Link href="/discover?section=trending">
+              Open Explore
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Link>
+          </Button>
+        </CardContent>
+      </Card>
     </div>
   );
 }
