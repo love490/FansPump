@@ -25,6 +25,19 @@ function formatDurationLong(iso: string | Date): string {
   return years === 1 ? "1yr" : `${years}yr`;
 }
 
+function MetricCell({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="min-w-0">
+      <p className="truncate text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+        {label}
+      </p>
+      <p className="mt-0.5 truncate text-xs font-semibold tabular-nums text-foreground sm:text-sm">
+        {value}
+      </p>
+    </div>
+  );
+}
+
 export function TokenPreviewCard({
   token,
   index = 0,
@@ -36,8 +49,18 @@ export function TokenPreviewCard({
 }) {
   const marketCap =
     token.marketCap != null && token.marketCap > 0
-      ? `$${formatCompactNumber(token.marketCap)}`
+      ? formatCompactNumber(token.marketCap)
       : "—";
+  const volume =
+    token.volume24h != null && token.volume24h > 0
+      ? formatCompactNumber(token.volume24h)
+      : "—";
+  const liquidity =
+    token.poolStrength != null && token.poolStrength > 0
+      ? formatCompactNumber(token.poolStrength)
+      : "—";
+  const holders =
+    token.holderCount > 0 ? formatCompactNumber(token.holderCount) : "—";
   const age = token.createdAt ? formatDurationLong(token.createdAt) : null;
   const creator = formatCreatorDisplay(token.creatorUsername, token.creatorAddress, shortenAddress);
 
@@ -86,13 +109,6 @@ export function TokenPreviewCard({
             </div>
           </div>
 
-          <p className="text-sm sm:text-base">
-            <span className="font-bold tabular-nums text-foreground">{marketCap}</span>
-            {marketCap !== "—" && (
-              <span className="ml-1.5 text-xs font-medium text-muted-foreground">MC</span>
-            )}
-          </p>
-
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
             <CreatorAvatar username={token.creatorUsername} address={token.creatorAddress} />
             {age && <span>{age}</span>}
@@ -117,7 +133,7 @@ export function TokenPreviewCard({
           )}
 
           {(token.badges?.length || (token.trustScore != null && token.trustScore > 0)) && (
-            <div className="mt-auto flex flex-wrap items-center gap-1.5 pt-1">
+            <div className="flex flex-wrap items-center gap-1.5 pt-1">
               {token.trustScore != null && token.trustScore > 0 && (
                 <span className="rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-primary">
                   Trust {Math.round(token.trustScore)}
@@ -128,6 +144,13 @@ export function TokenPreviewCard({
               )}
             </div>
           )}
+
+          <div className="mt-auto grid grid-cols-4 gap-2 border-t border-border/50 pt-3 sm:gap-3">
+            <MetricCell label="Liquidity" value={liquidity} />
+            <MetricCell label="Volume" value={volume} />
+            <MetricCell label="Holders" value={holders} />
+            <MetricCell label="MC" value={marketCap} />
+          </div>
         </div>
       </Link>
     </motion.div>
