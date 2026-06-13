@@ -21,9 +21,10 @@ export function useResponsiveMaxColumns(_preset: "trending" | "grid" = "grid") {
   useEffect(() => {
     function update() {
       const w = window.innerWidth;
-      if (w >= 1440) setMaxCols(6);
-      else if (w >= 1024) setMaxCols(5);
-      else if (w >= 768) setMaxCols(3);
+      if (w >= 1440) setMaxCols(5);
+      else if (w >= 1024) setMaxCols(4);
+      else if (w >= 768) setMaxCols(2);
+      else if (w >= 640) setMaxCols(2);
       else setMaxCols(1);
     }
     update();
