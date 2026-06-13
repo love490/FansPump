@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, LayoutDashboard, PlusCircle } from "lucide-react";
+import { ArrowRight, ArrowLeftRight, PlusCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BRAND_BLUE } from "@/lib/brand";
 import { cn } from "@/lib/utils";
@@ -49,9 +49,9 @@ export function LandingCtaSection({ className }: { className?: string }) {
             </Link>
           </Button>
           <Button asChild size="lg" variant="outline" className={ctaBtnSecondary}>
-            <Link href="/app" className="inline-flex items-center whitespace-nowrap">
-              <LayoutDashboard className="h-4 w-4 shrink-0" />
-              Launch App
+            <Link href="/swap" className="inline-flex items-center whitespace-nowrap">
+              <ArrowLeftRight className="h-4 w-4 shrink-0" />
+              DEX
             </Link>
           </Button>
         </div>

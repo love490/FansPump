@@ -1,125 +1,180 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { shortenAddress } from "@/lib/utils";
-import { Card, CardContent } from "@/components/ui/card";
-import { SecurityBadges } from "@/components/v2/security-badges";
-import type { SecurityBadge } from "@/lib/v2/badges";
-import { Trophy } from "lucide-react";
+import { useAccount } from "wagmi";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Compass, Flame } from "lucide-react";
+import { TokenGridCarousel } from "@/components/tokens/token-grid-carousel";
+import { TokenMarketTable } from "@/components/tokens/token-market-table";
+import { ExplorePromoCards } from "@/components/explore/explore-promo-cards";
+import { cn } from "@/lib/utils";
+import { fetchDiscoverTokens, tokenQueryKeys, type DiscoverFilters } from "@/lib/tokens-api";
+import { getActiveChainId } from "@/lib/chain-config/opn";
+import type { TokenCardData } from "@/components/tokens/token-card";
 
 const CATEGORIES = [
-  { id: "top-builders", label: "Top Builders", emoji: "🏆" },
-  { id: "most-viewed", label: "Most Viewed Creators", emoji: "👀" },
-  { id: "most-liquidity", label: "Most Liquidity Added", emoji: "💧" },
-  { id: "fastest-growing", label: "Fastest Growing", emoji: "🚀" },
-  { id: "most-active", label: "Most Active", emoji: "🔥" },
-  { id: "most-trusted", label: "Most Trusted", emoji: "⭐" },
+  { id: "top-token", label: "Top Token", emoji: "🏆", description: "Highest-ranked tokens by trust and volume." },
+  { id: "views", label: "Most Viewed Token", emoji: "👀", description: "Tokens with the most profile views." },
+  { id: "favorite", label: "Favorite", emoji: "⭐", description: "Tokens you saved to your watchlist." },
+  { id: "gainer", label: "Gainer", emoji: "📈", description: "Tokens with the strongest 24h volume momentum." },
+  { id: "loser", label: "Loser", emoji: "📉", description: "Tokens with the weakest recent volume activity." },
+  { id: "hot", label: "Hot", emoji: "🔥", description: "Fast-moving tokens gaining holders and attention." },
+  { id: "new", label: "New", emoji: "✨", description: "Newly launched tokens on FansPump." },
+  { id: "trending", label: "Trending", emoji: "📊", description: "Tokens with the highest trending score." },
 ] as const;
 
-type LeaderboardEntry = {
-  rank: number;
-  walletAddress: string;
-  tokensCreated: number;
-  totalViews: number;
-  totalLiquidity: number;
-  reputationScore: number;
-  avgTrustScore: number;
-  status: string;
-  badges: SecurityBadge[];
-};
+type ExploreCategoryId = (typeof CATEGORIES)[number]["id"];
+
+async function fetchFavoriteTokens(wallet: string): Promise<TokenCardData[]> {
+  const res = await fetch(`/api/watchlist?wallet=${wallet.toLowerCase()}`);
+  if (!res.ok) return [];
+  const data = (await res.json()) as { tokens?: TokenCardData[] };
+  return (data.tokens ?? []).map((t) => ({
+    ...t,
+    id: t.id ?? t.contractAddress,
+    viewCount: t.viewCount ?? 0,
+    holderCount: t.holderCount ?? 0,
+  }));
+}
+
+async function fetchWatchlistIds(wallet: string): Promise<Set<string>> {
+  const tokens = await fetchFavoriteTokens(wallet);
+  return new Set(tokens.map((t) => t.id));
+}
 
 export default function LeaderboardPage() {
-  const [category, setCategory] = useState<(typeof CATEGORIES)[number]["id"]>("top-builders");
-  const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { address, isConnected } = useAccount();
+  const queryClient = useQueryClient();
+  const chainId = getActiveChainId();
+  const [category, setCategory] = useState<ExploreCategoryId>("top-token");
+
+  const meta = CATEGORIES.find((c) => c.id === category)!;
+  const filters: DiscoverFilters = {};
+
+  const { data: trendingTokens = [], isLoading: loadingTrending } = useQuery({
+    queryKey: tokenQueryKeys.discover("trending", chainId, filters),
+    queryFn: () => fetchDiscoverTokens("trending", 12, filters),
+    staleTime: 15_000,
+  });
+
+  const { data: sectionTokens = [], isLoading: loadingSection } = useQuery({
+    queryKey: tokenQueryKeys.discover(category, chainId, filters),
+    queryFn: () => fetchDiscoverTokens(category, 50, filters),
+    enabled: category !== "favorite",
+    staleTime: 15_000,
+  });
+
+  const { data: favoriteTokens = [], isLoading: loadingFavorites } = useQuery({
+    queryKey: ["watchlist-tokens", address?.toLowerCase() ?? "", chainId],
+    queryFn: () => fetchFavoriteTokens(address!),
+    enabled: category === "favorite" && Boolean(address),
+    staleTime: 15_000,
+  });
+
+  const { data: favoriteIds = new Set<string>() } = useQuery({
+    queryKey: ["watchlist-ids", address?.toLowerCase() ?? ""],
+    queryFn: () => fetchWatchlistIds(address!),
+    enabled: Boolean(address),
+    staleTime: 15_000,
+  });
+
+  const tokens = category === "favorite" ? favoriteTokens : sectionTokens;
+  const isLoading = category === "favorite" ? loadingFavorites : loadingSection;
+  const includeBaseTokens = category !== "favorite";
+
+  const favoriteIdSet = useMemo(() => new Set(favoriteIds), [favoriteIds]);
+
+  const toggleFavorite = useCallback(
+    async (tokenId: string) => {
+      if (!address) return;
+      const isFav = favoriteIdSet.has(tokenId);
+      await fetch("/api/watchlist", {
+        method: isFav ? "DELETE" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tokenId, walletAddress: address }),
+      });
+      await queryClient.invalidateQueries({ queryKey: ["watchlist-ids", address.toLowerCase()] });
+      await queryClient.invalidateQueries({ queryKey: ["watchlist-tokens", address.toLowerCase(), chainId] });
+    },
+    [address, chainId, favoriteIdSet, queryClient]
+  );
 
   useEffect(() => {
-    setLoading(true);
-    fetch(`/api/leaderboard?category=${category}&limit=25`)
-      .then((r) => r.json())
-      .then((d) => setEntries(d.entries ?? []))
-      .catch(() => setEntries([]))
-      .finally(() => setLoading(false));
-  }, [category]);
+    if (category === "favorite" && !isConnected) {
+      setCategory("top-token");
+    }
+  }, [category, isConnected]);
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6 lg:px-8">
-      <header className="mb-8">
+    <div className="mx-auto max-w-7xl space-y-10 px-4 py-10 sm:px-6 lg:px-8">
+      <header>
         <h1 className="flex items-center gap-2 text-2xl font-bold">
-          <Trophy className="h-7 w-7 text-primary" /> Creator Leaderboard
+          <Compass className="h-7 w-7 text-primary" />
+          Explore Tokens
         </h1>
         <p className="mt-1 text-muted-foreground">
-          Top builders and trusted creators on FansPump — updated automatically.
+          Market-style rankings for OPN, USDT, and FansPump tokens on OPN Network.
         </p>
       </header>
 
-      <div className="-mx-4 mb-6 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0">
-        {CATEGORIES.map((c) => (
-          <button
-            key={c.id}
-            type="button"
-            onClick={() => setCategory(c.id)}
-            className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors sm:text-sm ${
-              category === c.id
-                ? "border-primary bg-primary text-primary-foreground"
-                : "border-border bg-muted hover:bg-muted/80"
-            }`}
-          >
-            {c.emoji} {c.label}
-          </button>
-        ))}
-      </div>
+      <TokenGridCarousel
+        title="Trending Tokens"
+        icon={<Flame className="h-6 w-6 text-orange-500" />}
+        description="Hot projects moving on FansPump right now."
+        tokens={trendingTokens}
+        isLoading={loadingTrending}
+        viewAllHref="/leaderboard"
+        variant="trending"
+        fetchLimit={12}
+        emptyMessage="No trending tokens yet."
+      />
 
-      {loading ? (
-        <p className="text-muted-foreground">Loading leaderboard...</p>
-      ) : entries.length === 0 ? (
-        <p className="text-muted-foreground">No creators ranked yet.</p>
-      ) : (
-        <div className="space-y-2">
-          {entries.map((entry) => (
-            <Card key={entry.walletAddress}>
-              <CardContent className="space-y-3 py-4">
-                <div className="flex items-start gap-3">
-                  <span className="w-8 shrink-0 text-lg font-bold tabular-nums text-muted-foreground">
-                    #{entry.rank}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <Link
-                      href={`/creator/${entry.walletAddress}`}
-                      className="block truncate font-semibold hover:text-primary hover:underline"
-                    >
-                      {shortenAddress(entry.walletAddress, 6)}
-                    </Link>
-                    <p className="text-xs capitalize text-muted-foreground">{entry.status.toLowerCase()}</p>
-                    {entry.badges.length > 0 && (
-                      <SecurityBadges badges={entry.badges} className="mt-1.5" max={3} />
-                    )}
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-3 border-t border-border/60 pt-3 text-xs sm:grid-cols-4 sm:gap-4">
-                  <div className="min-w-0">
-                    <p className="text-muted-foreground">Tokens</p>
-                    <p className="font-semibold tabular-nums">{entry.tokensCreated}</p>
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-muted-foreground">Views</p>
-                    <p className="font-semibold tabular-nums">{entry.totalViews}</p>
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-muted-foreground">Reputation</p>
-                    <p className="font-semibold tabular-nums">{entry.reputationScore}</p>
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-muted-foreground">Avg Trust</p>
-                    <p className="font-semibold tabular-nums">{Math.round(entry.avgTrustScore)}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+      <div className="space-y-6">
+        <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0">
+          {CATEGORIES.map((c) => (
+            <button
+              key={c.id}
+              type="button"
+              onClick={() => setCategory(c.id)}
+              className={cn(
+                "shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors sm:text-sm",
+                category === c.id
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-border bg-muted hover:bg-muted/80"
+              )}
+            >
+              {c.emoji} {c.label}
+            </button>
           ))}
         </div>
-      )}
+
+        {category === "favorite" && !isConnected ? (
+          <div className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">
+            Connect your wallet to see favorite tokens from your watchlist.{" "}
+            <Link href="/watchlist" className="text-primary hover:underline">
+              Open watchlist
+            </Link>
+          </div>
+        ) : (
+          <TokenMarketTable
+            tokens={tokens}
+            title={meta.label}
+            description={meta.description}
+            isLoading={isLoading}
+            includeBaseTokens={includeBaseTokens}
+            favoriteIds={favoriteIdSet}
+            onToggleFavorite={toggleFavorite}
+            emptyMessage={
+              category === "favorite"
+                ? "No favorites yet — star tokens in the table or on their profile pages."
+                : "No tokens in this section yet."
+            }
+          />
+        )}
+      </div>
+
+      <ExplorePromoCards />
     </div>
   );
 }

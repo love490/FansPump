@@ -117,7 +117,7 @@ export function LandingTopBuilders() {
         </div>
         <Button asChild variant="outline" size="sm">
           <Link href="/leaderboard">
-            View leaderboard
+            Explore tokens
             <ArrowRight className="ml-1 h-3.5 w-3.5" />
           </Link>
         </Button>

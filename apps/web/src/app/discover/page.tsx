@@ -24,8 +24,38 @@ const browseSections = [
   },
   {
     id: "new",
-    label: "Newly Created",
+    label: "New",
     description: "Newly launched tokens — sorted by launch date.",
+    variant: "grid" as const,
+  },
+  {
+    id: "top-token",
+    label: "Top Token",
+    description: "Highest-ranked tokens by trust and volume.",
+    variant: "grid" as const,
+  },
+  {
+    id: "views",
+    label: "Most Viewed Token",
+    description: "Tokens with the most profile views.",
+    variant: "grid" as const,
+  },
+  {
+    id: "hot",
+    label: "Hot",
+    description: "Fast-moving tokens gaining holders and attention.",
+    variant: "trending" as const,
+  },
+  {
+    id: "gainer",
+    label: "Gainer",
+    description: "Tokens with the strongest 24h volume momentum.",
+    variant: "grid" as const,
+  },
+  {
+    id: "loser",
+    label: "Loser",
+    description: "Tokens with the weakest recent volume activity.",
     variant: "grid" as const,
   },
   {
@@ -47,27 +77,9 @@ const browseSections = [
     variant: "grid" as const,
   },
   {
-    id: "most-trusted",
-    label: "Most Trusted",
-    description: "Tokens with the highest trust scores.",
-    variant: "grid" as const,
-  },
-  {
-    id: "fastest-growing",
-    label: "Fastest Growing",
-    description: "Tokens gaining holders and momentum quickly.",
-    variant: "grid" as const,
-  },
-  {
     id: "recently-verified",
     label: "Recently Verified",
     description: "Projects with approved contract verification.",
-    variant: "grid" as const,
-  },
-  {
-    id: "views",
-    label: "Most Viewed",
-    description: "Tokens with the most profile views.",
     variant: "grid" as const,
   },
   {

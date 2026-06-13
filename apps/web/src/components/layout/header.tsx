@@ -10,14 +10,13 @@ import { motion } from "framer-motion";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { FansPumpLogo } from "@/components/brand/fans-pump-logo";
 import { Button } from "@/components/ui/button";
+import { DexNavDropdown, DexNavMobileLinks } from "@/components/layout/dex-nav-dropdown";
 
 const nav = [
   { href: "/discover", label: "Discover" },
-  { href: "/leaderboard", label: "Leaderboard" },
+  { href: "/leaderboard", label: "Explore Tokens" },
   { href: "/create", label: "Create Token" },
-  { href: "/swap", label: "Swap" },
-  { href: "/app", label: "Launch App" },
-];
+] as const;
 
 export function Header() {
   const pathname = usePathname();
@@ -50,6 +49,7 @@ export function Header() {
                 )}
               </Link>
             ))}
+            <DexNavDropdown />
           </nav>
 
           <div className="flex items-center gap-1.5 sm:gap-2">
@@ -105,6 +105,7 @@ export function Header() {
                   {item.label}
                 </Link>
               ))}
+              <DexNavMobileLinks pathname={pathname} onNavigate={() => setMenuOpen(false)} className="pt-1" />
             </nav>
           </aside>
         </div>

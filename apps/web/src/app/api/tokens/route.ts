@@ -92,21 +92,29 @@ export async function GET(request: NextRequest) {
   const orderBy =
     section === "trending"
       ? { trendingScore: "desc" as const }
-      : section === "views"
+      : section === "hot" || section === "fastest-growing"
+        ? [{ holderCount: "desc" as const }, { trendingScore: "desc" as const }]
+        : section === "views"
         ? { viewCount: "desc" as const }
         : section === "holders"
           ? { holderCount: "desc" as const }
-          : section === "most-trusted"
-            ? { trustScore: "desc" as const }
-            : section === "fastest-growing"
-              ? [{ holderCount: "desc" as const }, { trendingScore: "desc" as const }]
-              : section === "recently-verified"
-                ? { verificationSubmittedAt: "desc" as const }
-                : section === "updated"
-                  ? { updatedAt: "desc" as const }
-                  : section === "featured"
-                    ? undefined
-                    : { createdAt: "desc" as const };
+          : section === "gainer"
+            ? { volume24h: "desc" as const }
+            : section === "loser"
+              ? { volume24h: "asc" as const }
+              : section === "top-token"
+                ? [{ trustScore: "desc" as const }, { volumeTotal: "desc" as const }]
+                : section === "most-trusted"
+                  ? { trustScore: "desc" as const }
+                  : section === "fastest-growing"
+                    ? [{ holderCount: "desc" as const }, { trendingScore: "desc" as const }]
+                    : section === "recently-verified"
+                      ? { verificationSubmittedAt: "desc" as const }
+                      : section === "updated"
+                        ? { updatedAt: "desc" as const }
+                        : section === "featured"
+                          ? undefined
+                          : { createdAt: "desc" as const };
 
   const sectionFilterExtra: Prisma.TokenProjectWhereInput | undefined =
     section === "recently-verified"

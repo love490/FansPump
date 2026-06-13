@@ -6,14 +6,13 @@ import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { FansPumpLogo } from "@/components/brand/fans-pump-logo";
+import { DexNavDropdown } from "@/components/layout/dex-nav-dropdown";
 
 const nav = [
   { href: "/discover?section=trending", label: "Explore" },
-  { href: "/leaderboard", label: "Leaderboard" },
+  { href: "/leaderboard", label: "Explore Tokens" },
   { href: "/create", label: "Create Token" },
-  { href: "/swap", label: "Swap" },
-  { href: "/app", label: "Launch App" },
-];
+] as const;
 
 export function LandingHeader() {
   const pathname = usePathname();
@@ -24,7 +23,7 @@ export function LandingHeader() {
         ? "shrink-0 whitespace-nowrap rounded-md px-2 py-1.5 text-[11px] font-medium sm:px-2.5 sm:text-xs"
         : "rounded-md px-3 py-2 text-sm font-medium",
       "transition-colors",
-      pathname === href || pathname.startsWith(href + "/")
+      pathname === href.split("?")[0] || pathname.startsWith(href.split("?")[0] + "/")
         ? "text-primary"
         : "text-muted-foreground hover:text-foreground"
     );
@@ -40,6 +39,7 @@ export function LandingHeader() {
               {item.label}
             </Link>
           ))}
+          <DexNavDropdown compact />
         </nav>
 
         <nav className="hidden min-w-0 flex-1 items-center justify-center gap-1 md:flex lg:gap-2">
@@ -48,6 +48,7 @@ export function LandingHeader() {
               {item.label}
             </Link>
           ))}
+          <DexNavDropdown />
         </nav>
 
         <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">

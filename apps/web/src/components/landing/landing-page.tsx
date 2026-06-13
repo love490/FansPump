@@ -2,6 +2,7 @@
 
 import { LandingHeader } from "@/components/landing/landing-header";
 import { LandingHero } from "@/components/landing/landing-hero";
+import { LandingQuickActions } from "@/components/landing/landing-quick-actions";
 import { LandingTrustPreview } from "@/components/landing/landing-trust-preview";
 import {
   LandingNewlyCreatedPreview,
@@ -18,6 +19,10 @@ export function LandingPage() {
 
       <main className="w-full flex-1">
         <LandingHero />
+
+        <div className="w-full pb-8 pt-4 sm:pb-10 sm:pt-5">
+          <LandingQuickActions />
+        </div>
 
         <div className="w-full space-y-14 px-4 pb-16 pt-2 sm:space-y-16 sm:px-6 lg:px-8 lg:pb-20 lg:pt-3 xl:px-10">
           <LandingTrendingPreview />

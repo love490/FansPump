@@ -47,7 +47,7 @@ export const platformLinks: SidebarNavItem[] = [
   { id: "home", href: "/app", label: "Home", icon: Home },
   { id: "create", href: "/create", label: "Create Token", icon: Rocket },
   { id: "explore", href: "/discover?section=trending", label: "Explore Projects", icon: Compass },
-  { id: "leaderboard", href: "/leaderboard", label: "Creators Leaderboard", icon: Trophy },
+  { id: "leaderboard", href: "/leaderboard", label: "Explore Tokens", icon: Trophy },
   { id: "earn", href: "/earn", label: "Earn", icon: CircleDollarSign },
   { id: "swap", href: "/swap", label: "Swap", icon: ArrowLeftRight },
   { id: "pools", href: "/pools", label: "Pools", icon: BarChart3 },

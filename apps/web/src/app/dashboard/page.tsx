@@ -9,6 +9,7 @@ import { ArrowRight, Compass, Flame } from "lucide-react";
 import { TokenGridCarousel } from "@/components/tokens/token-grid-carousel";
 import { DashboardProfilePanel } from "@/components/dashboard/dashboard-profile-panel";
 import { DashboardStatsPanel } from "@/components/dashboard/dashboard-stats-panel";
+import { DashboardBalancePanel } from "@/components/dashboard/dashboard-balance-panel";
 import { DashboardActivityFeed } from "@/components/dashboard/dashboard-activity-feed";
 import { CreatorBountySection } from "@/components/bounties/creator-bounty-section";
 import { fetchDiscoverTokens, tokenQueryKeys } from "@/lib/tokens-api";
@@ -58,6 +59,7 @@ export default function DashboardPage() {
         </Card>
       ) : (
         <>
+          <DashboardBalancePanel />
           <DashboardStatsPanel />
           <DashboardActivityFeed />
           <DashboardProfilePanel />

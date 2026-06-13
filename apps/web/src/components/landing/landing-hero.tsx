@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, LayoutDashboard, PlusCircle } from "lucide-react";
+import { ArrowRight, ArrowLeftRight, PlusCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BRAND_BLUE } from "@/lib/brand";
 import { cn } from "@/lib/utils";
@@ -32,8 +32,8 @@ export function LandingHero() {
           backgroundRepeat: "no-repeat",
         }}
       >
-        {/* Light left scrim — banner art is already dark on the left */}
-        <div className="absolute inset-0 bg-gradient-to-r from-[#050a14]/80 via-[#050a14]/35 to-transparent" />
+        {/* Subtle scrim — banner is already dark on the left for copy */}
+        <div className="absolute inset-0 bg-gradient-to-r from-[#050a14]/55 via-transparent to-transparent" />
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,rgba(30,91,255,0.15),transparent_55%)]" />
 
         <div className="relative px-5 py-10 sm:px-8 sm:py-12 lg:max-w-[62%] lg:px-10 lg:py-14">
@@ -73,9 +73,9 @@ export function LandingHero() {
               </Link>
             </Button>
             <Button asChild size="sm" variant="outline" className={heroBtnSecondary}>
-              <Link href="/app" className="inline-flex items-center whitespace-nowrap">
-                <LayoutDashboard className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
-                Launch App
+              <Link href="/swap" className="inline-flex items-center whitespace-nowrap">
+                <ArrowLeftRight className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
+                DEX
               </Link>
             </Button>
           </div>

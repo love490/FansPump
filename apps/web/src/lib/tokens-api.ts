@@ -68,7 +68,11 @@ export async function fetchDiscoverTokens(
   if (
     section === "most-trusted" ||
     section === "top-builders" ||
+    section === "top-token" ||
     section === "fastest-growing" ||
+    section === "hot" ||
+    section === "gainer" ||
+    section === "loser" ||
     section === "recently-verified"
   ) {
     const res = await fetch(
