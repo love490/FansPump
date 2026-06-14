@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@iopn/database";
 import { formatBountyReward } from "@/lib/bounties";
+import { getCreatorEarningsTotal } from "@/lib/analytics/queries";
+import { weiToOpnFloat } from "@/lib/analytics/fee-split";
 import {
   formatActivityAmount,
   sortActivities,
@@ -105,6 +107,9 @@ export async function GET(request: NextRequest) {
       .filter((p) => p.bounty.rewardType === "OPN")
       .reduce((sum, p) => sum + Number(p.bounty.rewardAmount || 0), 0);
 
+    const creatorEarningsWei = await getCreatorEarningsTotal(wallet);
+    const creatorEarningsOpn = weiToOpnFloat(BigInt(creatorEarningsWei || "0"));
+
     const stakingPositions = stakingRows.map(serializeStakingPosition);
 
     const activities: UserActivity[] = [];
@@ -198,6 +203,7 @@ export async function GET(request: NextRequest) {
         questsCompleted: completedParticipations.length,
         rewardsEarned: rewardSummaries,
         rewardsEarnedOpn: opnRewards,
+        creatorEarningsOpn,
         activeStakes: stakingRows.length,
       },
       stakingPositions,

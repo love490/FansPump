@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useAccount } from "wagmi";
-import { User } from "lucide-react";
+import { Pencil } from "lucide-react";
 import { CreatorAvatar } from "@/components/tokens/token-card-hero";
 import { cn, shortenAddress } from "@/lib/utils";
 import { formatCreatorDisplay } from "@/lib/username";
@@ -48,8 +48,8 @@ export function DashboardProfileLink({ className }: { className?: string }) {
         ) : (
           <CreatorAvatar username={username} address={address} className="h-14 w-14 text-base" />
         )}
-        <span className="absolute -bottom-0.5 -right-0.5 flex h-5 w-5 items-center justify-center rounded-full border border-background bg-primary text-primary-foreground">
-          <User className="h-3 w-3" />
+        <span className="absolute -bottom-0.5 -right-0.5 flex h-5 w-5 items-center justify-center rounded-full border border-background bg-primary text-primary-foreground shadow-sm">
+          <Pencil className="h-3 w-3" aria-hidden />
         </span>
       </span>
       <span className="max-w-[7rem] truncate text-xs font-medium text-foreground">{displayName}</span>

@@ -1,7 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 import {
   ArrowLeftRight,
-  BarChart3,
   Droplets,
   Layers,
   Wallet,
@@ -20,13 +19,21 @@ export type DexNavLink = {
   icon: LucideIcon;
 };
 
+/** Home page DEX grid — includes LP Management; Pool covers analytics. */
 export const dexNavLinks: DexNavLink[] = [
   { id: "swap", href: "/swap", label: "Swap", icon: ArrowLeftRight },
   { id: "liquidity", href: "/my-liquidity", label: "Liquidity", icon: Droplets },
   { id: "lp-management", href: "/my-liquidity", label: "LP Management", icon: Wallet },
   { id: "pool", href: "/pools", label: "Pool", icon: Layers },
   { id: "staking", href: "/staking", label: "Staking", icon: Layers },
-  { id: "analytics", href: "/pools", label: "Analytics", icon: BarChart3 },
+];
+
+/** Header / sidebar DEX menu — no LP Management or Analytics (same as Pool). */
+export const dexMenuNavLinks: DexNavLink[] = [
+  { id: "swap", href: "/swap", label: "Swap", icon: ArrowLeftRight },
+  { id: "liquidity", href: "/my-liquidity", label: "Liquidity", icon: Droplets },
+  { id: "pool", href: "/pools", label: "Pool", icon: Layers },
+  { id: "staking", href: "/staking", label: "Staking", icon: Layers },
 ];
 
 /** @deprecated Use dexNavLinks */

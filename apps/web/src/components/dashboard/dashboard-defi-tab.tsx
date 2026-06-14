@@ -2,27 +2,36 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { useAccount } from "wagmi";
+import type { Address } from "viem";
 import { formatUnits } from "viem";
+import { useAccount, usePublicClient } from "wagmi";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useMyLiquidityPositions } from "@/hooks/liquidity/useMyLiquidityPositions";
 import { useBasePoolLpPositions } from "@/hooks/liquidity/useBasePoolLpPositions";
+import { useWalletPortfolioBalance } from "@/hooks/dashboard/useWalletPortfolioBalance";
 import { formatActivityAmount } from "@/lib/dashboard/activities";
+import { formatBalanceTotal } from "@/lib/dashboard/wallet-balance";
+import { fetchOpnUsdRate, quoteLpTokenUsd } from "@/lib/dashboard/token-quotes";
 
 type StakeRow = {
   id: string;
   stakingType: "OPN" | "LP";
   amount: string;
   tier: string | null;
+  asset?: string;
 };
 
 export function DashboardDefiTab() {
   const { address } = useAccount();
+  const client = usePublicClient();
   const { positions: lpPositions, loading: lpLoading } = useMyLiquidityPositions(address);
   const { positions: basePools, loading: baseLoading } = useBasePoolLpPositions(address);
+  const { opnUsdRate: portfolioRate } = useWalletPortfolioBalance();
   const [stakes, setStakes] = useState<StakeRow[]>([]);
   const [loadingStakes, setLoadingStakes] = useState(false);
+  const [totalInvestedUsd, setTotalInvestedUsd] = useState<number | null>(null);
+  const [valuing, setValuing] = useState(false);
 
   useEffect(() => {
     if (!address) {
@@ -47,6 +56,8 @@ export function DashboardDefiTab() {
           amount: `${formatUnits(p.lpBalance, p.lpDecimals)} LP`,
           platform: "FansPump",
           href: `/liquidity/${p.tokenAddress}`,
+          lpToken: p.lpToken,
+          lpBalance: p.lpBalance,
         })),
       ...basePools
         .filter((p) => p.lpBalance > 0n)
@@ -56,10 +67,53 @@ export function DashboardDefiTab() {
           amount: `${formatUnits(p.lpBalance, p.lpDecimals)} LP`,
           platform: "OPN Network",
           href: "/my-liquidity",
+          lpToken: p.lpToken,
+          lpBalance: p.lpBalance,
         })),
     ];
     return rows;
   }, [lpPositions, basePools]);
+
+  useEffect(() => {
+    if (!client || !address) {
+      setTotalInvestedUsd(null);
+      return;
+    }
+
+    let cancelled = false;
+    setValuing(true);
+
+    (async () => {
+      const rate = portfolioRate > 0 ? portfolioRate : await fetchOpnUsdRate(client);
+      let total = 0;
+
+      for (const stake of stakes) {
+        const amountWei = BigInt(stake.amount || "0");
+        if (amountWei <= 0n) continue;
+        if (stake.stakingType === "OPN") {
+          total += Number(formatUnits(amountWei, 18)) * rate;
+        } else if (stake.asset) {
+          total += await quoteLpTokenUsd(client, stake.asset as Address, amountWei);
+        }
+      }
+
+      for (const row of lpRows) {
+        total += await quoteLpTokenUsd(client, row.lpToken as Address, row.lpBalance);
+      }
+
+      if (!cancelled) setTotalInvestedUsd(total);
+    })()
+      .catch(() => {
+        if (!cancelled) setTotalInvestedUsd(0);
+      })
+      .finally(() => {
+        if (!cancelled) setValuing(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [address, client, stakes, lpRows, portfolioRate]);
 
   const stakeRows = stakes.map((stake) => ({
     id: stake.id,
@@ -71,16 +125,19 @@ export function DashboardDefiTab() {
 
   const positionCount = lpRows.length + stakeRows.length;
   const loading = lpLoading || baseLoading || loadingStakes;
+  const summaryLoading = loading || valuing;
 
   return (
     <div className="space-y-6">
       <div className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-4">
-        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Total DeFi positions</p>
+        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Total invested</p>
         <p className="mt-1 text-2xl font-bold tabular-nums">
-          {loading ? "…" : String(positionCount)}
+          {summaryLoading ? "…" : formatBalanceTotal(totalInvestedUsd ?? 0, "USD")}
         </p>
         <p className="mt-1 text-sm text-muted-foreground">
-          Liquidity and staking across FansPump and OPN Network.
+          {summaryLoading
+            ? "Calculating liquidity and staking value…"
+            : `${positionCount} active position${positionCount === 1 ? "" : "s"} across FansPump and OPN Network.`}
         </p>
       </div>
 

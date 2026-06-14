@@ -10,7 +10,6 @@ import { Label } from "@/components/ui/label";
 import { CreatorAvatar } from "@/components/tokens/token-card-hero";
 import { Loader2, Upload } from "lucide-react";
 import { shortenAddress } from "@/lib/utils";
-import { formatCreatorDisplay } from "@/lib/username";
 
 export function DashboardProfilePanel() {
   const { address, isConnected } = useAccount();
@@ -96,13 +95,11 @@ export function DashboardProfilePanel() {
 
   if (!isConnected || !address) return null;
 
-  const displayName = formatCreatorDisplay(savedUsername, address, shortenAddress);
-
   return (
     <Card>
       <CardHeader>
         <CardTitle className="text-base">Your profile</CardTitle>
-        <CardDescription>Shown on token cards and creator pages across FansPump.</CardDescription>
+        <CardDescription>Update your photo and display name.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex flex-wrap items-center gap-4">
@@ -165,7 +162,6 @@ export function DashboardProfilePanel() {
         </div>
         {profileError && <p className="text-sm text-red-600">{profileError}</p>}
         {profileMessage && <p className="text-sm text-green-600">{profileMessage}</p>}
-        {!profileMessage && <p className="text-sm text-muted-foreground">Shown as: {displayName}</p>}
         <Button type="button" onClick={() => void saveProfile()} disabled={saving || uploadingAvatar}>
           {saving ? "Saving…" : "Save profile"}
         </Button>

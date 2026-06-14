@@ -16,7 +16,7 @@ export async function processLogoUpload(buffer: Buffer): Promise<ProcessedImage>
   const width = meta.width ?? 0;
   const height = meta.height ?? 0;
 
-  const error = validateLogoDimensions({ width, height });
+  const { error } = validateLogoDimensions({ width, height });
   if (error) throw new Error(error);
 
   const main = await sharp(buffer)

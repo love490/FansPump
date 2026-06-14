@@ -93,13 +93,12 @@ export function DashboardBalancePanel() {
                 key={`${asset.symbol}-${index}`}
                 className="rounded-lg border border-border/80 bg-background/70 px-3 py-2 text-sm"
               >
-                <div className="flex items-center justify-between gap-2">
-                  <span className="font-medium">{asset.symbol}</span>
-                  <span className="tabular-nums text-muted-foreground">
-                    {asset.amount.toLocaleString(undefined, { maximumFractionDigits: 4 })}
-                  </span>
-                </div>
-                <p className="mt-0.5 text-xs text-muted-foreground">
+                <p className="font-medium">{asset.name !== asset.symbol ? asset.name : asset.symbol}</p>
+                <p className="mt-0.5 tabular-nums text-muted-foreground">
+                  {asset.amount.toLocaleString(undefined, { maximumFractionDigits: 4 })}{" "}
+                  {asset.symbol}
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
                   {formatBalanceTotal(
                     currency === "USD" ? asset.usdValue : asset.opnValue,
                     currency

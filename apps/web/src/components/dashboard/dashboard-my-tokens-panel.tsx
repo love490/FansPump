@@ -3,11 +3,12 @@
 import Link from "next/link";
 import { useAccount } from "wagmi";
 import { useQuery } from "@tanstack/react-query";
-import { Coins } from "lucide-react";
+import { Coins, RefreshCw } from "lucide-react";
 import { TokenCard } from "@/components/tokens/token-card";
 import { tokenCardGridClass } from "@/components/tokens/token-card-styles";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 import { fetchMyTokens } from "@/lib/token-register";
 import { getActiveChainId } from "@/lib/chain-config/opn";
 import { tokenQueryKeys } from "@/lib/tokens-api";
@@ -45,11 +46,13 @@ export function DashboardMyTokensPanel() {
           <Button
             type="button"
             variant="outline"
-            size="sm"
+            size="icon"
+            className="h-8 w-8 shrink-0"
             disabled={isFetching}
             onClick={() => void refetch()}
+            aria-label="Refresh tokens"
           >
-            {isFetching ? "Refreshing…" : "Refresh"}
+            <RefreshCw className={cn("h-4 w-4", isFetching && "animate-spin")} />
           </Button>
         )}
       </CardHeader>

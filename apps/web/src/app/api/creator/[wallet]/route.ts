@@ -23,7 +23,7 @@ export async function GET(
   try {
     await ensureCreatorProfile(wallet);
 
-    const [verification, user, tokens, earnings, swapStats, announcementCount, profile, liquidityAdded] =
+    const [verification, user, tokens, earnings, swapStats, announcementCount, profile, liquidityAdded, followerCount, followingCount] =
       await Promise.all([
       prisma.creatorVerification.findUnique({ where: { walletAddress: wallet } }),
       prisma.user.findUnique({
@@ -50,6 +50,8 @@ export async function GET(
         where: { creatorAddress: wallet, chainId },
         _sum: { poolStrength: true },
       }),
+      prisma.creatorFollow.count({ where: { creatorWallet: wallet } }),
+      prisma.creatorFollow.count({ where: { followerWallet: wallet } }),
     ]);
 
     await prisma.creatorProfile.update({
@@ -97,8 +99,8 @@ export async function GET(
         totalTrades,
         creatorEarningsWei: creatorEarningsWei.toString(),
         announcementCount,
-        followers: 0,
-        following: 0,
+        followers: followerCount,
+        following: followingCount,
         tokens: tokens.map(mapTokenListRow),
         ...(flags.creatorProfiles
           ? {

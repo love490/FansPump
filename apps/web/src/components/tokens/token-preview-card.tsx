@@ -3,13 +3,13 @@
 import Link from "next/link";
 import { CheckCircle2, Sprout } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { formatCompactNumber, shortenAddress, cn } from "@/lib/utils";
-import { formatCreatorDisplay } from "@/lib/username";
+import { formatCompactNumber, cn } from "@/lib/utils";
+import { CreatorProfileLink } from "@/components/profile/creator-profile-link";
 import { motion } from "framer-motion";
 import type { TokenCardData } from "@/components/tokens/token-card";
 import { tokenCardMetricsClass, tokenCardShellClass } from "@/components/tokens/token-card-styles";
 import { SecurityBadges } from "@/components/v2/security-badges";
-import { TokenCardHero, CreatorAvatar } from "@/components/tokens/token-card-hero";
+import { TokenCardHero } from "@/components/tokens/token-card-hero";
 import { ContractVerifiedIcon } from "@/components/icons/contract-verified-icon";
 
 function formatDurationLong(iso: string | Date): string {
@@ -62,7 +62,6 @@ export function TokenPreviewCard({
   const holders =
     token.holderCount > 0 ? formatCompactNumber(token.holderCount) : "—";
   const age = token.createdAt ? formatDurationLong(token.createdAt) : null;
-  const creator = formatCreatorDisplay(token.creatorUsername, token.creatorAddress, shortenAddress);
   const displayBadges = (token.badges ?? []).filter((b) => b.id !== "liquidity_locked");
   const hasBadges =
     displayBadges.length > 0 || (token.trustScore != null && token.trustScore > 0);
@@ -119,14 +118,13 @@ export function TokenPreviewCard({
             </div>
 
             <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 text-[11px] text-muted-foreground sm:text-xs">
-              <CreatorAvatar
-                username={token.creatorUsername}
-                address={token.creatorAddress}
-                imageUrl={token.creatorProfileImageUrl}
-              />
-              <span className="min-w-0 truncate" title={creator}>
-                {creator}
-              </span>
+              {token.creatorAddress && (
+                <CreatorProfileLink
+                  walletAddress={token.creatorAddress}
+                  username={token.creatorUsername}
+                  profileImageUrl={token.creatorProfileImageUrl}
+                />
+              )}
               {age && (
                 <>
                   <span className="text-border">·</span>

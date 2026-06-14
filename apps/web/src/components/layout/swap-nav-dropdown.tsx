@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 import {
   DEX_HOME,
   DEX_LABEL,
-  dexNavLinks,
+  dexMenuNavLinks,
   isDexPath,
 } from "@/lib/navigation/swap-nav";
 
@@ -110,7 +110,7 @@ export function DexNavDropdown({ linkClassName, menuClassName, compact, classNam
           minWidth: menuPos.minWidth,
         }}
       >
-        {dexNavLinks.map((link) => (
+        {dexMenuNavLinks.map((link) => (
           <Link
             key={link.id}
             href={link.href}
@@ -175,7 +175,7 @@ export function DexNavMobileLinks({
       <p className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
         {DEX_LABEL}
       </p>
-      {dexNavLinks.map((link) => (
+      {dexMenuNavLinks.map((link) => (
         <Link
           key={link.id}
           href={link.href}

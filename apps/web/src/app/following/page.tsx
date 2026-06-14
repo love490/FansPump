@@ -1,59 +1,57 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useAccount } from "wagmi";
 import { CheckCircle2, Users } from "lucide-react";
-import { shortenAddress } from "@/lib/utils";
+import { CreatorProfileLink } from "@/components/profile/creator-profile-link";
+import { Button } from "@/components/ui/button";
 
-type VerifiedCreator = {
+type FollowedCreator = {
   walletAddress: string;
+  username: string | null;
+  profileImageUrl: string | null;
+  creatorVerified: boolean;
   tokenCount: number;
-  sampleToken?: { name: string; symbol: string; contractAddress: string };
+  sampleToken?: { name: string; symbol: string; contractAddress: string } | null;
 };
 
 export default function FollowingPage() {
-  const { isConnected } = useAccount();
-  const [creators, setCreators] = useState<VerifiedCreator[]>([]);
+  const { address, isConnected } = useAccount();
+  const [creators, setCreators] = useState<FollowedCreator[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetch("/api/tokens?section=new&limit=100")
+  const load = useCallback(() => {
+    if (!address) {
+      setCreators([]);
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    fetch(`/api/user/follows?wallet=${address.toLowerCase()}`)
       .then((r) => r.json())
-      .then((d) => {
-        const tokens = d.tokens ?? [];
-        const byCreator = new Map<string, VerifiedCreator>();
-        for (const t of tokens) {
-          if (!t.creatorVerified || !t.creatorAddress) continue;
-          const key = t.creatorAddress.toLowerCase();
-          const existing = byCreator.get(key);
-          if (existing) {
-            existing.tokenCount += 1;
-          } else {
-            byCreator.set(key, {
-              walletAddress: key,
-              tokenCount: 1,
-              sampleToken: { name: t.name, symbol: t.symbol, contractAddress: t.contractAddress },
-            });
-          }
-        }
-        setCreators([...byCreator.values()]);
-      })
+      .then((d) => setCreators(d.creators ?? []))
+      .catch(() => setCreators([]))
       .finally(() => setLoading(false));
-  }, []);
+  }, [address]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   return (
     <div className="mx-auto max-w-3xl space-y-6 py-2 sm:py-4">
       <header>
         <h1 className="text-2xl font-bold">Following</h1>
         <p className="mt-1 text-muted-foreground">
-          Discover verified creators on FansPump. Full follow feeds are coming soon.
+          Creators you follow on FansPump. Visit their profile to unfollow.
         </p>
       </header>
 
       {!isConnected && (
         <p className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
-          Connect your wallet to save follows when the feature launches.
+          Connect your wallet to follow creators and see them here.
         </p>
       )}
 
@@ -66,10 +64,12 @@ export default function FollowingPage() {
       ) : creators.length === 0 ? (
         <div className="rounded-xl border border-dashed p-10 text-center">
           <Users className="mx-auto mb-3 h-10 w-10 text-muted-foreground" />
-          <p className="text-muted-foreground">No verified creators to show yet.</p>
-          <Link href="/discover?section=featured" className="mt-4 inline-block text-sm text-primary hover:underline">
-            Browse featured projects
-          </Link>
+          <p className="text-muted-foreground">
+            {isConnected ? "You are not following anyone yet." : "Connect your wallet to follow creators."}
+          </p>
+          <Button asChild variant="outline" className="mt-4">
+            <Link href="/discover?section=featured">Browse creators</Link>
+          </Button>
         </div>
       ) : (
         <ul className="divide-y divide-border rounded-xl border border-border">
@@ -77,13 +77,18 @@ export default function FollowingPage() {
             <li key={c.walletAddress} className="flex items-center justify-between gap-4 p-4">
               <div className="min-w-0">
                 <p className="flex items-center gap-1.5 font-medium">
-                  <CheckCircle2 className="h-4 w-4 shrink-0 text-primary" />
-                  <span className="font-mono text-sm">{shortenAddress(c.walletAddress, 4)}</span>
+                  {c.creatorVerified && (
+                    <CheckCircle2 className="h-4 w-4 shrink-0 text-primary" aria-label="Verified creator" />
+                  )}
+                  <CreatorProfileLink
+                    walletAddress={c.walletAddress}
+                    username={c.username}
+                    profileImageUrl={c.profileImageUrl}
+                  />
                 </p>
                 {c.sampleToken && (
                   <p className="mt-1 truncate text-sm text-muted-foreground">
-                    {c.sampleToken.name} ({c.sampleToken.symbol}) · {c.tokenCount} project
-                    {c.tokenCount !== 1 ? "s" : ""}
+                    {c.sampleToken.symbol} · {c.tokenCount} project{c.tokenCount !== 1 ? "s" : ""}
                   </p>
                 )}
               </div>
@@ -92,7 +97,7 @@ export default function FollowingPage() {
                   href={`/token/${c.sampleToken.contractAddress}`}
                   className="shrink-0 text-sm text-primary hover:underline"
                 >
-                  View
+                  View token
                 </Link>
               )}
             </li>

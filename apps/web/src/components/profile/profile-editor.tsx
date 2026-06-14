@@ -10,7 +10,6 @@ import { Label } from "@/components/ui/label";
 import { CreatorAvatar } from "@/components/tokens/token-card-hero";
 import { Loader2, Settings, Upload } from "lucide-react";
 import { shortenAddress } from "@/lib/utils";
-import { formatCreatorDisplay } from "@/lib/username";
 
 type ProfileEditorProps = {
   showSettingsLink?: boolean;
@@ -107,8 +106,6 @@ export function ProfileEditor({ showSettingsLink = true }: ProfileEditorProps) {
     );
   }
 
-  const displayName = formatCreatorDisplay(savedUsername, address, shortenAddress);
-
   return (
     <div className="space-y-6">
       <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-start">
@@ -168,6 +165,9 @@ export function ProfileEditor({ showSettingsLink = true }: ProfileEditorProps) {
             className="hidden"
             onChange={(e) => void handleAvatarChange(e)}
           />
+          <p className="text-xs text-muted-foreground">
+            Any image accepted. Recommended square photo, e.g. 1024×1024 px.
+          </p>
         </div>
       </div>
 
@@ -182,8 +182,8 @@ export function ProfileEditor({ showSettingsLink = true }: ProfileEditorProps) {
           maxLength={24}
         />
         <p className="text-xs text-muted-foreground">
-          Optional. 3–24 characters: letters, numbers, underscore. Shown on token cards as{" "}
-          <span className="font-medium text-foreground">{displayName}</span>.
+          Optional. 3–24 characters: letters, numbers, underscore. Your username replaces your wallet
+          address anywhere your profile is shown.
         </p>
       </div>
 

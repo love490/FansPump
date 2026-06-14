@@ -37,21 +37,32 @@ function isNearRatio(width: number, height: number, target: number, tolerance: n
   return Math.abs(ratio - target) / target <= tolerance;
 }
 
-export function validateLogoDimensions(dim: ImageDimensions): string | null {
+export function validateLogoDimensions(dim: ImageDimensions): {
+  error: string | null;
+  warning: string | null;
+} {
   const { width, height } = dim;
   const short = Math.min(width, height);
   const long = Math.max(width, height);
+  const warnings: string[] = [];
 
   if (!isNearRatio(width, height, LOGO_UPLOAD.aspectRatio, LOGO_UPLOAD.aspectTolerance)) {
-    return "Logo must be square (1:1 aspect ratio). Upload a square image such as 1024×1024 px.";
+    warnings.push(
+      `Non-square image (${width}×${height} px). It will be center-cropped to square. Recommended: ${LOGO_UPLOAD.recommendedPx}×${LOGO_UPLOAD.recommendedPx} px.`
+    );
   }
   if (short < LOGO_UPLOAD.minPx) {
-    return `Logo is too small (${width}×${height} px). Minimum size is ${LOGO_UPLOAD.minPx}×${LOGO_UPLOAD.minPx} px.`;
+    warnings.push(
+      `Smaller than recommended ${LOGO_UPLOAD.recommendedPx}×${LOGO_UPLOAD.recommendedPx} px (${width}×${height} px).`
+    );
   }
   if (long > LOGO_UPLOAD.maxPx) {
-    return `Logo is too large (${width}×${height} px). Maximum size is ${LOGO_UPLOAD.maxPx}×${LOGO_UPLOAD.maxPx} px.`;
+    warnings.push(
+      `Larger than recommended ${LOGO_UPLOAD.maxPx}×${LOGO_UPLOAD.maxPx} px — will be resized on upload.`
+    );
   }
-  return null;
+
+  return { error: null, warning: warnings.length ? warnings.join(" ") : null };
 }
 
 export function validateBannerDimensions(dim: ImageDimensions): {

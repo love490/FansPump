@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useAccount } from "wagmi";
 import { useQuery } from "@tanstack/react-query";
 import { formatUnits } from "viem";
+import { RefreshCw } from "lucide-react";
 import { TokenLogo } from "@/components/tokens/token-logo";
 import { Button } from "@/components/ui/button";
 import { useWalletLiquidityTokens } from "@/hooks/liquidity/useWalletLiquidityTokens";
@@ -23,14 +24,26 @@ type TokenRow = {
   logoUrl?: string | null;
   balance: bigint;
   decimals: number;
-  isCreated: boolean;
-  isHeld: boolean;
-  priceUsd: number;
+  holdingUsd: number;
+  unitPriceUsd: number;
 };
+
+type TokenView = "wallet" | "created";
+
+function formatBalanceAmount(balance: bigint, decimals: number): string {
+  const raw = formatUnits(balance, decimals);
+  const n = Number(raw);
+  if (!Number.isFinite(n)) return raw;
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(2)}M`;
+  if (n >= 1_000) return n.toLocaleString(undefined, { maximumFractionDigits: 2 });
+  if (n >= 1) return n.toLocaleString(undefined, { maximumFractionDigits: 4 });
+  return n.toLocaleString(undefined, { maximumFractionDigits: 6 });
+}
 
 export function DashboardMyTokensTab() {
   const { address } = useAccount();
   const chainId = getActiveChainId();
+  const [view, setView] = useState<TokenView>("wallet");
   const { tokens: walletTokens, loading: walletLoading } = useWalletLiquidityTokens(address);
   const { tokenUsdMap, loading: priceLoading } = useWalletPortfolioBalance();
 
@@ -47,58 +60,64 @@ export function DashboardMyTokensTab() {
     staleTime: 30_000,
   });
 
-  const rows = useMemo(() => {
-    const map = new Map<string, TokenRow>();
+  const walletRows = useMemo(() => {
+    const rows: TokenRow[] = [];
 
-    for (const token of createdTokens) {
+    for (const token of walletTokens) {
+      if (token.balance <= 0n) continue;
       const key = token.contractAddress.toLowerCase();
-      map.set(key, {
+      const holdingUsd = tokenUsdMap[key] ?? 0;
+      const amount = Number(formatUnits(token.balance, token.decimals));
+      const unitPriceUsd = amount > 0 && holdingUsd > 0 ? holdingUsd / amount : 0;
+
+      rows.push({
         key,
         contractAddress: token.contractAddress,
         name: token.name,
         symbol: token.symbol,
         logoUrl: token.logoUrl,
-        balance: 0n,
-        decimals: 18,
-        isCreated: true,
-        isHeld: false,
-        priceUsd: tokenUsdMap[key] ?? 0,
-      });
-    }
-
-    for (const token of walletTokens) {
-      if (token.balance <= 0n) continue;
-      const key = token.contractAddress.toLowerCase();
-      const existing = map.get(key);
-      const totalUsd = tokenUsdMap[key] ?? existing?.priceUsd ?? 0;
-      map.set(key, {
-        key,
-        contractAddress: token.contractAddress,
-        name: token.name,
-        symbol: token.symbol,
-        logoUrl: token.logoUrl ?? existing?.logoUrl,
         balance: token.balance,
         decimals: token.decimals,
-        isCreated: existing?.isCreated ?? token.isCreator,
-        isHeld: true,
-        priceUsd: totalUsd,
+        holdingUsd,
+        unitPriceUsd,
       });
     }
 
-    return [...map.values()]
-      .map((row) => {
-        if (row.balance <= 0n || row.priceUsd <= 0) return row;
-        const amount = Number(formatUnits(row.balance, row.decimals));
-        if (amount <= 0) return row;
-        return { ...row, priceUsd: row.priceUsd / amount };
+    return rows.sort((a, b) => {
+      if (a.holdingUsd !== b.holdingUsd) return b.holdingUsd - a.holdingUsd;
+      return a.name.localeCompare(b.name);
+    });
+  }, [walletTokens, tokenUsdMap]);
+
+  const createdRows = useMemo(() => {
+    const walletByAddr = new Map(walletTokens.map((t) => [t.contractAddress.toLowerCase(), t]));
+
+    return createdTokens
+      .map((token) => {
+        const key = token.contractAddress.toLowerCase();
+        const wallet = walletByAddr.get(key);
+        const balance = wallet?.balance ?? 0n;
+        const decimals = wallet?.decimals ?? 18;
+        const holdingUsd = tokenUsdMap[key] ?? 0;
+        const amount = Number(formatUnits(balance, decimals));
+        const unitPriceUsd = amount > 0 && holdingUsd > 0 ? holdingUsd / amount : 0;
+
+        return {
+          key,
+          contractAddress: token.contractAddress,
+          name: token.name,
+          symbol: token.symbol,
+          logoUrl: token.logoUrl,
+          balance,
+          decimals,
+          holdingUsd,
+          unitPriceUsd,
+        } satisfies TokenRow;
       })
-      .sort((a, b) => {
-        if (a.isCreated !== b.isCreated) return a.isCreated ? -1 : 1;
-        if (a.balance > 0n !== b.balance > 0n) return a.balance > 0n ? -1 : 1;
-        return a.name.localeCompare(b.name);
-      });
+      .sort((a, b) => a.name.localeCompare(b.name));
   }, [createdTokens, walletTokens, tokenUsdMap]);
 
+  const rows = view === "wallet" ? walletRows : createdRows;
   const loading = createdLoading || walletLoading || priceLoading;
 
   if (loading) {
@@ -118,84 +137,99 @@ export function DashboardMyTokensTab() {
     );
   }
 
-  if (rows.length === 0) {
-    return (
-      <div className="rounded-xl border border-dashed p-8 text-center">
-        <p className="text-sm text-muted-foreground">No tokens yet — create one or buy on Swap.</p>
-        <div className="mt-4 flex flex-wrap justify-center gap-2">
-          <Button asChild size="sm">
-            <Link href="/create">Create token</Link>
-          </Button>
-          <Button asChild size="sm" variant="outline">
-            <Link href="/swap">Swap</Link>
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between gap-2">
-        <p className="text-sm text-muted-foreground">Tokens you created and hold in your wallet.</p>
-        <Button type="button" variant="ghost" size="sm" disabled={isFetching} onClick={() => void refetch()}>
-          {isFetching ? "Refreshing…" : "Refresh"}
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="inline-flex rounded-lg border border-border bg-muted/40 p-0.5">
+          <button
+            type="button"
+            onClick={() => setView("wallet")}
+            className={cn(
+              "rounded-md px-3 py-1.5 text-xs font-semibold transition-colors",
+              view === "wallet"
+                ? "bg-primary text-primary-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            Wallet
+          </button>
+          <button
+            type="button"
+            onClick={() => setView("created")}
+            className={cn(
+              "rounded-md px-3 py-1.5 text-xs font-semibold transition-colors",
+              view === "created"
+                ? "bg-primary text-primary-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            Created
+          </button>
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          className="h-8 w-8 shrink-0"
+          disabled={isFetching}
+          onClick={() => void refetch()}
+          aria-label="Refresh tokens"
+        >
+          <RefreshCw className={cn("h-4 w-4", isFetching && "animate-spin")} />
         </Button>
       </div>
-      <div className="overflow-hidden rounded-xl border border-border">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-border bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
-              <th className="px-3 py-2.5 text-left font-medium">Token</th>
-              <th className="hidden px-3 py-2.5 text-left font-medium sm:table-cell">Type</th>
-              <th className="px-3 py-2.5 text-right font-medium">Balance</th>
-              <th className="px-3 py-2.5 text-right font-medium">Price</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row) => (
-              <tr key={row.key} className="border-b border-border last:border-0 hover:bg-muted/30">
-                <td className="px-3 py-3">
-                  <Link
-                    href={`/token/${row.contractAddress}`}
-                    className="flex items-center gap-3 group"
-                  >
-                    <TokenLogo src={row.logoUrl} symbol={row.symbol} name={row.name} layout="fixed" size={32} />
-                    <div className="min-w-0">
-                      <p className="truncate font-medium group-hover:text-primary">{row.name}</p>
-                      <p className="text-xs uppercase text-muted-foreground">{row.symbol}</p>
-                    </div>
-                  </Link>
-                </td>
-                <td className="hidden px-3 py-3 sm:table-cell">
-                  <div className="flex flex-wrap gap-1">
-                    {row.isCreated && (
-                      <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
-                        Created
-                      </span>
-                    )}
-                    {row.isHeld && (
-                      <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-400">
-                        Held
-                      </span>
-                    )}
-                  </div>
-                </td>
-                <td className="px-3 py-3 text-right tabular-nums">
+
+      {rows.length === 0 ? (
+        <div className="rounded-xl border border-dashed p-8 text-center">
+          <p className="text-sm text-muted-foreground">
+            {view === "wallet"
+              ? "No tokens in your wallet yet — buy on Swap or create one."
+              : "You have not created any tokens yet."}
+          </p>
+          <div className="mt-4 flex flex-wrap justify-center gap-2">
+            {view === "wallet" ? (
+              <>
+                <Button asChild size="sm">
+                  <Link href="/swap">Swap</Link>
+                </Button>
+                <Button asChild size="sm" variant="outline">
+                  <Link href="/create">Create token</Link>
+                </Button>
+              </>
+            ) : (
+              <Button asChild size="sm">
+                <Link href="/create">Create token</Link>
+              </Button>
+            )}
+          </div>
+        </div>
+      ) : (
+        <div className="divide-y divide-border overflow-hidden rounded-xl border border-border">
+          {rows.map((row) => (
+            <Link
+              key={row.key}
+              href={`/token/${row.contractAddress}`}
+              className="flex items-start gap-3 px-3 py-3 transition-colors hover:bg-muted/30"
+            >
+              <TokenLogo src={row.logoUrl} symbol={row.symbol} name={row.name} layout="fixed" size={40} />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-base font-bold uppercase tracking-wide">{row.symbol}</p>
+                <p className="mt-0.5 text-sm tabular-nums text-muted-foreground">
                   {row.balance > 0n
-                    ? formatUnits(row.balance, row.decimals)
-                    : row.isCreated
-                      ? "—"
-                      : "0"}
-                </td>
-                <td className={cn("px-3 py-3 text-right tabular-nums", row.priceUsd <= 0 && "text-muted-foreground")}>
-                  {row.priceUsd > 0 ? formatMarketPrice(row.priceUsd) : "—"}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+                    ? formatBalanceAmount(row.balance, row.decimals)
+                    : "0"}
+                </p>
+                <p className="mt-1 font-semibold tabular-nums">
+                  {row.holdingUsd > 0 ? formatMarketPrice(row.holdingUsd) : "—"}
+                </p>
+                <p className="text-xs tabular-nums text-muted-foreground">
+                  {row.unitPriceUsd > 0 ? formatMarketPrice(row.unitPriceUsd) : "—"}
+                </p>
+              </div>
+            </Link>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

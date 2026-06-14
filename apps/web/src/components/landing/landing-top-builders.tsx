@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Trophy, ArrowRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { formatCreatorDisplay } from "@/lib/username";
 import { shortenAddress } from "@/lib/utils";
 import { SecurityBadges } from "@/components/v2/security-badges";
 import type { SecurityBadge } from "@/lib/v2/badges";
@@ -79,9 +80,10 @@ export function LandingTopBuilders() {
       .then((d) => {
         if (!d.enabled || !Array.isArray(d.entries) || d.entries.length === 0) return;
         setBuilders(
-          d.entries.map(
+            d.entries.map(
             (e: {
               walletAddress: string;
+              displayName?: string | null;
               tokensCreated: number;
               totalLiquidity: number;
               totalViews: number;
@@ -90,6 +92,7 @@ export function LandingTopBuilders() {
               badges: SecurityBadge[];
             }) => ({
               walletAddress: e.walletAddress,
+              displayName: e.displayName ?? undefined,
               tokensCreated: e.tokensCreated,
               liquidityAdded: e.totalLiquidity,
               totalViews: e.totalViews,
@@ -139,7 +142,7 @@ export function LandingTopBuilders() {
               )}
             </div>
             <p className="mt-2 font-semibold group-hover:text-primary">
-              {builder.displayName ?? shortenAddress(builder.walletAddress, 4)}
+              {formatCreatorDisplay(builder.displayName, builder.walletAddress, shortenAddress)}
             </p>
             <SecurityBadges badges={builder.badges} className="mt-2" max={2} />
             <div className="mt-3 grid grid-cols-2 gap-2 text-xs">

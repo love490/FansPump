@@ -4,10 +4,8 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { CreatorAvatar } from "@/components/tokens/token-card-hero";
+import { CreatorProfileLink } from "@/components/profile/creator-profile-link";
 import { formatBountyReward, type BountyListItem } from "@/lib/bounties";
-import { formatCreatorDisplay } from "@/lib/username";
-import { shortenAddress, cn } from "@/lib/utils";
 import { Calendar, Users, Gift } from "lucide-react";
 
 function statusBadge(status: BountyListItem["effectiveStatus"]) {
@@ -32,11 +30,6 @@ export function BountyCard({
   onJoin?: (bountyId: string) => void;
   showJoin?: boolean;
 }) {
-  const creator = formatCreatorDisplay(
-    bounty.creatorUsername,
-    bounty.creatorWallet,
-    shortenAddress
-  );
   const reward = formatBountyReward(bounty);
   const canJoin =
     showJoin &&
@@ -76,17 +69,11 @@ export function BountyCard({
         )}
 
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground">
-          <Link
-            href={`/creator/${bounty.creatorWallet}`}
-            className="inline-flex min-w-0 items-center gap-2 hover:text-primary"
-          >
-            <CreatorAvatar
-              username={bounty.creatorUsername}
-              address={bounty.creatorWallet}
-              imageUrl={bounty.creatorProfileImageUrl}
-            />
-            <span className="truncate">{creator}</span>
-          </Link>
+          <CreatorProfileLink
+            walletAddress={bounty.creatorWallet}
+            username={bounty.creatorUsername}
+            profileImageUrl={bounty.creatorProfileImageUrl}
+          />
           <span className="inline-flex items-center gap-1">
             <Users className="h-3.5 w-3.5" />
             {bounty.participantCount}/{bounty.maxParticipants} joined

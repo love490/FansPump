@@ -121,9 +121,26 @@ model User {
   tokenProjects TokenProject[]
   bounties      Bounty[]
   bountyParticipations BountyParticipation[]
+  followingCreators    CreatorFollow[] @relation("UserFollowing")
+  followers            CreatorFollow[] @relation("UserFollowers")
 
   @@index([username])
   @@map("users")
+}
+
+model CreatorFollow {
+  id             String   @id @default(cuid())
+  followerWallet String   @map("follower_wallet")
+  creatorWallet  String   @map("creator_wallet")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  follower User @relation("UserFollowing", fields: [followerWallet], references: [walletAddress], onDelete: Cascade)
+  creator  User @relation("UserFollowers", fields: [creatorWallet], references: [walletAddress], onDelete: Cascade)
+
+  @@unique([followerWallet, creatorWallet])
+  @@index([followerWallet])
+  @@index([creatorWallet])
+  @@map("creator_follows")
 }
 
 model TokenProject {

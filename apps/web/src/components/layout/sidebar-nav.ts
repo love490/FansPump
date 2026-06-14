@@ -12,8 +12,6 @@ import {
   Settings,
   Droplets,
   Layers,
-  Wallet,
-  BarChart3,
   CircleDollarSign,
 } from "lucide-react";
 import { isDexPath } from "@/lib/navigation/swap-nav";
@@ -48,10 +46,8 @@ export type SidebarNavItem = {
 export const dexNavChildren: SidebarNavItem[] = [
   { id: "swap", href: "/swap", label: "Swap", icon: ArrowLeftRight },
   { id: "my-liquidity", href: "/my-liquidity", label: "Liquidity", icon: Droplets },
-  { id: "lp-management", href: "/my-liquidity", label: "LP Management", icon: Wallet },
   { id: "pools", href: "/pools", label: "Pool", icon: Layers },
   { id: "staking", href: "/staking", label: "Staking", icon: Layers },
-  { id: "analytics", href: "/pools", label: "Analytics", icon: BarChart3 },
 ];
 
 /** @deprecated Use dexNavChildren */

@@ -14,7 +14,11 @@ export function formatCreatorDisplay(
   walletAddress: string | null | undefined,
   shorten: (addr: string, chars?: number) => string
 ): string {
-  if (username) return username;
+  if (username?.trim()) return username.trim();
   if (walletAddress) return shorten(walletAddress, 4);
   return "—";
+}
+
+export function creatorProfilePath(walletAddress: string): string {
+  return `/creator/${walletAddress.toLowerCase()}`;
 }

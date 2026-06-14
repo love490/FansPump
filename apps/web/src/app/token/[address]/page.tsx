@@ -16,6 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { VoteButtons } from "@/components/tokens/vote-buttons";
+import { CreatorProfileLink } from "@/components/profile/creator-profile-link";
 import { shortenAddress } from "@/lib/utils";
 import { OPN_EXPLORER_BASE } from "@/lib/wagmi";
 import { CheckCircle2, ExternalLink, Star, ShoppingCart, TrendingDown, ArrowLeftRight, Droplets, FileCode } from "lucide-react";
@@ -134,12 +135,13 @@ export default function TokenPage() {
             {token.creatorAddress && (
               <p className="mt-2 text-sm text-muted-foreground">
                 Creator{" "}
-                <Link
-                  href={`/creator/${token.creatorAddress}`}
-                  className={`text-primary hover:underline ${token.creatorUsername ? "font-medium" : "font-mono"}`}
-                >
-                  {token.creatorUsername ?? shortenAddress(token.creatorAddress, 4)}
-                </Link>
+                <CreatorProfileLink
+                  walletAddress={token.creatorAddress}
+                  username={token.creatorUsername}
+                  showAvatar={false}
+                  className="inline-flex"
+                  labelClassName="text-primary hover:underline"
+                />
               </p>
             )}
           </div>

@@ -12,9 +12,11 @@ import { CreatorBountySection } from "@/components/bounties/creator-bounty-secti
 import type { SecurityBadge } from "@/lib/v2/badges";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { FollowCreatorButton } from "@/components/profile/follow-creator-button";
+import { formatCreatorDisplay } from "@/lib/username";
 import { shortenAddress } from "@/lib/utils";
 import { ANNOUNCEMENT_TYPE_LABELS, type AnnouncementTypeId } from "@iopn/shared";
-import { CheckCircle2, Coins, BarChart3, Layers } from "lucide-react";
+import { CheckCircle2, Coins, BarChart3, Layers, Users } from "lucide-react";
 
 type CreatorProfile = {
   walletAddress: string;
@@ -101,9 +103,10 @@ export default function CreatorProfilePage() {
       <header className="mb-8">
         <div className="flex flex-wrap items-center gap-3">
           <h1 className="text-2xl font-bold">
-            {profile.username ?? shortenAddress(profile.walletAddress, 6)}
+            {formatCreatorDisplay(profile.username, profile.walletAddress, shortenAddress)}
           </h1>
           {profile.walletVerified && <VerifiedCreatorBadge />}
+          <FollowCreatorButton creatorWallet={profile.walletAddress} />
         </div>
         {profile.username && (
           <p className="mt-1 font-mono text-sm text-muted-foreground">
@@ -127,6 +130,14 @@ export default function CreatorProfilePage() {
       </header>
 
       <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardContent className="pt-6">
+            <p className="text-xs text-muted-foreground">Followers</p>
+            <p className="text-2xl font-bold flex items-center gap-2">
+              <Users className="h-5 w-5" /> {profile.followers}
+            </p>
+          </CardContent>
+        </Card>
         <Card>
           <CardContent className="pt-6">
             <p className="text-xs text-muted-foreground">Tokens Created</p>

@@ -34,17 +34,23 @@ export async function GET(request: NextRequest) {
     });
 
     const wallets = creators.map((c) => c.creatorAddress);
-    const [profiles, verifications] = await Promise.all([
+    const [profiles, verifications, users] = await Promise.all([
       prisma.creatorProfile.findMany({ where: { walletAddress: { in: wallets } } }),
       prisma.creatorVerification.findMany({ where: { walletAddress: { in: wallets } } }),
+      prisma.user.findMany({
+        where: { walletAddress: { in: wallets } },
+        select: { walletAddress: true, username: true },
+      }),
     ]);
 
     const profileMap = new Map(profiles.map((p) => [p.walletAddress, p]));
     const verifiedSet = new Set(verifications.map((v) => v.walletAddress));
+    const usernameMap = new Map(users.map((u) => [u.walletAddress, u.username]));
 
     type Entry = {
       rank: number;
       walletAddress: string;
+      displayName?: string | null;
       tokensCreated: number;
       totalViews: number;
       totalLiquidity: number;
@@ -75,6 +81,7 @@ export async function GET(request: NextRequest) {
 
       const base = {
         walletAddress: c.creatorAddress,
+        displayName: usernameMap.get(c.creatorAddress) ?? null,
         tokensCreated: c._count.id,
         totalViews: c._sum.viewCount ?? 0,
         totalLiquidity: c._sum.poolStrength ?? 0,

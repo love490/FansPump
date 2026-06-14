@@ -48,7 +48,7 @@ export function MetadataImageField({
 
   const specHint =
     variant === "logo"
-      ? `Square 1:1 · ${LOGO_UPLOAD.minPx}–${LOGO_UPLOAD.maxPx} px (recommended ${LOGO_UPLOAD.recommendedPx}×${LOGO_UPLOAD.recommendedPx})`
+      ? `Recommended square 1:1 · ${LOGO_UPLOAD.recommendedPx}×${LOGO_UPLOAD.recommendedPx} px (any image accepted)`
       : `3:1 wide · min ${BANNER_UPLOAD.minWidth}×${BANNER_UPLOAD.minHeight} px (recommended ${BANNER_UPLOAD.recommendedWidth}×${BANNER_UPLOAD.recommendedHeight})`;
 
   async function uploadFile(file: File) {
@@ -89,11 +89,12 @@ export function MetadataImageField({
     }
 
     if (variant === "logo") {
-      const logoError = validateLogoDimensions(dimensions);
-      if (logoError) {
-        setError(logoError);
+      const logoCheck = validateLogoDimensions(dimensions);
+      if (logoCheck.error) {
+        setError(logoCheck.error);
         return;
       }
+      if (logoCheck.warning) setWarning(logoCheck.warning);
       await uploadFile(file);
       return;
     }

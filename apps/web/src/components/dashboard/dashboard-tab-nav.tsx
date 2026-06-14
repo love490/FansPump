@@ -7,7 +7,7 @@ export type DashboardTabId = "tokens" | "defi" | "earnings" | "activities";
 const TABS: { id: DashboardTabId; label: string }[] = [
   { id: "tokens", label: "My token" },
   { id: "defi", label: "DeFi" },
-  { id: "earnings", label: "Earnings" },
+  { id: "earnings", label: "My Purse" },
   { id: "activities", label: "Activities" },
 ];
 
