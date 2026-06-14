@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CreatorProfileLink } from "@/components/profile/creator-profile-link";
 import { formatBountyReward, type BountyListItem } from "@/lib/bounties";
+import { cn } from "@/lib/utils";
 import { Calendar, Users, Gift } from "lucide-react";
 
 function statusBadge(status: BountyListItem["effectiveStatus"]) {
