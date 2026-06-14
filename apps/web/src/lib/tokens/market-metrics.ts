@@ -106,6 +106,11 @@ export function registryToTokenCardData(token: RegistryToken): TokenCardData {
   };
 }
 
+function isRegistryOrNativeToken(token: TokenCardData): boolean {
+  if (token.id.startsWith("native-")) return true;
+  return getPopularRegistryTokens().some((r) => r.id === token.id);
+}
+
 export function tokenToMarketRow(token: TokenCardData, rank: number): MarketTableRow {
   const key = (token.contractAddress || token.id || token.symbol).toLowerCase();
   const seed = hashSeed(key);
@@ -119,6 +124,7 @@ export function tokenToMarketRow(token: TokenCardData, rank: number): MarketTabl
   const change1h = stable?.change1h ?? deriveChange(token, seed, 1);
   const change24h = stable?.change24h ?? deriveChange(token, seed, 24);
   const change7d = stable?.change7d ?? deriveChange(token, seed, 168);
+  const isBaseToken = isRegistryOrNativeToken(token);
 
   return {
     id: token.id,
@@ -133,8 +139,8 @@ export function tokenToMarketRow(token: TokenCardData, rank: number): MarketTabl
     change7d,
     marketCap: deriveMarketCap(token, price, seed),
     volume24h: deriveVolume(token, seed),
-    isBaseToken: token.id.startsWith("native-") || getPopularRegistryTokens().some((r) => r.id === token.id),
-    canFavorite: Boolean(token.id && !token.id.startsWith("native-") && token.contractAddress),
+    isBaseToken,
+    canFavorite: Boolean(!isBaseToken && token.id && token.contractAddress),
   };
 }
 
@@ -147,7 +153,8 @@ export function buildMarketTableRows(
   const seen = new Set<string>();
   const merged: TokenCardData[] = [];
 
-  for (const token of [...baseCards, ...tokens]) {
+  // Prefer indexed project tokens so favorites use DB ids, not registry ids.
+  for (const token of [...tokens, ...baseCards]) {
     const key = (token.contractAddress || token.id || token.symbol).toLowerCase();
     if (seen.has(key)) continue;
     seen.add(key);

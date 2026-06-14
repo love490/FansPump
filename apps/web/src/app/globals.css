@@ -68,3 +68,24 @@
     appearance: textfield;
   }
 }
+
+@layer utilities {
+  @keyframes promo-marquee {
+    from {
+      transform: translateX(0);
+    }
+    to {
+      transform: translateX(-50%);
+    }
+  }
+
+  .animate-promo-marquee {
+    animation: promo-marquee var(--marquee-duration, 60s) linear infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .animate-promo-marquee {
+      animation: none;
+    }
+  }
+}

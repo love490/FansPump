@@ -248,10 +248,14 @@ function MarketRow({
         <button
           type="button"
           disabled={!canToggleFavorite}
-          onClick={() => onToggleFavorite?.(row.id)}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onToggleFavorite?.(row.id);
+          }}
           className={cn(
-            "rounded p-1 transition-colors",
-            canToggleFavorite ? "hover:bg-muted" : "cursor-default opacity-40"
+            "relative z-10 rounded p-1 transition-colors",
+            canToggleFavorite ? "cursor-pointer hover:bg-muted" : "cursor-default opacity-40"
           )}
           aria-label={isFavorite ? "Remove from favorites" : "Add to favorites"}
         >
