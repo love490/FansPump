@@ -1,4 +1,5 @@
 import { cn, formatCompactNumber } from "@/lib/utils";
+import { formatLiquidityAmount } from "@/lib/liquidity/format-amount";
 
 type LiquidityMetricBarProps = {
   label: string;
@@ -8,28 +9,22 @@ type LiquidityMetricBarProps = {
 };
 
 function formatLpAmountDisplay(amount: string): { display: string; full: string } {
-  const full = `${amount} LP`;
-  const n = Number(amount);
+  const fullRaw = amount.trim() || "0";
+  const full = `${fullRaw} LP`;
+  const n = Number(fullRaw);
 
   if (!Number.isFinite(n)) {
-    const trimmed = amount.length > 14 ? `${amount.slice(0, 12)}…` : amount;
+    const trimmed = fullRaw.length > 14 ? `${fullRaw.slice(0, 12)}…` : fullRaw;
     return { display: trimmed, full };
   }
 
   if (n === 0) return { display: "0", full: "0 LP" };
 
   if (n >= 1_000) {
-    return { display: formatCompactNumber(n), full };
+    return { display: formatCompactNumber(n), full: `${formatLiquidityAmount(fullRaw)} LP` };
   }
 
-  if (amount.length > 12) {
-    return {
-      display: n.toLocaleString(undefined, { maximumFractionDigits: 6 }),
-      full,
-    };
-  }
-
-  return { display: amount, full };
+  return { display: formatLiquidityAmount(fullRaw), full: `${formatLiquidityAmount(fullRaw)} LP` };
 }
 
 function formatPct(pct: number): string {

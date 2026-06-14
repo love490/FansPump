@@ -2,12 +2,12 @@
 
 import Link from "next/link";
 import { useEffect } from "react";
-import { Droplets, RefreshCw } from "lucide-react";
-import { formatUnits } from "viem";
+import { RefreshCw } from "lucide-react";
 import { useAccount } from "wagmi";
 import { Button } from "@/components/ui/button";
 import { useMyLiquidityPositions } from "@/hooks/liquidity/useMyLiquidityPositions";
 import { shortenAddress } from "@/lib/utils";
+import { formatLiquidityAmountFromWei } from "@/lib/liquidity/format-amount";
 
 export function MyLiquidityList({ refreshSeq = 0 }: { refreshSeq?: number }) {
   const { address, isConnected } = useAccount();
@@ -59,14 +59,13 @@ export function MyLiquidityList({ refreshSeq = 0 }: { refreshSeq?: number }) {
                 <p className="mt-1 text-xs text-muted-foreground">
                   {p.pending
                     ? "Confirming on-chain…"
-                    : `LP balance: ${formatUnits(p.lpBalance, p.lpDecimals)} LP`}
+                    : `LP balance: ${formatLiquidityAmountFromWei(p.lpBalance, p.lpDecimals)} LP`}
                 </p>
               </div>
               <div className="flex shrink-0 flex-wrap gap-2">
-                <Button asChild size="sm">
+                <Button asChild size="sm" variant="outline">
                   <Link href={`/liquidity/${p.tokenAddress}?pair=${p.pairId}`}>
-                    <Droplets className="mr-2 h-4 w-4" />
-                    Manage LP
+                    Manage LP &gt;&gt;&gt;
                   </Link>
                 </Button>
               </div>

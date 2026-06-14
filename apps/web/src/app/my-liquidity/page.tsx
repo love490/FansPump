@@ -2,9 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAccount } from "wagmi";
-import { formatUnits } from "viem";
+import { formatLiquidityAmountFromWei } from "@/lib/liquidity/format-amount";
 import { AddLiquidityPanel } from "@/components/liquidity/add-liquidity-panel";
 import { MyLiquidityList } from "@/components/liquidity/my-liquidity-list";
+import { MyLiquidityLockBurn } from "@/components/liquidity/my-liquidity-lock-burn";
 import { DefiStatsOverview } from "@/components/defi/defi-stats-overview";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useMyLiquidityPositions } from "@/hooks/liquidity/useMyLiquidityPositions";
@@ -48,8 +49,13 @@ export default function MyLiquidityPage() {
     const tokenLp = positions.filter((p) => !p.pending && p.lpBalance > 0n);
     const baseLp = basePools.filter((p) => p.lpBalance > 0n);
     const lpDisplayParts = [
-      ...tokenLp.map((p) => `${formatUnits(p.lpBalance, p.lpDecimals)} ${p.tokenSymbol}/${p.pairLabel}`),
-      ...baseLp.map((p) => `${formatUnits(p.lpBalance, p.lpDecimals)} ${p.pairLabel}`),
+      ...tokenLp.map(
+        (p) =>
+          `${formatLiquidityAmountFromWei(p.lpBalance, p.lpDecimals)} ${p.tokenSymbol}/${p.pairLabel}`
+      ),
+      ...baseLp.map(
+        (p) => `${formatLiquidityAmountFromWei(p.lpBalance, p.lpDecimals)} ${p.pairLabel}`
+      ),
     ];
     return {
       positionCount: tokenLp.length + baseLp.length,
@@ -123,7 +129,9 @@ export default function MyLiquidityPage() {
         </CardContent>
       </Card>
 
-      <AddLiquidityPanel showManageLink={false} onLiquidityAdded={onLiquidityAdded} />
+      {isConnected && <MyLiquidityLockBurn positions={positions} />}
+
+      <AddLiquidityPanel showManageLink onLiquidityAdded={onLiquidityAdded} />
     </div>
   );
 }

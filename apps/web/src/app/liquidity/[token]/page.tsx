@@ -35,6 +35,10 @@ import {
 } from "@/lib/liquidity/abis";
 import { opnChainConfig } from "@/lib/chain-config/opn";
 import { LiquidityMetricBar } from "@/components/liquidity/liquidity-metric-bar";
+import {
+  formatLiquidityAmount,
+  formatLiquidityAmountFromWei,
+} from "@/lib/liquidity/format-amount";
 
 type LiquiditySummary = {
   totals: { lockedAmount: string; burnedAmount: string; latestUnlockAt: string | null };
@@ -247,11 +251,6 @@ export default function LiquidityModulePage() {
     router.replace(`/token/${tokenAddress}/liquidity`);
   }, [token, loadingPair, tokenMeta, isCreator, lpBalance, tokenAddress, router]);
 
-  useEffect(() => {
-    if (!pair || lpBalance === 0n) return;
-    setBurnAmount(formatUnits(lpBalance, lpDecimals));
-  }, [pair, lpBalance, lpDecimals]);
-
   const lockedPct = useMemo(() => {
     if (lpTotalSupply === 0n) return 0;
     return Number((lpLocked * 10_000n) / lpTotalSupply) / 100;
@@ -261,6 +260,38 @@ export default function LiquidityModulePage() {
     if (lpTotalSupply === 0n) return 0;
     return Number((lpBurned * 10_000n) / lpTotalSupply) / 100;
   }, [lpBurned, lpTotalSupply]);
+
+  const burnInputPct = useMemo(() => {
+    if (lpTotalSupply === 0n) return 0;
+    try {
+      const parsed = parseUnits(burnAmount.trim() || "0", lpDecimals);
+      if (parsed <= 0n) return 0;
+      return Number((parsed * 10_000n) / lpTotalSupply) / 100;
+    } catch {
+      return 0;
+    }
+  }, [burnAmount, lpDecimals, lpTotalSupply]);
+
+  const lockInputPct = useMemo(() => {
+    if (lpTotalSupply === 0n) return 0;
+    try {
+      const parsed = parseUnits(lockAmount.trim() || "0", lpDecimals);
+      if (parsed <= 0n) return 0;
+      return Number((parsed * 10_000n) / lpTotalSupply) / 100;
+    } catch {
+      return 0;
+    }
+  }, [lockAmount, lpDecimals, lpTotalSupply]);
+
+  useEffect(() => {
+    if (!pair) return;
+    const hash = window.location.hash.replace("#", "");
+    if (hash === "lock" || hash === "burn") {
+      window.requestAnimationFrame(() => {
+        document.getElementById(hash)?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    }
+  }, [pair]);
 
   const unlockAt = useMemo(() => {
     if (preset === "custom") return customUnlockAt ? new Date(customUnlockAt).getTime() : null;
@@ -491,33 +522,40 @@ export default function LiquidityModulePage() {
         </Card>
       ) : (
         <>
-          <div className="grid gap-4 sm:grid-cols-3">
-            <Card>
-              <CardHeader className="pb-2">
-                <CardDescription>Total LP supply</CardDescription>
-                <CardTitle className="text-lg font-mono">{formatUnits(lpTotalSupply, lpDecimals)}</CardTitle>
-              </CardHeader>
-            </Card>
-            <Card className="sm:col-span-2">
-              <CardHeader className="pb-2">
-                <CardDescription>Pool security</CardDescription>
-              </CardHeader>
-              <CardContent className="min-w-0 space-y-3 overflow-hidden pt-0">
+          <Card className="overflow-hidden">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-lg">Pool overview</CardTitle>
+              <CardDescription>
+                {tokenMeta?.symbol ?? "Token"} / {pairMeta.symbol} pool stats
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4 pt-0">
+              <div className="rounded-xl border border-border/60 bg-muted/20 p-4">
+                <p className="text-sm text-muted-foreground">Total LP supply</p>
+                <p
+                  className="mt-1 break-all font-mono text-xl font-semibold tabular-nums sm:text-2xl"
+                  title={formatUnits(lpTotalSupply, lpDecimals)}
+                >
+                  {formatLiquidityAmountFromWei(lpTotalSupply, lpDecimals)} LP
+                </p>
+              </div>
+              <div className="min-w-0 space-y-3 overflow-hidden">
+                <p className="text-sm font-medium text-foreground">Pool security</p>
                 <LiquidityMetricBar
                   label="Burned liquidity"
-                  amount={formatUnits(lpBurned, lpDecimals)}
+                  amount={formatLiquidityAmountFromWei(lpBurned, lpDecimals)}
                   pct={burnedPct}
                   variant="burn"
                 />
                 <LiquidityMetricBar
                   label="Locked liquidity"
-                  amount={formatUnits(lpLocked, lpDecimals)}
+                  amount={formatLiquidityAmountFromWei(lpLocked, lpDecimals)}
                   pct={lockedPct}
                   variant="lock"
                 />
-              </CardContent>
-            </Card>
-          </div>
+              </div>
+            </CardContent>
+          </Card>
 
           <Card>
             <CardHeader>
@@ -529,8 +567,11 @@ export default function LiquidityModulePage() {
             <CardContent className="space-y-4">
               <p className="text-sm text-muted-foreground">
                 Balance:{" "}
-                <span className="font-mono font-semibold text-foreground">
-                  {formatUnits(lpBalance, lpDecimals)} LP
+                <span
+                  className="font-mono font-semibold tabular-nums text-foreground"
+                  title={formatUnits(lpBalance, lpDecimals)}
+                >
+                  {formatLiquidityAmountFromWei(lpBalance, lpDecimals)} LP
                 </span>
               </p>
 
@@ -586,7 +627,7 @@ export default function LiquidityModulePage() {
 
           {isCreator ? (
             <div className="grid gap-4 md:grid-cols-2">
-              <Card>
+              <Card id="lock">
                 <CardHeader>
                   <CardTitle>Lock LP tokens</CardTitle>
                   <CardDescription>Creator only — lock LP in a time-lock contract.</CardDescription>
@@ -627,6 +668,14 @@ export default function LiquidityModulePage() {
                         <Label>LP amount</Label>
                         <Input value={lockAmount} onChange={(e) => setLockAmount(e.target.value)} placeholder="0.0" />
                       </div>
+                      {lockAmount.trim() && (
+                        <LiquidityMetricBar
+                          label="Lock preview"
+                          amount={formatLiquidityAmount(lockAmount.trim())}
+                          pct={lockInputPct}
+                          variant="lock"
+                        />
+                      )}
                       <Button onClick={lockLp} disabled={!isConnected || busy || !lockAmount || !unlockAt}>
                         Lock liquidity
                       </Button>
@@ -635,7 +684,7 @@ export default function LiquidityModulePage() {
                 </CardContent>
               </Card>
 
-              <Card>
+              <Card id="burn">
                 <CardHeader>
                   <CardTitle>Burn LP tokens</CardTitle>
                   <CardDescription>
@@ -643,15 +692,11 @@ export default function LiquidityModulePage() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  {lpBalance > 0n && (
+                  {burnAmount.trim() && (
                     <LiquidityMetricBar
-                      label="Your LP to burn"
-                      amount={formatUnits(lpBalance, lpDecimals)}
-                      pct={
-                        lpTotalSupply > 0n
-                          ? Number((lpBalance * 10_000n) / lpTotalSupply) / 100
-                          : 0
-                      }
+                      label="Burn preview"
+                      amount={formatLiquidityAmount(burnAmount.trim())}
+                      pct={burnInputPct}
                       variant="burn"
                     />
                   )}

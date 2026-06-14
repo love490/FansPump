@@ -38,6 +38,7 @@ import { readRouterWeth } from "@/lib/liquidity/router-weth";
 import { cn, shortenAddress } from "@/lib/utils";
 import { opnChainConfig } from "@/lib/chain-config/opn";
 import { ensureWopnBalance, readWopnBalance } from "@/lib/liquidity/wrap-opn-tx";
+import { formatLiquidityAmountFromWei } from "@/lib/liquidity/format-amount";
 
 type AddLiquidityPanelProps = {
   initialToken?: string;
@@ -47,13 +48,8 @@ type AddLiquidityPanelProps = {
 
 type LiquidityAction = "idle" | "approve-token" | "wrap-opn" | "approve-pair" | "add";
 
-function formatBalance(amount: bigint, decimals: number, maxFrac = 4): string {
-  const raw = formatUnits(amount, decimals);
-  const n = Number(raw);
-  if (!Number.isFinite(n)) return raw;
-  if (n === 0) return "0";
-  if (n < 0.0001) return "<0.0001";
-  return n.toLocaleString(undefined, { maximumFractionDigits: maxFrac });
+function formatBalance(amount: bigint, decimals: number): string {
+  return formatLiquidityAmountFromWei(amount, decimals);
 }
 
 function parseError(e: unknown): string {
@@ -459,6 +455,8 @@ export function AddLiquidityPanel({
       } catch (refreshError) {
         console.warn("[liquidity] Balance refresh failed:", refreshError);
       }
+
+      resetAddForm();
     } catch (e) {
       console.error("[liquidity] Error:", e);
       setError(parseError(e));
@@ -491,10 +489,16 @@ export function AddLiquidityPanel({
   const terminalSuccess =
     Boolean(status && !busy && status.toLowerCase().includes("liquidity added"));
 
+  function resetAddForm() {
+    setTokenAmount("");
+    setPairAmount("");
+  }
+
   function dismissNotice() {
     setStatus(null);
     setError(null);
     setLastTxHash(undefined);
+    resetAddForm();
   }
 
   return (
@@ -738,6 +742,14 @@ export function AddLiquidityPanel({
                           {shortenAddress(lastTxHash, 10)}
                         </a>
                       </p>
+                    )}
+                    {validToken && (
+                      <Link
+                        href={`/liquidity/${tokenAddress}?pair=${pairId}`}
+                        className="mt-3 inline-flex text-sm font-semibold tracking-widest text-primary hover:underline"
+                      >
+                        Manage liquidity &gt;&gt;&gt;
+                      </Link>
                     )}
                   </DismissibleAlert>
                 )}
