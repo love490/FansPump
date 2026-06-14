@@ -20,9 +20,14 @@ import {
 } from "@/lib/tokens/market-metrics";
 import type { TokenCardData } from "@/components/tokens/token-card";
 
+export type MarketTableTab = {
+  id: string;
+  label: string;
+};
+
 type TokenMarketTableProps = {
   tokens: TokenCardData[];
-  title: string;
+  title?: string;
   description?: string;
   isLoading?: boolean;
   includeBaseTokens?: boolean;
@@ -30,6 +35,9 @@ type TokenMarketTableProps = {
   onToggleFavorite?: (tokenId: string) => void;
   emptyMessage?: string;
   pageSize?: number;
+  tabs?: MarketTableTab[];
+  activeTab?: string;
+  onTabChange?: (tabId: string) => void;
 };
 
 const DEFAULT_PAGE_SIZE = 10;
@@ -82,6 +90,9 @@ export function TokenMarketTable({
   onToggleFavorite,
   emptyMessage = "No tokens to display yet.",
   pageSize = DEFAULT_PAGE_SIZE,
+  tabs,
+  activeTab,
+  onTabChange,
 }: TokenMarketTableProps) {
   const { isConnected } = useAccount();
   const [sortKey, setSortKey] = useState<MarketSortKey>("rank");
@@ -117,9 +128,34 @@ export function TokenMarketTable({
 
   return (
     <section className="space-y-4">
-      <div>
-        <h2 className="text-lg font-bold sm:text-xl">{title}</h2>
-        {description && <p className="mt-1 text-sm text-muted-foreground">{description}</p>}
+      <div className="space-y-3">
+        {(title || description) && (
+          <div>
+            {title && <h2 className="text-lg font-bold sm:text-xl">{title}</h2>}
+            {description && (
+              <p className={cn("text-sm text-muted-foreground", title && "mt-1")}>{description}</p>
+            )}
+          </div>
+        )}
+        {tabs && tabs.length > 0 && onTabChange && (
+          <div className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {tabs.map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => onTabChange(tab.id)}
+                className={cn(
+                  "shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors sm:text-sm",
+                  activeTab === tab.id
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-border bg-background text-muted-foreground hover:border-primary/40 hover:text-foreground"
+                )}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="overflow-hidden rounded-2xl border border-border bg-card text-card-foreground shadow-sm">

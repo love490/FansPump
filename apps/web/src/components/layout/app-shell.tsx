@@ -33,9 +33,6 @@ function ShellRouter({ children }: { children: React.ReactNode }) {
   if (pathname?.startsWith("/admin")) {
     return <>{children}</>;
   }
-  if (pathname === "/") {
-    return <>{children}</>;
-  }
   return (
     <SidebarProvider>
       <div className="flex min-h-screen bg-background">

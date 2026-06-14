@@ -243,6 +243,7 @@ export function useWalletPortfolioBalance() {
     assets,
     totals,
     opnUsdRate,
+    tokenUsdMap,
     loading,
     refresh: refreshPayBalances,
   };

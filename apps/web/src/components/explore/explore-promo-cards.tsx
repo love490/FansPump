@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, CircleDollarSign, Layers, Megaphone } from "lucide-react";
+import { CircleDollarSign, Layers, Megaphone } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type PromoCard = {
@@ -113,8 +113,7 @@ export function ExplorePromoCards() {
   }));
 
   return (
-    <section>
-      <div className="grid gap-4 sm:grid-cols-3">
+    <div className="grid gap-4 sm:grid-cols-3">
         {cards.map((card) => (
           <Link
             key={card.id}
@@ -150,14 +149,12 @@ export function ExplorePromoCards() {
               </p>
               <p className="mt-2 text-sm font-medium text-muted-foreground">{card.subtitle}</p>
 
-              <span className="mt-auto flex items-center gap-1 pt-5 text-sm font-semibold text-primary">
-                Open
-                <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+              <span className="mt-auto pt-5 text-sm font-semibold tracking-widest text-primary transition-transform group-hover:translate-x-0.5">
+                &gt;&gt;&gt;
               </span>
             </div>
           </Link>
         ))}
-      </div>
-    </section>
+    </div>
   );
 }

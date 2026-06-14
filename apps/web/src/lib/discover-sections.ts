@@ -3,8 +3,8 @@ export const DISCOVER_DEFAULT_SECTION = "all";
 export const discoverBrowseSections = [
   {
     id: "all",
-    label: "All Tokens",
-    description: "All tokens created on FansPump — newest launches first.",
+    label: "Browse",
+    description: "Every token created on FansPump — newest launches first.",
     variant: "grid" as const,
     group: "popular" as const,
   },

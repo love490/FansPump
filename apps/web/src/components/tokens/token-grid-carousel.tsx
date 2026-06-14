@@ -63,7 +63,7 @@ export function TokenGridCarousel({
   emptyMessage = "No tokens in this section yet.",
 }: {
   id?: string;
-  title: string;
+  title?: string;
   description?: string;
   icon?: React.ReactNode;
   tokens: TokenCardData[];
@@ -124,15 +124,19 @@ export function TokenGridCarousel({
   return (
     <section id={id} className="w-full min-w-0 space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0 flex-1">
-          <h2 className="flex items-center gap-2 text-lg font-semibold sm:text-xl">
-            {icon}
-            {title}
-          </h2>
-          {description && (
-            <p className="mt-1 text-sm text-muted-foreground">{description}</p>
-          )}
-        </div>
+        {(title || description) && (
+          <div className="min-w-0 flex-1">
+            {title && (
+              <h2 className="flex items-center gap-2 text-lg font-semibold sm:text-xl">
+                {icon}
+                {title}
+              </h2>
+            )}
+            {description && (
+              <p className={cn("text-sm text-muted-foreground", title && "mt-1")}>{description}</p>
+            )}
+          </div>
+        )}
         <div className="flex shrink-0 items-center gap-1">
           <Button
             type="button"
@@ -141,7 +145,7 @@ export function TokenGridCarousel({
             className="h-9 w-9"
             disabled={isLoading || (!isMobile && safePage <= 0) || tokens.length <= 1}
             onClick={prev}
-            aria-label={`Previous ${title}`}
+            aria-label={`Previous ${title ?? "page"}`}
           >
             <ChevronLeft className="h-4 w-4" />
           </Button>
@@ -152,7 +156,7 @@ export function TokenGridCarousel({
             className="h-9 w-9"
             disabled={isLoading || (!isMobile && safePage >= maxPage) || tokens.length <= 1}
             onClick={next}
-            aria-label={`Next ${title}`}
+            aria-label={`Next ${title ?? "page"}`}
           >
             <ChevronRight className="h-4 w-4" />
           </Button>

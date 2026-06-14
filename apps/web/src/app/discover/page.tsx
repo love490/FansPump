@@ -131,11 +131,9 @@ function DiscoverContent() {
       <header className="relative z-40 flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <h1 className="text-2xl font-bold">Discover</h1>
-          <p className="mt-1 text-muted-foreground">
-            {activeSection === "all"
-              ? "Browse every token created on FansPump."
-              : meta.description}
-          </p>
+          {activeSection !== "all" && (
+            <p className="mt-1 text-muted-foreground">{meta.description}</p>
+          )}
         </div>
 
         <div ref={filtersRef} className="relative shrink-0">
@@ -224,8 +222,8 @@ function DiscoverContent() {
 
       <TokenGridCarousel
         id={`section-${activeSection}`}
-        title={meta.label}
-        description={meta.description}
+        title={activeSection === "all" ? undefined : meta.label}
+        description={activeSection === "all" ? undefined : meta.description}
         tokens={tokens}
         isLoading={isLoading}
         variant={meta.variant}

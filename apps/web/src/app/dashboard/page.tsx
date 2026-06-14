@@ -1,110 +1,54 @@
 "use client";
 
-import Link from "next/link";
+import { useState } from "react";
 import { useAccount } from "wagmi";
-import { useQuery } from "@tanstack/react-query";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowRight, Compass, Flame } from "lucide-react";
-import { TokenGridCarousel } from "@/components/tokens/token-grid-carousel";
-import { DashboardProfilePanel } from "@/components/dashboard/dashboard-profile-panel";
-import { DashboardStatsPanel } from "@/components/dashboard/dashboard-stats-panel";
-import { DashboardBalancePanel } from "@/components/dashboard/dashboard-balance-panel";
-import { DashboardActivityFeed } from "@/components/dashboard/dashboard-activity-feed";
-import { DashboardMyTokensPanel } from "@/components/dashboard/dashboard-my-tokens-panel";
-import { CreatorBountySection } from "@/components/bounties/creator-bounty-section";
-import { fetchDiscoverTokens, tokenQueryKeys } from "@/lib/tokens-api";
-import { fetchMyTokens } from "@/lib/token-register";
-import { getActiveChainId } from "@/lib/chain-config/opn";
+import { DashboardProfileLink } from "@/components/dashboard/dashboard-profile-link";
+import { DashboardTabNav, type DashboardTabId } from "@/components/dashboard/dashboard-tab-nav";
+import { DashboardMyTokensTab } from "@/components/dashboard/dashboard-my-tokens-tab";
+import { DashboardDefiTab } from "@/components/dashboard/dashboard-defi-tab";
+import { DashboardEarningsTab } from "@/components/dashboard/dashboard-earnings-tab";
+import { DashboardActivitiesTab } from "@/components/dashboard/dashboard-activities-tab";
+import { shortenAddress } from "@/lib/utils";
 
 export default function DashboardPage() {
   const { address, isConnected } = useAccount();
-  const chainId = getActiveChainId();
-
-  const { data: myTokens = [] } = useQuery({
-    queryKey: tokenQueryKeys.myTokens(address ?? "", chainId),
-    queryFn: () => fetchMyTokens(address!),
-    enabled: Boolean(isConnected && address),
-    staleTime: 30_000,
-  });
-
-  const { data: trending = [], isLoading: loadingTrending } = useQuery({
-    queryKey: tokenQueryKeys.discover("trending", chainId),
-    queryFn: () => fetchDiscoverTokens("trending", 12),
-    staleTime: 15_000,
-  });
+  const [activeTab, setActiveTab] = useState<DashboardTabId>("tokens");
 
   return (
-    <div className="mx-auto max-w-6xl space-y-8 py-2 sm:py-4">
-      <header className="flex flex-wrap items-end justify-between gap-4">
-        <div>
+    <div className="mx-auto max-w-3xl space-y-6 py-2 sm:py-4">
+      <header className="flex flex-col items-center gap-4 text-center sm:flex-row sm:items-start sm:text-left">
+        <DashboardProfileLink className="sm:order-first" />
+        <div className="min-w-0 flex-1">
           <h1 className="text-2xl font-bold">Dashboard</h1>
-          <p className="mt-1 text-muted-foreground">
-            Track stakes, liquidity, and quests across FansPump and OPN Network.
+          <p className="mt-1 text-sm text-muted-foreground">
+            {isConnected && address
+              ? shortenAddress(address, 6)
+              : "Connect your wallet to view your portfolio."}
           </p>
         </div>
-        <Button asChild variant="outline" size="sm">
-          <Link href="/discover?section=all">
-            Discover
-            <Compass className="ml-2 h-4 w-4" />
-          </Link>
-        </Button>
       </header>
 
       {!isConnected ? (
         <Card>
           <CardHeader>
             <CardTitle>Connect your wallet</CardTitle>
-            <CardDescription>Connect wallet to view your OPN Network activity.</CardDescription>
+            <CardDescription>Connect wallet to view tokens, DeFi, earnings, and activity.</CardDescription>
           </CardHeader>
         </Card>
       ) : (
         <>
-          <DashboardBalancePanel />
-          <DashboardStatsPanel />
-          <DashboardActivityFeed />
-          <DashboardProfilePanel />
-          <DashboardMyTokensPanel />
-
-          <CreatorBountySection
-            creatorWallet={address!.toLowerCase()}
-            creatorTokens={myTokens.map((t) => ({
-              contractAddress: t.contractAddress,
-              symbol: t.symbol,
-              name: t.name,
-            }))}
-          />
+          <DashboardTabNav active={activeTab} onChange={setActiveTab} />
+          <Card>
+            <CardContent className="pt-6">
+              {activeTab === "tokens" && <DashboardMyTokensTab />}
+              {activeTab === "defi" && <DashboardDefiTab />}
+              {activeTab === "earnings" && <DashboardEarningsTab />}
+              {activeTab === "activities" && <DashboardActivitiesTab />}
+            </CardContent>
+          </Card>
         </>
       )}
-
-      <TokenGridCarousel
-        title="Trending"
-        icon={<Flame className="h-6 w-6 text-orange-500" />}
-        description="Hot projects on FansPump right now."
-        tokens={trending}
-        isLoading={loadingTrending}
-        viewAllHref="/discover?section=trending"
-        variant="trending"
-        fetchLimit={12}
-        emptyMessage="No trending tokens yet."
-      />
-
-      <Card className="border-primary/20 bg-gradient-to-r from-primary/5 to-transparent">
-        <CardContent className="flex flex-col items-start justify-between gap-4 py-6 sm:flex-row sm:items-center">
-          <div>
-            <h2 className="text-lg font-semibold">Discover all projects</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Filter by newly created, verified, category, and more on Discover.
-            </p>
-          </div>
-          <Button asChild>
-            <Link href="/discover?section=all">
-              Open Discover
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Link>
-          </Button>
-        </CardContent>
-      </Card>
     </div>
   );
 }
