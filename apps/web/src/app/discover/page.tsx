@@ -9,6 +9,7 @@ import {
   countDiscoverFilters,
   DiscoverFilterPanel,
 } from "@/components/discover/discover-filter-panel";
+import { DiscoverSpotlightCarousel } from "@/components/discover/discover-spotlight-carousel";
 import { cn } from "@/lib/utils";
 import { fetchDiscoverTokens, tokenQueryKeys, type DiscoverFilters } from "@/lib/tokens-api";
 import { getActiveChainId } from "@/lib/chain-config/opn";
@@ -53,8 +54,8 @@ function DiscoverContent() {
 
   const { data: tokens = [], isLoading } = useQuery({
     queryKey: tokenQueryKeys.discover(activeSection, chainId, queryFilters),
-    queryFn: () =>
-      fetchDiscoverTokens(activeSection, activeSection === "all" ? 100 : 24, queryFilters),
+    queryFn: () => fetchDiscoverTokens(activeSection, 24, queryFilters),
+    enabled: activeSection !== "all",
     staleTime: 15_000,
   });
 
@@ -220,15 +221,19 @@ function DiscoverContent() {
         </div>
       )}
 
-      <TokenGridCarousel
-        id={`section-${activeSection}`}
-        title={activeSection === "all" ? undefined : meta.label}
-        description={activeSection === "all" ? undefined : meta.description}
-        tokens={tokens}
-        isLoading={isLoading}
-        variant={meta.variant}
-        fetchLimit={activeSection === "all" ? 100 : 24}
-      />
+      <DiscoverSpotlightCarousel />
+
+      {activeSection !== "all" && (
+        <TokenGridCarousel
+          id={`section-${activeSection}`}
+          title={meta.label}
+          description={meta.description}
+          tokens={tokens}
+          isLoading={isLoading}
+          variant={meta.variant}
+          fetchLimit={24}
+        />
+      )}
     </div>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { TOKEN_LOGO_PLACEHOLDER } from "@/lib/token-images/constants";
@@ -66,6 +66,11 @@ export function CreatorAvatar({
   className?: string;
 }) {
   const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    setFailed(false);
+  }, [imageUrl]);
+
   const label =
     username?.trim().slice(0, 1).toUpperCase() ??
     address?.slice(2, 4).toUpperCase() ??

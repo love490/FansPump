@@ -2,13 +2,14 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useAccount } from "wagmi";
-import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CreatorAvatar } from "@/components/tokens/token-card-hero";
 import { Loader2, Settings, Upload } from "lucide-react";
+import { dispatchProfileUpdated } from "@/lib/profile/profile-events";
+import { saveProfileImage, uploadProfileAvatar } from "@/lib/profile/avatar-upload";
 import { shortenAddress } from "@/lib/utils";
 
 type ProfileEditorProps = {
@@ -80,21 +81,47 @@ export function ProfileEditor({ showSettingsLink = true }: ProfileEditorProps) {
     e.target.value = "";
     if (!file) return;
 
+    if (!address) return;
+
     setUploadingAvatar(true);
     setProfileError(null);
+    setProfileMessage(null);
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("kind", "avatar");
-      const res = await fetch("/api/upload", { method: "POST", body: formData });
-      const data = (await res.json()) as { error?: string; url?: string | null };
-      if (!res.ok) throw new Error(data.error ?? "Upload failed");
-      if (!data.url) throw new Error("Image storage is not configured yet.");
-      setProfileImageUrl(data.url);
+      const url = await uploadProfileAvatar(file);
+      setProfileImageUrl(url);
+      const saved = await saveProfileImage(address, url);
+      setSavedUsername(saved.username);
+      setProfileImageUrl(saved.profileImageUrl);
+      dispatchProfileUpdated({
+        username: saved.username ?? savedUsername,
+        profileImageUrl: saved.profileImageUrl,
+      });
+      setProfileMessage("Profile photo saved.");
     } catch (err) {
       setProfileError(err instanceof Error ? err.message : "Upload failed");
     } finally {
       setUploadingAvatar(false);
+    }
+  }
+
+  async function removePhoto() {
+    if (!address) return;
+    setSaving(true);
+    setProfileError(null);
+    setProfileMessage(null);
+    try {
+      const saved = await saveProfileImage(address, null);
+      setSavedUsername(saved.username);
+      setProfileImageUrl(null);
+      dispatchProfileUpdated({
+        username: saved.username ?? savedUsername,
+        profileImageUrl: null,
+      });
+      setProfileMessage("Profile photo removed.");
+    } catch (e) {
+      setProfileError(e instanceof Error ? e.message : "Failed to remove photo");
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -109,21 +136,13 @@ export function ProfileEditor({ showSettingsLink = true }: ProfileEditorProps) {
   return (
     <div className="space-y-6">
       <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-start">
-        {profileImageUrl ? (
-          <Image
-            src={profileImageUrl}
-            alt="Profile"
-            width={96}
-            height={96}
-            className="h-24 w-24 rounded-full object-cover ring-2 ring-border"
-          />
-        ) : (
-          <CreatorAvatar
-            username={username || savedUsername}
-            address={address}
-            className="h-24 w-24 text-lg"
-          />
-        )}
+        <CreatorAvatar
+          key={profileImageUrl ?? "fallback"}
+          username={username || savedUsername}
+          address={address}
+          imageUrl={profileImageUrl}
+          className="h-24 w-24 text-lg ring-2 ring-border"
+        />
         <div className="flex-1 space-y-2 text-center sm:text-left">
           <p className="font-mono text-sm text-muted-foreground">{shortenAddress(address, 6)}</p>
           <div className="flex flex-wrap justify-center gap-2 sm:justify-start">
@@ -152,7 +171,7 @@ export function ProfileEditor({ showSettingsLink = true }: ProfileEditorProps) {
                 variant="ghost"
                 size="sm"
                 disabled={saving}
-                onClick={() => setProfileImageUrl(null)}
+                onClick={() => void removePhoto()}
               >
                 Remove photo
               </Button>

@@ -61,6 +61,7 @@ export function TokenGridCarousel({
   variant = "grid",
   fetchLimit = 24,
   emptyMessage = "No tokens in this section yet.",
+  autoAdvanceMs,
 }: {
   id?: string;
   title?: string;
@@ -72,6 +73,8 @@ export function TokenGridCarousel({
   variant?: "trending" | "grid";
   fetchLimit?: number;
   emptyMessage?: string;
+  /** Auto-advance carousel pages on this interval (ms). */
+  autoAdvanceMs?: number;
 }) {
   const maxCols = useResponsiveMaxColumns(variant);
   const perPage = maxCols;
@@ -106,6 +109,11 @@ export function TokenGridCarousel({
     if (!el) return;
     const card = el.querySelector<HTMLElement>("[data-token-card]");
     const step = card ? card.offsetWidth + 16 : el.clientWidth * 0.66;
+    const atEnd = el.scrollLeft + el.clientWidth >= el.scrollWidth - 4;
+    if (direction > 0 && atEnd) {
+      el.scrollTo({ left: 0, behavior: "smooth" });
+      return;
+    }
     el.scrollBy({ left: direction * step, behavior: "smooth" });
   }
 
@@ -118,6 +126,20 @@ export function TokenGridCarousel({
     if (isMobile) scrollByCard(1);
     else setPage((p) => Math.min(maxPage, p + 1));
   }
+
+  useEffect(() => {
+    if (!autoAdvanceMs || isLoading || tokens.length === 0) return;
+
+    const id = window.setInterval(() => {
+      if (isMobile) {
+        scrollByCard(1);
+        return;
+      }
+      setPage((p) => (p >= maxPage ? 0 : p + 1));
+    }, autoAdvanceMs);
+
+    return () => window.clearInterval(id);
+  }, [autoAdvanceMs, isLoading, tokens.length, maxPage, isMobile]);
 
   const showPager = !isMobile && tokens.length > perPage;
 
