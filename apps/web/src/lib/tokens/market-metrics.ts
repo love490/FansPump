@@ -140,7 +140,7 @@ export function tokenToMarketRow(token: TokenCardData, rank: number): MarketTabl
     marketCap: deriveMarketCap(token, price, seed),
     volume24h: deriveVolume(token, seed),
     isBaseToken,
-    canFavorite: Boolean(!isBaseToken && token.id && token.contractAddress),
+    canFavorite: Boolean(token.id),
   };
 }
 

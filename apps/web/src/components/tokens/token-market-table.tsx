@@ -208,7 +208,7 @@ export function TokenMarketTable({
                     key={row.id}
                     row={row}
                     isFavorite={favoriteIds?.has(row.id) ?? false}
-                    canToggleFavorite={Boolean(isConnected && row.canFavorite && onToggleFavorite)}
+                    canToggleFavorite={Boolean(isConnected && onToggleFavorite)}
                     onToggleFavorite={onToggleFavorite}
                   />
                 ))

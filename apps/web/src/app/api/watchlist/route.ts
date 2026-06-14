@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@iopn/database";
 import { z } from "zod";
+import { isRegistryTokenId, registryKeyToTokenCard } from "@/lib/watchlist/registry-watchlist";
 
 const schema = z.object({
   tokenId: z.string(),
@@ -19,17 +20,23 @@ export async function GET(request: NextRequest) {
           token: { include: { creator: { include: { verification: true } } } },
         },
       },
+      registryWatchlist: true,
     },
   });
 
-  const tokens =
+  const projectTokens =
     user?.watchlist.map((w) => ({
       ...w.token,
       featureFlags: w.token.featureFlags.toString(),
       creatorVerified: !!w.token.creator?.verification,
     })) ?? [];
 
-  return NextResponse.json({ tokens });
+  const registryTokens =
+    user?.registryWatchlist
+      .map((item) => registryKeyToTokenCard(item.registryKey))
+      .filter((token): token is NonNullable<typeof token> => token != null) ?? [];
+
+  return NextResponse.json({ tokens: [...registryTokens, ...projectTokens] });
 }
 
 export async function POST(request: NextRequest) {
@@ -41,6 +48,15 @@ export async function POST(request: NextRequest) {
     create: { walletAddress: wallet },
     update: {},
   });
+
+  if (isRegistryTokenId(body.tokenId)) {
+    await prisma.registryWatchlistItem.upsert({
+      where: { userId_registryKey: { userId: user.id, registryKey: body.tokenId } },
+      create: { userId: user.id, registryKey: body.tokenId },
+      update: {},
+    });
+    return NextResponse.json({ ok: true });
+  }
 
   await prisma.watchlistItem.upsert({
     where: { userId_tokenId: { userId: user.id, tokenId: body.tokenId } },
@@ -56,6 +72,13 @@ export async function DELETE(request: NextRequest) {
   const wallet = body.walletAddress.toLowerCase();
   const user = await prisma.user.findUnique({ where: { walletAddress: wallet } });
   if (!user) return NextResponse.json({ ok: true });
+
+  if (isRegistryTokenId(body.tokenId)) {
+    await prisma.registryWatchlistItem.deleteMany({
+      where: { userId: user.id, registryKey: body.tokenId },
+    });
+    return NextResponse.json({ ok: true });
+  }
 
   await prisma.watchlistItem.deleteMany({
     where: { userId: user.id, tokenId: body.tokenId },

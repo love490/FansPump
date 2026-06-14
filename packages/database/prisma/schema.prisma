@@ -115,7 +115,8 @@ model User {
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
 
-  watchlist     WatchlistItem[]
+  watchlist         WatchlistItem[]
+  registryWatchlist RegistryWatchlistItem[]
   votes         TokenVote[]
   verification  CreatorVerification?
   tokenProjects TokenProject[]
@@ -293,6 +294,18 @@ model WatchlistItem {
 
   @@unique([userId, tokenId])
   @@map("watchlist_items")
+}
+
+model RegistryWatchlistItem {
+  id          String   @id @default(cuid())
+  userId      String   @map("user_id")
+  registryKey String   @map("registry_key")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, registryKey])
+  @@map("registry_watchlist_items")
 }
 
 model TokenVote {
