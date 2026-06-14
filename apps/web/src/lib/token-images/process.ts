@@ -16,8 +16,8 @@ export async function processLogoUpload(buffer: Buffer): Promise<ProcessedImage>
   const width = meta.width ?? 0;
   const height = meta.height ?? 0;
 
-  const { error } = validateLogoDimensions({ width, height });
-  if (error) throw new Error(error);
+  // Dimensions are advisory only — always resize/crop on upload.
+  validateLogoDimensions({ width, height });
 
   const main = await sharp(buffer)
     .rotate()
@@ -46,8 +46,8 @@ export async function processBannerUpload(buffer: Buffer): Promise<ProcessedImag
   const width = meta.width ?? 0;
   const height = meta.height ?? 0;
 
-  const { error } = validateBannerDimensions({ width, height });
-  if (error) throw new Error(error);
+  // Dimensions are advisory only — always resize/crop on upload.
+  validateBannerDimensions({ width, height });
 
   const main = await sharp(buffer)
     .rotate()

@@ -1,13 +1,11 @@
 "use client";
 
 import { useRef, useState } from "react";
-import Image from "next/image";
 import { ImagePlus, Link2, Loader2, Upload } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { BannerCropDialog } from "@/components/create/banner-crop-dialog";
 import { BANNER_UPLOAD, LOGO_UPLOAD } from "@/lib/token-images/constants";
 import {
   readImageDimensions,
@@ -42,19 +40,16 @@ export function MetadataImageField({
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [warning, setWarning] = useState<string | null>(null);
-  const [cropFile, setCropFile] = useState<File | null>(null);
-  const [cropDimensions, setCropDimensions] = useState<ImageDimensions | null>(null);
   const [dragOver, setDragOver] = useState(false);
 
   const specHint =
     variant === "logo"
       ? `Recommended square 1:1 · ${LOGO_UPLOAD.recommendedPx}×${LOGO_UPLOAD.recommendedPx} px (any image accepted)`
-      : `3:1 wide · min ${BANNER_UPLOAD.minWidth}×${BANNER_UPLOAD.minHeight} px (recommended ${BANNER_UPLOAD.recommendedWidth}×${BANNER_UPLOAD.recommendedHeight})`;
+      : `Recommended 3:1 wide · ${BANNER_UPLOAD.recommendedWidth}×${BANNER_UPLOAD.recommendedHeight} px (any image accepted)`;
 
-  async function uploadFile(file: File) {
+  async function uploadFile(file: File, recommendation?: string | null) {
     setUploading(true);
     setError(null);
-    setWarning(null);
     try {
       const formData = new FormData();
       formData.append("file", file);
@@ -69,6 +64,7 @@ export function MetadataImageField({
       }
       onChange(data.url);
       setMode("upload");
+      setWarning(recommendation ?? null);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Upload failed");
     } finally {
@@ -90,28 +86,12 @@ export function MetadataImageField({
 
     if (variant === "logo") {
       const logoCheck = validateLogoDimensions(dimensions);
-      if (logoCheck.error) {
-        setError(logoCheck.error);
-        return;
-      }
-      if (logoCheck.warning) setWarning(logoCheck.warning);
-      await uploadFile(file);
+      await uploadFile(file, logoCheck.warning);
       return;
     }
 
     const bannerCheck = validateBannerDimensions(dimensions);
-    if (bannerCheck.error) {
-      setError(bannerCheck.error);
-      return;
-    }
-    if (bannerCheck.needsCrop) {
-      setWarning(bannerCheck.warning);
-      setCropFile(file);
-      setCropDimensions(dimensions);
-      return;
-    }
-    if (bannerCheck.warning) setWarning(bannerCheck.warning);
-    await uploadFile(file);
+    await uploadFile(file, bannerCheck.warning);
   }
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -129,22 +109,6 @@ export function MetadataImageField({
 
   return (
     <div className="sm:col-span-2">
-      {cropFile && cropDimensions && (
-        <BannerCropDialog
-          file={cropFile}
-          dimensions={cropDimensions}
-          onConfirm={async (cropped) => {
-            setCropFile(null);
-            setCropDimensions(null);
-            await uploadFile(cropped);
-          }}
-          onCancel={() => {
-            setCropFile(null);
-            setCropDimensions(null);
-          }}
-        />
-      )}
-
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <Label>{label}</Label>
@@ -213,7 +177,11 @@ export function MetadataImageField({
           <Input type="url" value={value} onChange={(e) => onChange(e.target.value)} placeholder={urlPlaceholder} />
         )}
 
-        {warning && <p className="text-sm text-amber-700 dark:text-amber-300">{warning}</p>}
+        {warning && (
+          <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
+            Recommended: {warning}
+          </p>
+        )}
         {error && <p className="text-sm text-red-600">{error}</p>}
 
         {value && (
@@ -225,7 +193,7 @@ export function MetadataImageField({
             ) : (
               <TokenLogo src={value} symbol={symbol} layout="fixed" size={72} />
             )}
-            <Button type="button" variant="ghost" size="sm" onClick={() => onChange("")}>
+            <Button type="button" variant="ghost" size="sm" onClick={() => { onChange(""); setWarning(null); }}>
               Remove
             </Button>
           </div>

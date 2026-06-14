@@ -53,7 +53,7 @@ export function validateLogoDimensions(dim: ImageDimensions): {
   }
   if (short < LOGO_UPLOAD.minPx) {
     warnings.push(
-      `Smaller than recommended ${LOGO_UPLOAD.recommendedPx}×${LOGO_UPLOAD.recommendedPx} px (${width}×${height} px).`
+      `Smaller than recommended ${LOGO_UPLOAD.recommendedPx}×${LOGO_UPLOAD.recommendedPx} px (${width}×${height} px). It will be upscaled on upload.`
     );
   }
   if (long > LOGO_UPLOAD.maxPx) {
@@ -71,32 +71,27 @@ export function validateBannerDimensions(dim: ImageDimensions): {
   warning: string | null;
 } {
   const { width, height } = dim;
+  const warnings: string[] = [];
 
   if (width < BANNER_UPLOAD.minWidth || height < BANNER_UPLOAD.minHeight) {
-    return {
-      error: `Banner is too small (${width}×${height} px). Minimum size is ${BANNER_UPLOAD.minWidth}×${BANNER_UPLOAD.minHeight} px.`,
-      needsCrop: false,
-      warning: null,
-    };
+    warnings.push(
+      `Smaller than recommended ${BANNER_UPLOAD.recommendedWidth}×${BANNER_UPLOAD.recommendedHeight} px (${width}×${height} px). It will be upscaled on upload.`
+    );
   }
   if (width > BANNER_UPLOAD.maxWidth || height > BANNER_UPLOAD.maxHeight) {
-    return {
-      error: `Banner is too large (${width}×${height} px). Maximum size is ${BANNER_UPLOAD.maxWidth}×${BANNER_UPLOAD.maxHeight} px.`,
-      needsCrop: false,
-      warning: null,
-    };
+    warnings.push(
+      `Larger than recommended ${BANNER_UPLOAD.maxWidth}×${BANNER_UPLOAD.maxHeight} px — will be resized on upload.`
+    );
   }
 
   const ratioOk = isNearRatio(width, height, BANNER_UPLOAD.aspectRatio, BANNER_UPLOAD.aspectTolerance);
   if (!ratioOk) {
-    return {
-      error: null,
-      needsCrop: true,
-      warning: `Banner aspect ratio is ${(width / height).toFixed(2)}:1 — crop to 3:1 before uploading.`,
-    };
+    warnings.push(
+      `Aspect ratio is ${(width / height).toFixed(2)}:1 (recommended 3:1). It will be center-cropped on upload.`
+    );
   }
 
-  return { error: null, needsCrop: false, warning: null };
+  return { error: null, needsCrop: false, warning: warnings.length ? warnings.join(" ") : null };
 }
 
 /** Center crop region with 3:1 aspect ratio inside image bounds. */
