@@ -11,7 +11,6 @@ import {
   Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { dexNavLinks, DEX_LABEL } from "@/lib/navigation/swap-nav";
 
 type QuickAction = {
   href: string;
@@ -110,24 +109,6 @@ export function LandingQuickActions() {
               {primaryActions.map((action) => (
                 <QuickActionCard key={action.href} action={action} />
               ))}
-            </div>
-
-            <div className="w-full rounded-xl border border-border/80 bg-muted/20 px-4 py-5 sm:px-5 sm:py-6 lg:py-7">
-              <p className="mb-4 text-center text-[11px] font-semibold uppercase tracking-wider text-muted-foreground sm:mb-5 sm:text-xs">
-                {DEX_LABEL}
-              </p>
-              <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-2.5">
-                {dexNavLinks.map((link) => (
-                  <Link
-                    key={link.id}
-                    href={link.href}
-                    className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-3 py-2 text-xs font-medium text-foreground transition-colors hover:border-primary/40 hover:bg-primary/5 hover:text-primary sm:px-4 sm:py-2.5 sm:text-sm"
-                  >
-                    <link.icon className="h-4 w-4 shrink-0 text-primary" />
-                    {link.label}
-                  </Link>
-                ))}
-              </div>
             </div>
           </div>
         </div>

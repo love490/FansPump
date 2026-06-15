@@ -16,7 +16,6 @@ import {
   Megaphone,
   LifeBuoy,
 } from "lucide-react";
-import { isDexPath } from "@/lib/navigation/swap-nav";
 
 export type SidebarNavId =
   | "home"
@@ -53,7 +52,6 @@ export const dexNavChildren: SidebarNavItem[] = [
   { id: "my-liquidity", href: "/liquidity", label: "Liquidity", icon: Droplets },
   { id: "pools", href: "/pools", label: "Pool", icon: Layers },
   { id: "staking", href: "/staking", label: "Staking", icon: Layers },
-  { id: "launchpad", href: "/staking?tab=launchpool", label: "Launchpool", icon: Rocket },
 ];
 
 /** @deprecated Use dexNavChildren */
@@ -73,6 +71,9 @@ export const platformLinks: SidebarNavItem[] = [
   },
   { id: "how-it-works", href: "/docs/how-it-works", label: "How It Works", icon: HelpCircle },
   { id: "docs", href: "/docs", label: "Docs", icon: BookOpen },
+];
+
+export const accountFooterLinks: SidebarNavItem[] = [
   { id: "support", href: "/support", label: "Support", icon: LifeBuoy },
   { id: "advertise", href: "/advertise", label: "Advertise", icon: Megaphone },
 ];
@@ -109,7 +110,7 @@ export function isSidebarNavActive(
     case "docs":
       return pathname === "/docs";
     case "dex":
-      return isDexPath(pathname);
+      return false;
     case "swap":
       return pathname === "/swap" || pathname.startsWith("/swap/");
     case "pools":

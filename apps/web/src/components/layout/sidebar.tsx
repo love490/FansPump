@@ -14,6 +14,7 @@ import {
   platformLinks,
   userLinks,
   settingsLink,
+  accountFooterLinks,
   isSidebarNavActive,
   type SidebarNavItem,
 } from "@/components/layout/sidebar-nav";
@@ -244,7 +245,7 @@ function SidebarContent({
           onNavigate={onNavigate}
           collapsed={collapsed}
         />
-        <div className="mb-4">
+        <div className="mb-4 space-y-0.5">
           {!collapsed && (
             <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
               Account
@@ -265,6 +266,16 @@ function SidebarContent({
             <settingsLink.icon className="h-4 w-4 shrink-0" />
             {!collapsed && settingsLink.label}
           </Link>
+          {accountFooterLinks.map((link) => (
+            <NavLink
+              key={link.id}
+              link={link}
+              pathname={pathname}
+              searchParams={searchParams}
+              onNavigate={onNavigate}
+              collapsed={collapsed}
+            />
+          ))}
         </div>
       </div>
 
