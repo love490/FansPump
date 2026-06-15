@@ -1,5 +1,7 @@
 "use client";
 
+import { apiUrl } from "@/lib/api";
+
 import { useEffect, useState } from "react";
 import { useAccount, useSignMessage } from "wagmi";
 import { ANNOUNCEMENT_TYPES, ANNOUNCEMENT_TYPE_LABELS, type AnnouncementTypeId } from "@iopn/shared";
@@ -39,7 +41,7 @@ export function AnnouncementsSection({ tokenAddress, creatorAddress }: Announcem
 
   function load() {
     setLoading(true);
-    fetch(`/api/announcements?tokenAddress=${tokenAddress}`)
+    fetch(apiUrl(`/api/announcements?tokenAddress=${tokenAddress}`))
       .then((r) => r.json())
       .then((d) => setAnnouncements(d.announcements ?? []))
       .finally(() => setLoading(false));
@@ -57,7 +59,7 @@ export function AnnouncementsSection({ tokenAddress, creatorAddress }: Announcem
       const message = `${prefix}\nPost announcement for ${tokenAddress}\n${Date.now()}`;
       const signature = await signMessageAsync({ message });
 
-      const res = await fetch("/api/announcements", {
+      const res = await fetch(apiUrl("/api/announcements"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

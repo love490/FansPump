@@ -1,5 +1,7 @@
 "use client";
 
+import { apiUrl } from "@/lib/api";
+
 import {
   createContext,
   useCallback,
@@ -55,7 +57,7 @@ export function AdminProvider({ children }: { children: ReactNode }) {
     setSessionChecking(true);
 
     try {
-      const res = await fetch("/api/admin/auth/me", { credentials: "include" });
+      const res = await fetch(apiUrl("/api/admin/auth/me"), { credentials: "include" });
       if (refreshId !== refreshIdRef.current) return;
 
       if (res.ok) {
@@ -111,7 +113,7 @@ export function AdminProvider({ children }: { children: ReactNode }) {
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch("/api/admin/auth/login", {
+        const res = await fetch(apiUrl("/api/admin/auth/login"), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
@@ -147,7 +149,7 @@ export function AdminProvider({ children }: { children: ReactNode }) {
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch("/api/admin/auth/verify-2fa", {
+        const res = await fetch(apiUrl("/api/admin/auth/verify-2fa"), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
@@ -175,7 +177,7 @@ export function AdminProvider({ children }: { children: ReactNode }) {
 
   const signOut = useCallback(async () => {
     try {
-      await fetch("/api/admin/auth/logout", { method: "POST", credentials: "include" });
+      await fetch(apiUrl("/api/admin/auth/logout"), { method: "POST", credentials: "include" });
     } catch {
       /* ignore */
     }

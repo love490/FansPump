@@ -1,5 +1,7 @@
 "use client";
 
+import { apiUrl } from "@/lib/api";
+
 import { useEffect, useRef, useState } from "react";
 import { useAccount } from "wagmi";
 import Link from "next/link";
@@ -34,7 +36,7 @@ export function ProfileEditor({ showSettingsLink = true }: ProfileEditorProps) {
       setProfileImageUrl(null);
       return;
     }
-    fetch(`/api/user/profile?wallet=${address.toLowerCase()}`)
+    fetch(apiUrl(`/api/user/profile?wallet=${address.toLowerCase()}`))
       .then((r) => r.json())
       .then((data) => {
         const name = data.profile?.username ?? "";
@@ -52,7 +54,7 @@ export function ProfileEditor({ showSettingsLink = true }: ProfileEditorProps) {
     setProfileError(null);
     setProfileMessage(null);
     try {
-      const res = await fetch("/api/user/profile", {
+      const res = await fetch(apiUrl("/api/user/profile"), {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

@@ -1,7 +1,8 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { apiUrl } from "@/lib/api";
+
+import { useEffect, useMemo, useState } from "react";
 import { useAccount, useBalance, useSignMessage } from "wagmi";
 import { formatUnits, parseEther, parseUnits } from "viem";
 import { STAKING_TIER_LABELS, STAKING_TIERS, type SupportedLpPool } from "@iopn/shared";
@@ -19,7 +20,6 @@ import {
 } from "@/hooks/liquidity/useBasePoolLpPositions";
 import { stakingPositionGroupKey } from "@/lib/staking/position-key";
 import { DefiStatsOverview } from "@/components/defi/defi-stats-overview";
-import { LaunchpoolStakingTab } from "@/components/launchpool/launchpool-staking-tab";
 import {
   launchpoolStakeToActivityRow,
   StakingActivityList,
@@ -28,7 +28,6 @@ import {
 import { useWalletPortfolioBalance } from "@/hooks/dashboard/useWalletPortfolioBalance";
 import { formatReserve, formatTokenAmount } from "@/lib/defi/format-reserve";
 import { formatBalanceTotal } from "@/lib/dashboard/wallet-balance";
-import { cn } from "@/lib/utils";
 
 type StakingPosition = {
   id: string;
@@ -96,37 +95,6 @@ type PlatformStakingStats = {
 };
 
 export default function StakingPage() {
-  return (
-    <Suspense
-      fallback={
-        <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6 lg:px-8">
-          <div className="h-24 animate-pulse rounded-lg bg-muted" />
-        </div>
-      }
-    >
-      <StakingContent />
-    </Suspense>
-  );
-}
-
-function StakingContent() {
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const pageTab: "staking" | "launchpool" =
-    searchParams.get("tab") === "launchpool" ? "launchpool" : "staking";
-
-  function selectPageTab(tab: "staking" | "launchpool") {
-    const params = new URLSearchParams(searchParams.toString());
-    if (tab === "launchpool") {
-      params.set("tab", "launchpool");
-    } else {
-      params.delete("tab");
-    }
-    const qs = params.toString();
-    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
-  }
-
   const { address, isConnected } = useAccount();
   const { signMessageAsync } = useSignMessage();
   const { data: nativeBalance } = useBalance({ address });
@@ -230,13 +198,13 @@ function StakingContent() {
 
   function load() {
     if (!address) return;
-    fetch(`/api/staking?wallet=${address}`)
+    fetch(apiUrl(`/api/staking?wallet=${address}`))
       .then((r) => r.json())
       .then((d) => {
         setPositions(d.positions ?? []);
         setWalletTier(d.walletTier ?? null);
       });
-    fetch(`/api/user/dashboard?wallet=${address.toLowerCase()}`)
+    fetch(apiUrl(`/api/user/dashboard?wallet=${address.toLowerCase()}`))
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
         const lpStakes = (d?.launchpoolStakes ?? []) as {
@@ -269,7 +237,7 @@ function StakingContent() {
   }, [address]);
 
   useEffect(() => {
-    fetch("/api/staking/stats")
+    fetch(apiUrl("/api/staking/stats"))
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => setPlatformStats(d))
       .catch(() => setPlatformStats(null))
@@ -277,7 +245,7 @@ function StakingContent() {
   }, []);
 
   useEffect(() => {
-    fetch("/api/staking/config")
+    fetch(apiUrl("/api/staking/config"))
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => setConfig(d?.config ?? null))
       .catch(() => setConfig(null));
@@ -335,7 +303,7 @@ function StakingContent() {
       }
 
       const auth = await signAction(`Stake ${assetType} ${asset}`);
-      const res = await fetch("/api/staking", {
+      const res = await fetch(apiUrl("/api/staking"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -385,7 +353,7 @@ function StakingContent() {
       }
 
       const auth = await signAction(`Unstake ${position.id} ${amountWei}`);
-      const res = await fetch("/api/staking", {
+      const res = await fetch(apiUrl("/api/staking"), {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -447,44 +415,14 @@ function StakingContent() {
           <Layers className="h-6 w-6" /> Staking
         </h1>
         <p className="mt-1 text-muted-foreground">
-          Stake OPN, LP tokens, or join Launchpool campaigns to earn project tokens.
+          Stake OPN or LP tokens to earn pool share rewards.
         </p>
-        <div className="mt-4 flex gap-2">
-          {(
-            [
-              { id: "staking" as const, label: "Pool Share Staking" },
-              { id: "launchpool" as const, label: "Launchpool" },
-            ] as const
-          ).map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => selectPageTab(tab.id)}
-              className={cn(
-                "rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors sm:text-sm",
-                pageTab === tab.id
-                  ? "border-primary bg-primary text-primary-foreground"
-                  : "border-border bg-background text-muted-foreground hover:border-primary/40"
-              )}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-        {pageTab === "staking" && walletTier && (
+        {walletTier && (
           <Badge className="mt-3" variant="secondary">
             Your tier: {STAKING_TIER_LABELS[walletTier as keyof typeof STAKING_TIER_LABELS] ?? walletTier}
           </Badge>
         )}
       </header>
-
-      {pageTab === "launchpool" ? (
-        <LaunchpoolStakingTab
-          activityRows={launchpoolStakes.map(launchpoolStakeToActivityRow)}
-          isConnected={isConnected}
-        />
-      ) : (
-        <>
 
       <DefiStatsOverview
         className="mb-8"
@@ -767,8 +705,6 @@ function StakingContent() {
             </div>
         </CardContent>
       </Card>
-      )}
-        </>
       )}
     </div>
   );

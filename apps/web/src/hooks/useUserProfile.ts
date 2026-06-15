@@ -1,5 +1,7 @@
 "use client";
 
+import { apiUrl } from "@/lib/api";
+
 import { useCallback, useEffect, useState } from "react";
 import { PROFILE_UPDATED_EVENT } from "@/lib/profile/profile-events";
 
@@ -20,7 +22,7 @@ export function useUserProfile(walletAddress: string | undefined) {
 
     setLoading(true);
     try {
-      const res = await fetch(`/api/user/profile?wallet=${walletAddress.toLowerCase()}`);
+      const res = await fetch(apiUrl(`/api/user/profile?wallet=${walletAddress.toLowerCase()}`));
       const data = await res.json();
       setProfile({
         username: data.profile?.username ?? null,

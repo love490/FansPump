@@ -1,5 +1,7 @@
 "use client";
 
+import { apiUrl } from "@/lib/api";
+
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useAccount } from "wagmi";
@@ -46,7 +48,7 @@ export default function PoolsPage() {
     setError(null);
     setLoading(true);
     try {
-      const url = discover ? "/api/pools?discover=true" : "/api/pools";
+      const url = discover ? apiUrl("/api/pools?discover=true") : apiUrl("/api/pools");
       const res = await fetch(url);
       if (!res.ok) throw new Error("Failed to load pools");
       const json = (await res.json()) as PoolsResponse;
@@ -68,7 +70,7 @@ export default function PoolsPage() {
     setError(null);
     setMessage(null);
     try {
-      const res = await fetch("/api/pools/discover", { method: "POST" });
+      const res = await fetch(apiUrl("/api/pools/discover"), { method: "POST" });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "Discover failed");
       setData(json);
@@ -91,7 +93,7 @@ export default function PoolsPage() {
     setError(null);
     setMessage(null);
     try {
-      const res = await fetch("/api/pools/sync", {
+      const res = await fetch(apiUrl("/api/pools/sync"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ poolAddress: addr }),

@@ -1,9 +1,10 @@
+import { apiUrl } from "@/lib/api";
 export async function uploadProfileAvatar(file: File): Promise<string> {
   const formData = new FormData();
   formData.append("file", file);
   formData.append("kind", "avatar");
 
-  const res = await fetch("/api/upload", { method: "POST", body: formData });
+  const res = await fetch(apiUrl("/api/upload"), { method: "POST", body: formData });
   const data = (await res.json()) as { error?: string; url?: string | null };
 
   if (!res.ok) throw new Error(data.error ?? "Upload failed");
@@ -16,7 +17,7 @@ export async function saveProfileImage(
   walletAddress: string,
   profileImageUrl: string | null
 ): Promise<{ username: string | null; profileImageUrl: string | null }> {
-  const res = await fetch("/api/user/profile", {
+  const res = await fetch(apiUrl("/api/user/profile"), {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ walletAddress, profileImageUrl }),

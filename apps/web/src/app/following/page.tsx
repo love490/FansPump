@@ -1,5 +1,7 @@
 "use client";
 
+import { apiUrl } from "@/lib/api";
+
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useAccount } from "wagmi";
@@ -29,7 +31,7 @@ export default function FollowingPage() {
     }
 
     setLoading(true);
-    fetch(`/api/user/follows?wallet=${address.toLowerCase()}`)
+    fetch(apiUrl(`/api/user/follows?wallet=${address.toLowerCase()}`))
       .then((r) => r.json())
       .then((d) => setCreators(d.creators ?? []))
       .catch(() => setCreators([]))

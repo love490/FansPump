@@ -1,5 +1,7 @@
 "use client";
 
+import { apiUrl } from "@/lib/api";
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { TrendingDown, TrendingUp, Minus } from "lucide-react";
@@ -23,7 +25,7 @@ export function VoteButtons({
     if (!walletAddress) return;
     setLoading(true);
     try {
-      const res = await fetch("/api/votes", {
+      const res = await fetch(apiUrl("/api/votes"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ tokenId, walletAddress, voteType }),

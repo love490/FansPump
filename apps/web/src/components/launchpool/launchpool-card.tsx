@@ -1,5 +1,7 @@
 "use client";
 
+import { apiUrl } from "@/lib/api";
+
 import { useEffect, useId, useRef, useState } from "react";
 import Link from "next/link";
 import { useAccount, useSignMessage } from "wagmi";
@@ -77,7 +79,7 @@ export function LaunchpoolCard({
       setMyStakes([]);
       return;
     }
-    fetch(`/api/launchpool/${pool.id}/stake?wallet=${address.toLowerCase()}`)
+    fetch(apiUrl(`/api/launchpool/${pool.id}/stake?wallet=${address.toLowerCase()}`))
       .then((r) => (r.ok ? r.json() : { stakes: [] }))
       .then((data: { stakes?: UserStake[] }) => setMyStakes(data.stakes ?? []))
       .catch(() => setMyStakes([]));
@@ -101,7 +103,7 @@ export function LaunchpoolCard({
         LAUNCHPOOL_STAKE_PREFIX,
         `${selectedAsset.assetSymbol}:${amountWei}`
       );
-      const res = await fetch(`/api/launchpool/${pool.id}/stake`, {
+      const res = await fetch(apiUrl(`/api/launchpool/${pool.id}/stake`), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -136,7 +138,7 @@ export function LaunchpoolCard({
         LAUNCHPOOL_UNSTAKE_PREFIX,
         `${selectedAsset.assetSymbol}:${unstakeAmount}`
       );
-      const res = await fetch(`/api/launchpool/${pool.id}/stake`, {
+      const res = await fetch(apiUrl(`/api/launchpool/${pool.id}/stake`), {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

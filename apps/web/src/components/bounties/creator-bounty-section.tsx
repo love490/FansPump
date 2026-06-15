@@ -1,5 +1,7 @@
 "use client";
 
+import { apiUrl } from "@/lib/api";
+
 import { useEffect, useState } from "react";
 import { useAccount, useSignMessage } from "wagmi";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -53,7 +55,7 @@ export function CreatorBountySection({
 
   function loadBounties() {
     setLoading(true);
-    fetch(`/api/bounties?creator=${creatorWallet}&scope=mine&limit=50`)
+    fetch(apiUrl(`/api/bounties?creator=${creatorWallet}&scope=mine&limit=50`))
       .then((r) => r.json())
       .then((d) => setBounties(d.bounties ?? []))
       .catch(() => setBounties([]))
@@ -74,7 +76,7 @@ export function CreatorBountySection({
       const msg = `${prefix}\nCreate bounty\nWallet: ${address.toLowerCase()}\nTime: ${Date.now()}`;
       const signature = await signMessageAsync({ message: msg });
 
-      const res = await fetch("/api/bounties", {
+      const res = await fetch(apiUrl("/api/bounties"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

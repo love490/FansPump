@@ -1,3 +1,4 @@
+import { apiUrl } from "@/lib/api";
 import { getActiveChainId } from "@/lib/chain-config/opn";
 import type { TokenCardData } from "@/components/tokens/token-card";
 
@@ -23,7 +24,7 @@ export type MyTokensResponse = {
 export async function fetchMyTokens(walletAddress: string): Promise<TokenCardData[]> {
   const creator = walletAddress.toLowerCase();
   const chainId = getActiveChainId();
-  const url = `/api/tokens?creator=${encodeURIComponent(creator)}&limit=100&chainId=${chainId}`;
+  const url = apiUrl(`/api/tokens?creator=${encodeURIComponent(creator)}&limit=100&chainId=${chainId}`);
 
   console.log("[my-tokens] Fetching tokens for creator:", creator, "chainId:", chainId);
 
@@ -50,7 +51,7 @@ export async function registerTokenMetadata(payload: Record<string, unknown>): P
 
   console.log("[deploy] Saving to DB… contract:", body.contractAddress);
 
-  const res = await fetch("/api/tokens", {
+  const res = await fetch(apiUrl("/api/tokens"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),

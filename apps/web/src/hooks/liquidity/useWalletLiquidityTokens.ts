@@ -1,5 +1,7 @@
 "use client";
 
+import { apiUrl } from "@/lib/api";
+
 import { useCallback, useEffect, useState } from "react";
 import type { Address } from "viem";
 import { usePublicClient } from "wagmi";
@@ -24,7 +26,7 @@ type ApiToken = {
 };
 
 async function fetchTokenList(url: string): Promise<ApiToken[]> {
-  const res = await fetch(url);
+  const res = await fetch(apiUrl(url));
   if (!res.ok) return [];
   const data = (await res.json()) as { tokens?: ApiToken[] };
   return data.tokens ?? [];

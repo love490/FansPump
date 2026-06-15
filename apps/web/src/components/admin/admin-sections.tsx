@@ -1,5 +1,7 @@
 "use client";
 
+import { apiUrl } from "@/lib/api";
+
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { adminFetch } from "@/lib/admin-session";
@@ -360,7 +362,7 @@ export function AnalyticsSection() {
     adminFetch("/api/admin/analytics").then((r) => r.json()).then((d) => setAnalytics(d.analytics));
   }, []);
   const exportCsv = async () => {
-    const u = new URL("/api/admin/analytics", window.location.origin);
+    const u = new URL(apiUrl("/api/admin/analytics"));
     u.searchParams.set("format", "csv");
     window.open(u.toString(), "_blank");
   };
@@ -561,7 +563,7 @@ export function FactorySection() {
   const [isFactoryAdmin, setIsFactoryAdmin] = useState(false);
   useEffect(() => {
     if (!address) return;
-    fetch(`/api/admin/factory-admin?wallet=${address}`).then((r) => r.json()).then((d) => setIsFactoryAdmin(d.isFactoryAdmin));
+    fetch(apiUrl(`/api/admin/factory-admin?wallet=${address}`)).then((r) => r.json()).then((d) => setIsFactoryAdmin(d.isFactoryAdmin));
   }, [address]);
   return (
     <div className="space-y-4">
@@ -650,7 +652,7 @@ export function RolesSection() {
 export function CategoriesSection() {
   const [stats, setStats] = useState<{ category: string; count: number }[]>([]);
   useEffect(() => {
-    fetch("/api/analytics/extended")
+    fetch(apiUrl("/api/analytics/extended"))
       .then((r) => r.json())
       .then((d) => setStats(d.analytics?.categoryStats ?? []));
   }, []);

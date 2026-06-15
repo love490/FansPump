@@ -1,4 +1,4 @@
-import type { Launchpool, LaunchpoolStakeAsset, LaunchpoolStatus } from "@iopn/database";
+export type LaunchpoolStatus = "ACTIVE" | "ONGOING" | "ENDED";
 
 export type LaunchpoolStakeAssetInput = {
   assetType: string;
@@ -26,38 +26,6 @@ export type SerializedLaunchpool = {
   participantCount: number;
 };
 
-export function serializeLaunchpool(
-  pool: Launchpool & {
-    stakeAssets: LaunchpoolStakeAsset[];
-    _count?: { stakes?: number };
-  },
-  stats?: { totalStakedAmount: string; participantCount: number }
-): SerializedLaunchpool {
-  return {
-    id: pool.id,
-    title: pool.title,
-    description: pool.description,
-    detailInfo: pool.detailInfo,
-    status: pool.status,
-    rewardTokenSymbol: pool.rewardTokenSymbol,
-    rewardTokenAddress: pool.rewardTokenAddress,
-    totalRewardUsd: pool.totalRewardUsd,
-    totalRewardAmount: pool.totalRewardAmount,
-    startAt: pool.startAt.toISOString(),
-    endAt: pool.endAt.toISOString(),
-    durationLabel: pool.durationLabel,
-    isPublished: pool.isPublished,
-    rewardsDistributed: pool.rewardsDistributed,
-    stakeAssets: pool.stakeAssets.map((asset) => ({
-      assetType: asset.assetType,
-      assetAddress: asset.assetAddress,
-      assetSymbol: asset.assetSymbol,
-    })),
-    totalStakedAmount: stats?.totalStakedAmount ?? "0",
-    participantCount: stats?.participantCount ?? pool._count?.stakes ?? 0,
-  };
-}
-
 export function stakeAssetsLabel(assets: LaunchpoolStakeAssetInput[]): string {
   const symbols = assets.map((a) => a.assetSymbol);
   if (symbols.length <= 1) return symbols[0] ?? "tokens";
@@ -65,7 +33,9 @@ export function stakeAssetsLabel(assets: LaunchpoolStakeAssetInput[]): string {
   return `${symbols.slice(0, -1).join(", ")}, or ${symbols[symbols.length - 1]}`;
 }
 
-export function launchpoolHeadline(pool: Pick<SerializedLaunchpool, "totalRewardUsd" | "stakeAssets">): string {
+export function launchpoolHeadline(
+  pool: Pick<SerializedLaunchpool, "totalRewardUsd" | "stakeAssets">
+): string {
   return `Get a share of $${pool.totalRewardUsd.toLocaleString(undefined, { maximumFractionDigits: 0 })} by staking ${stakeAssetsLabel(pool.stakeAssets)}`;
 }
 

@@ -1,4 +1,5 @@
 import { getActiveChainId } from "@/lib/chain-config/opn";
+import { apiUrl } from "@/lib/api";
 import type { TokenCardData } from "@/components/tokens/token-card";
 import { buildHomePreviewSections } from "@/lib/tokens/home-sections";
 
@@ -11,7 +12,7 @@ export type PlatformStats = {
 };
 
 export async function fetchPlatformStats(): Promise<PlatformStats> {
-  const res = await fetch("/api/stats");
+  const res = await fetch(apiUrl("/api/stats"));
   if (!res.ok) throw new Error("Failed to load platform stats");
   const data = (await res.json()) as { stats: PlatformStats };
   return data.stats;
@@ -42,7 +43,7 @@ export async function fetchHomeTokens(chainId = getActiveChainId()): Promise<{
   new: TokenCardData[];
 }> {
   try {
-    const res = await fetch(`/api/tokens/home?chainId=${chainId}`, { cache: "no-store" });
+    const res = await fetch(apiUrl(`/api/tokens/home?chainId=${chainId}`), { cache: "no-store" });
     if (res.ok) {
       const data = (await res.json()) as {
         market?: TokenCardData[];
@@ -90,7 +91,7 @@ export async function fetchDiscoverTokens(
   const fq = filterQuery(filters);
 
   if (section === "trending") {
-    const res = await fetch(`/api/tokens?section=trending&limit=${limit}&chainId=${chainId}${fq}`);
+    const res = await fetch(apiUrl(`/api/tokens?section=trending&limit=${limit}&chainId=${chainId}${fq}`));
     if (!res.ok) throw new Error("Failed to load trending tokens");
     const data = (await res.json()) as { tokens: TokenCardData[] };
     return data.tokens ?? [];
@@ -98,7 +99,7 @@ export async function fetchDiscoverTokens(
 
   if (section === "all") {
     const res = await fetch(
-      `/api/tokens?section=all&limit=${limit}&chainId=${chainId}${fq}`
+      apiUrl(`/api/tokens?section=all&limit=${limit}&chainId=${chainId}${fq}`)
     );
     if (!res.ok) throw new Error("Failed to load tokens");
     const data = (await res.json()) as { tokens: TokenCardData[] };
@@ -106,7 +107,7 @@ export async function fetchDiscoverTokens(
   }
 
   if (section === "latest" || section === "new") {
-    const res = await fetch(`/api/tokens?section=new&limit=${limit}&chainId=${chainId}${fq}`);
+    const res = await fetch(apiUrl(`/api/tokens?section=new&limit=${limit}&chainId=${chainId}${fq}`));
     if (!res.ok) throw new Error("Failed to load latest tokens");
     const data = (await res.json()) as { tokens: TokenCardData[] };
     return data.tokens ?? [];
@@ -114,7 +115,7 @@ export async function fetchDiscoverTokens(
 
   if (section === "verified") {
     const query = filterQuery({ ...filters, verified: true });
-    const res = await fetch(`/api/tokens?section=new&limit=${limit}&chainId=${chainId}${query}`);
+    const res = await fetch(apiUrl(`/api/tokens?section=new&limit=${limit}&chainId=${chainId}${query}`));
     if (!res.ok) throw new Error("Failed to load verified tokens");
     const data = (await res.json()) as { tokens: TokenCardData[] };
     return data.tokens ?? [];
@@ -131,7 +132,7 @@ export async function fetchDiscoverTokens(
     section === "recently-verified"
   ) {
     const res = await fetch(
-      `/api/tokens?section=${encodeURIComponent(section)}&limit=${limit}&chainId=${chainId}${fq}`
+      apiUrl(`/api/tokens?section=${encodeURIComponent(section)}&limit=${limit}&chainId=${chainId}${fq}`)
     );
     if (!res.ok) throw new Error("Failed to load tokens");
     const data = (await res.json()) as { tokens: TokenCardData[] };
@@ -139,7 +140,7 @@ export async function fetchDiscoverTokens(
   }
 
   const res = await fetch(
-    `/api/tokens?section=${encodeURIComponent(section)}&limit=${limit}&chainId=${chainId}${fq}`
+    apiUrl(`/api/tokens?section=${encodeURIComponent(section)}&limit=${limit}&chainId=${chainId}${fq}`)
   );
   if (!res.ok) throw new Error("Failed to load tokens");
   const data = (await res.json()) as { tokens: TokenCardData[] };

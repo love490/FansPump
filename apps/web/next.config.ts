@@ -1,28 +1,14 @@
 import type { NextConfig } from "next";
 import path from "node:path";
+
 const monorepoRoot = path.join(__dirname, "../..");
+
 const nextConfig: NextConfig = {
-  transpilePackages: ["@iopn/database", "@iopn/shared"],
-  outputFileTracingRoot: monorepoRoot,
-  serverExternalPackages: ["@prisma/client", "prisma", "@node-rs/argon2"],
-  outputFileTracingIncludes: {
-    "/api/**/*": [
-      "../../node_modules/.prisma/client/**/*",
-      "../../node_modules/@prisma/client/**/*",
-      "../../node_modules/.pnpm/@prisma+client@*/node_modules/.prisma/client/**/*",
-      "../../node_modules/.pnpm/@prisma+client@*/node_modules/@prisma/client/**/*",
-      "../../packages/database/node_modules/.prisma/client/**/*",
-      "../../packages/database/node_modules/@prisma/client/**/*",
-    ],
-    "/*": [
-      "../../node_modules/.prisma/client/**/*",
-      "../../node_modules/@prisma/client/**/*",
-      "../../node_modules/.pnpm/@prisma+client@*/node_modules/.prisma/client/**/*",
-      "../../node_modules/.pnpm/@prisma+client@*/node_modules/@prisma/client/**/*",
-      "../../packages/database/node_modules/.prisma/client/**/*",
-      "../../packages/database/node_modules/@prisma/client/**/*",
-    ],
+  env: {
+    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
   },
+  transpilePackages: ["@iopn/shared"],
+  outputFileTracingRoot: monorepoRoot,
   webpack: (config) => {
     config.resolve.fallback = {
       ...config.resolve.fallback,
@@ -37,12 +23,20 @@ const nextConfig: NextConfig = {
       { protocol: "http", hostname: "localhost" },
     ],
   },
+  async rewrites() {
+    return [];
+  },
   async redirects() {
     return [
       { source: "/app", destination: "/", permanent: true },
       { source: "/home", destination: "/", permanent: true },
       { source: "/my-liquidity", destination: "/liquidity", permanent: true },
-      { source: "/launchpad", destination: "/staking?tab=launchpool", permanent: true },
+      {
+        source: "/staking",
+        has: [{ type: "query", key: "tab", value: "launchpool" }],
+        destination: "/launchpool",
+        permanent: true,
+      },
     ];
   },
   async headers() {
@@ -68,4 +62,5 @@ const nextConfig: NextConfig = {
     ];
   },
 };
+
 export default nextConfig;

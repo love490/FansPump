@@ -1,5 +1,7 @@
 "use client";
 
+import { apiUrl } from "@/lib/api";
+
 import { useEffect, useState } from "react";
 import { useAccount } from "wagmi";
 import { TokenCard, type TokenCardData } from "@/components/tokens/token-card";
@@ -11,7 +13,7 @@ export default function WatchlistPage() {
 
   useEffect(() => {
     if (!address) return;
-    fetch(`/api/watchlist?wallet=${address}`)
+    fetch(apiUrl(`/api/watchlist?wallet=${address}`))
       .then((r) => r.json())
       .then((d) => setTokens(d.tokens ?? []));
   }, [address]);

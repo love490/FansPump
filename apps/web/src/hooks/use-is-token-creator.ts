@@ -1,5 +1,7 @@
 "use client";
 
+import { apiUrl } from "@/lib/api";
+
 import { useEffect, useState } from "react";
 import { useAccount } from "wagmi";
 
@@ -23,7 +25,7 @@ export function useIsTokenCreator(tokenAddress: string) {
     }
 
     setLoading(true);
-    fetch(`/api/tokens/${tokenAddress}`)
+    fetch(apiUrl(`/api/tokens/${tokenAddress}`))
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
         const t = d?.token;

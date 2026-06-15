@@ -1,4 +1,6 @@
-import type { BountyStatus, BountyRewardType, BountyTaskType, Prisma } from "@iopn/database";
+export type BountyStatus = "ACTIVE" | "ENDED" | "COMPLETED" | "CANCELLED";
+export type BountyTaskType = "SOCIAL" | "CONTENT" | "REFERRAL" | "COMMUNITY" | "CUSTOM";
+export type BountyRewardType = "OPN" | "TOKEN" | "XP" | "CUSTOM";
 
 export type BountyTab = "trending" | "active" | "completed" | "ended";
 
@@ -51,97 +53,9 @@ export type BountyListItem = {
   isFull: boolean;
 };
 
-export const bountyListInclude = {
-  creator: { select: { username: true, profileImageUrl: true } },
-  token: { select: { symbol: true, contractAddress: true } },
-  _count: { select: { participations: true } },
-} satisfies Prisma.BountyInclude;
-
-export function resolveEffectiveStatus(bounty: {
-  status: BountyStatus;
-  endsAt: Date | null;
-}): "active" | "ended" | "completed" {
-  if (bounty.status === "COMPLETED") return "completed";
-  if (bounty.status === "ENDED" || bounty.status === "CANCELLED") return "ended";
-  if (bounty.endsAt && bounty.endsAt.getTime() < Date.now()) return "ended";
-  return "active";
-}
-
-export function mapBountyRow(
-  b: Prisma.BountyGetPayload<{ include: typeof bountyListInclude }>
-): BountyListItem {
-  const participantCount = b._count.participations;
-  const effectiveStatus = resolveEffectiveStatus(b);
-  const spotsLeft = Math.max(0, b.maxParticipants - participantCount);
-
-  return {
-    id: b.id,
-    creatorWallet: b.creatorWallet,
-    creatorUsername: b.creator.username,
-    creatorProfileImageUrl: b.creator.profileImageUrl,
-    tokenAddress: b.tokenAddress,
-    tokenSymbol: b.token?.symbol ?? null,
-    title: b.title,
-    description: b.description,
-    taskType: b.taskType,
-    requirements: b.requirements,
-    rewardType: b.rewardType,
-    rewardAmount: b.rewardAmount,
-    rewardDescription: b.rewardDescription,
-    maxParticipants: b.maxParticipants,
-    participantCount,
-    viewCount: b.viewCount,
-    status: b.status,
-    effectiveStatus,
-    startsAt: b.startsAt.toISOString(),
-    endsAt: b.endsAt?.toISOString() ?? null,
-    completedAt: b.completedAt?.toISOString() ?? null,
-    createdAt: b.createdAt.toISOString(),
-    spotsLeft,
-    isFull: spotsLeft <= 0,
-  };
-}
-
-export function bountyTabWhere(tab: BountyTab, now = new Date()): Prisma.BountyWhereInput {
-  switch (tab) {
-    case "trending":
-      return {
-        status: "ACTIVE",
-        OR: [{ endsAt: null }, { endsAt: { gt: now } }],
-      };
-    case "active":
-      return {
-        status: "ACTIVE",
-        OR: [{ endsAt: null }, { endsAt: { gt: now } }],
-      };
-    case "completed":
-      return { status: "COMPLETED" };
-    case "ended":
-      return {
-        OR: [
-          { status: { in: ["ENDED", "CANCELLED"] } },
-          { status: "ACTIVE", endsAt: { lte: now } },
-        ],
-      };
-    default:
-      return {};
-  }
-}
-
-export function bountyTabOrderBy(tab: BountyTab): Prisma.BountyOrderByWithRelationInput[] {
-  if (tab === "trending") {
-    return [{ participantCount: "desc" }, { viewCount: "desc" }, { createdAt: "desc" }];
-  }
-  if (tab === "completed") {
-    return [{ completedAt: "desc" }, { updatedAt: "desc" }];
-  }
-  if (tab === "ended") {
-    return [{ endsAt: "desc" }, { updatedAt: "desc" }];
-  }
-  return [{ createdAt: "desc" }];
-}
-
-export function formatBountyReward(bounty: Pick<BountyListItem, "rewardType" | "rewardAmount" | "rewardDescription" | "tokenSymbol">) {
+export function formatBountyReward(
+  bounty: Pick<BountyListItem, "rewardType" | "rewardAmount" | "rewardDescription" | "tokenSymbol">
+) {
   if (bounty.rewardType === "CUSTOM" && bounty.rewardDescription) {
     return bounty.rewardDescription;
   }

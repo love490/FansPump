@@ -1,5 +1,7 @@
 "use client";
 
+import { apiUrl } from "@/lib/api";
+
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Activity, ChevronDown, ChevronUp, Shield } from "lucide-react";
@@ -50,7 +52,7 @@ export function TokenTrustScorePanel({ tokenAddress }: { tokenAddress: string })
   const [expanded, setExpanded] = useState(false);
 
   useEffect(() => {
-    fetch(`/api/trust/${tokenAddress}`)
+    fetch(apiUrl(`/api/trust/${tokenAddress}`))
       .then((r) => r.json())
       .then(setData)
       .catch(() => setData({ enabled: false }));
@@ -136,7 +138,7 @@ export function TokenHealthPanel({ tokenAddress }: { tokenAddress: string }) {
   const [data, setData] = useState<HealthApiResponse | null>(null);
 
   useEffect(() => {
-    fetch(`/api/trust/${tokenAddress}`)
+    fetch(apiUrl(`/api/trust/${tokenAddress}`))
       .then((r) => r.json())
       .then(setData)
       .catch(() => setData(null));

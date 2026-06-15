@@ -12,11 +12,6 @@ type LaunchpoolStakingTabProps = {
 export function LaunchpoolStakingTab({ activityRows, isConnected }: LaunchpoolStakingTabProps) {
   return (
     <div className="space-y-6">
-      <p className="text-sm text-muted-foreground">
-        Stake OPN, USDT, USDC, or project tokens to earn new project tokens for free. Unstake anytime.
-        Rewards are credited to My Purse after each pool ends.
-      </p>
-
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Your activity</CardTitle>

@@ -1,5 +1,7 @@
 "use client";
 
+import { apiUrl } from "@/lib/api";
+
 import { useCallback, useEffect, useState } from "react";
 import type { Address, PublicClient } from "viem";
 import { usePublicClient } from "wagmi";
@@ -120,7 +122,7 @@ async function fetchLockedPositions(
   await Promise.all(
     tokens.map(async (t) => {
       try {
-        const res = await fetch(`/api/liquidity/${t.contractAddress}`);
+        const res = await fetch(apiUrl(`/api/liquidity/${t.contractAddress}`));
         if (!res.ok) return;
         const data = (await res.json()) as {
           locks?: {

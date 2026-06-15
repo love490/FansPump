@@ -1,5 +1,7 @@
 "use client";
 
+import { apiUrl } from "@/lib/api";
+
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useAccount, useSignMessage } from "wagmi";
@@ -21,7 +23,7 @@ export default function EarnPage() {
   useEffect(() => {
     setLoading(true);
     setJoinError(null);
-    fetch(`/api/bounties?tab=${tab}&limit=40`)
+    fetch(apiUrl(`/api/bounties?tab=${tab}&limit=40`))
       .then((r) => r.json())
       .then((d) => setBounties(d.bounties ?? []))
       .catch(() => setBounties([]))
@@ -39,7 +41,7 @@ export default function EarnPage() {
       const prefix = process.env.NEXT_PUBLIC_CREATOR_ACTION_MESSAGE_PREFIX ?? "FansPump Creator Action";
       const message = `${prefix}\nJoin bounty: ${bountyId}\nWallet: ${address.toLowerCase()}\nTime: ${Date.now()}`;
       const signature = await signMessageAsync({ message });
-      const res = await fetch(`/api/bounties/${bountyId}/join`, {
+      const res = await fetch(apiUrl(`/api/bounties/${bountyId}/join`), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ walletAddress: address, message, signature }),

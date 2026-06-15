@@ -1,5 +1,7 @@
 "use client";
 
+import { apiUrl } from "@/lib/api";
+
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatEther } from "viem";
@@ -23,7 +25,7 @@ export function TokenAnalyticsSection({ tokenAddress }: { tokenAddress: string }
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch(`/api/token/${tokenAddress}/analytics`)
+    fetch(apiUrl(`/api/token/${tokenAddress}/analytics`))
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => setAnalytics(d?.analytics ?? null))
       .catch(() => setAnalytics(null))

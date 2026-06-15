@@ -1,5 +1,7 @@
 "use client";
 
+import { apiUrl } from "@/lib/api";
+
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Trophy, ArrowRight } from "lucide-react";
@@ -75,7 +77,7 @@ export function LandingTopBuilders() {
   const [builders, setBuilders] = useState<BuilderPreview[]>(FALLBACK_BUILDERS);
 
   useEffect(() => {
-    fetch("/api/leaderboard?category=top-builders&limit=4")
+    fetch(apiUrl("/api/leaderboard?category=top-builders&limit=4"))
       .then((r) => r.json())
       .then((d) => {
         if (!d.enabled || !Array.isArray(d.entries) || d.entries.length === 0) return;

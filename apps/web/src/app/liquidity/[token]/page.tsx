@@ -1,5 +1,7 @@
 "use client";
 
+import { apiUrl } from "@/lib/api";
+
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
@@ -229,11 +231,11 @@ export default function LiquidityModulePage() {
 
   useEffect(() => {
     if (!token) return;
-    fetch(`/api/tokens/${token}`)
+    fetch(apiUrl(`/api/tokens/${token}`))
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => setTokenMeta(d?.token ?? null))
       .catch(() => setTokenMeta(null));
-    fetch(`/api/liquidity/${token}`)
+    fetch(apiUrl(`/api/liquidity/${token}`))
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => setSummary(d ?? null))
       .catch(() => setSummary(null));
@@ -311,7 +313,7 @@ export default function LiquidityModulePage() {
       args.unlockAtMs
     ).toISOString()}\nWallet: ${address}\nTimestamp: ${Date.now()}`;
     const signature = await signMessageAsync({ message });
-    await fetch("/api/liquidity/lock", {
+    await fetch(apiUrl("/api/liquidity/lock"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -333,7 +335,7 @@ export default function LiquidityModulePage() {
     const prefix = process.env.NEXT_PUBLIC_LIQUIDITY_MESSAGE_PREFIX ?? "FansPump Liquidity Action";
     const message = `${prefix}\nAction: BURN\nToken: ${token}\nLP: ${args.lpToken}\nAmount: ${args.amount.toString()}\nBurnTo: ${burnAddress}\nWallet: ${address}\nTimestamp: ${Date.now()}`;
     const signature = await signMessageAsync({ message });
-    await fetch("/api/liquidity/burn", {
+    await fetch(apiUrl("/api/liquidity/burn"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

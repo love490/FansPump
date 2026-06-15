@@ -1,5 +1,7 @@
 "use client";
 
+import { apiUrl } from "@/lib/api";
+
 let csrfToken: string | null = null;
 
 export function setAdminCsrfToken(token: string | null) {
@@ -28,7 +30,7 @@ export async function adminFetch(url: string, init?: RequestInit): Promise<Respo
     }
   }
 
-  return fetch(url, {
+  return fetch(apiUrl(url), {
     ...init,
     method,
     headers,

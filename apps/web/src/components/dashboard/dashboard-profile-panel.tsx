@@ -1,5 +1,7 @@
 "use client";
 
+import { apiUrl } from "@/lib/api";
+
 import { useEffect, useRef, useState } from "react";
 import { useAccount } from "wagmi";
 import Image from "next/image";
@@ -29,7 +31,7 @@ export function DashboardProfilePanel() {
       setProfileImageUrl(null);
       return;
     }
-    fetch(`/api/user/profile?wallet=${address.toLowerCase()}`)
+    fetch(apiUrl(`/api/user/profile?wallet=${address.toLowerCase()}`))
       .then((r) => r.json())
       .then((data) => {
         const name = data.profile?.username ?? "";
@@ -47,7 +49,7 @@ export function DashboardProfilePanel() {
     setProfileError(null);
     setProfileMessage(null);
     try {
-      const res = await fetch("/api/user/profile", {
+      const res = await fetch(apiUrl("/api/user/profile"), {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -81,7 +83,7 @@ export function DashboardProfilePanel() {
       const formData = new FormData();
       formData.append("file", file);
       formData.append("kind", "avatar");
-      const res = await fetch("/api/upload", { method: "POST", body: formData });
+      const res = await fetch(apiUrl("/api/upload"), { method: "POST", body: formData });
       const data = (await res.json()) as { error?: string; url?: string | null };
       if (!res.ok) throw new Error(data.error ?? "Upload failed");
       if (!data.url) throw new Error("Image storage is not configured yet.");

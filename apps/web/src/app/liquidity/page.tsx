@@ -1,5 +1,7 @@
 "use client";
 
+import { apiUrl } from "@/lib/api";
+
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAccount } from "wagmi";
 import { formatLiquidityAmountFromWei } from "@/lib/liquidity/format-amount";
@@ -31,7 +33,7 @@ export default function LiquidityPage() {
 
   useEffect(() => {
     setPlatformLoading(true);
-    fetch("/api/pools")
+    fetch(apiUrl("/api/pools"))
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => setPlatform(d?.analytics ?? null))
       .catch(() => setPlatform(null))

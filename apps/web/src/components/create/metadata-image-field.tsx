@@ -1,5 +1,7 @@
 "use client";
 
+import { apiUrl } from "@/lib/api";
+
 import { useRef, useState } from "react";
 import { ImagePlus, Link2, Loader2, Upload } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -54,7 +56,7 @@ export function MetadataImageField({
       const formData = new FormData();
       formData.append("file", file);
       formData.append("kind", variant);
-      const res = await fetch("/api/upload", { method: "POST", body: formData });
+      const res = await fetch(apiUrl("/api/upload"), { method: "POST", body: formData });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Upload failed");
       if (!data.url) {

@@ -1,5 +1,7 @@
 "use client";
 
+import { apiUrl } from "@/lib/api";
+
 import { useCallback, useMemo, useState } from "react";
 import { useAccount } from "wagmi";
 import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -22,7 +24,7 @@ const PREVIEW_LIMIT = 24;
 const MARKET_LIMIT = 50;
 
 async function fetchWatchlistTokens(wallet: string): Promise<TokenCardData[]> {
-  const res = await fetch(`/api/watchlist?wallet=${wallet}`);
+  const res = await fetch(apiUrl(`/api/watchlist?wallet=${wallet}`));
   if (!res.ok) throw new Error("Failed to load favorites");
   const data = (await res.json()) as { tokens?: TokenCardData[] };
   return data.tokens ?? [];
@@ -148,7 +150,7 @@ export function HomeTokenSections() {
     async (tokenId: string) => {
       if (!address) return;
       const isFavorite = favoriteIds.has(tokenId);
-      await fetch("/api/watchlist", {
+      await fetch(apiUrl("/api/watchlist"), {
         method: isFavorite ? "DELETE" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ tokenId, walletAddress: address }),

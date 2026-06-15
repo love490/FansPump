@@ -1,5 +1,7 @@
 "use client";
 
+import { apiUrl } from "@/lib/api";
+
 import { useState } from "react";
 import { LifeBuoy } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -24,7 +26,7 @@ export default function SupportPage() {
     setFeedback(null);
     setError(null);
     try {
-      const res = await fetch("/api/contact", {
+      const res = await fetch(apiUrl("/api/contact"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

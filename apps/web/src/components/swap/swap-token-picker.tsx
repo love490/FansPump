@@ -1,5 +1,7 @@
 "use client";
 
+import { apiUrl } from "@/lib/api";
+
 import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { ChevronDown, Loader2, Search } from "lucide-react";
 import { useAccount, usePublicClient } from "wagmi";
@@ -135,7 +137,7 @@ export function SwapTokenPicker({
       .map(registryToSwapToken)
       .filter((t): t is SwapToken => t !== null);
 
-    fetch("/api/tokens?section=new&limit=100")
+    fetch(apiUrl("/api/tokens?section=new&limit=100"))
       .then((r) => r.json())
       .then((d) => {
         const fromApi = (d.tokens ?? []) as SwapToken[];
@@ -184,7 +186,7 @@ export function SwapTokenPicker({
         .map(registryToSwapToken)
         .filter((t): t is SwapToken => t !== null);
 
-      fetch(`/api/tokens?q=${encodeURIComponent(q)}&limit=20&chainId=984`)
+      fetch(apiUrl(`/api/tokens?q=${encodeURIComponent(q)}&limit=20&chainId=984`))
         .then((r) => r.json())
         .then((d) => {
           const fromApi = (d.tokens ?? []) as SwapToken[];

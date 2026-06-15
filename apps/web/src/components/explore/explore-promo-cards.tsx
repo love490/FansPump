@@ -1,5 +1,7 @@
 "use client";
 
+import { apiUrl } from "@/lib/api";
+
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
@@ -235,7 +237,7 @@ export function ExplorePromoCards() {
   );
 
   useEffect(() => {
-    fetch("/api/platform/promo")
+    fetch(apiUrl("/api/platform/promo"))
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
         if (!data) return;
@@ -244,7 +246,7 @@ export function ExplorePromoCards() {
       })
       .catch(() => {});
 
-    fetch("/api/bounties?tab=active&limit=50")
+    fetch(apiUrl("/api/bounties?tab=active&limit=50"))
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
         const bounties = (data?.bounties ?? []) as { rewardType?: string; rewardAmount?: string }[];
@@ -257,7 +259,7 @@ export function ExplorePromoCards() {
       })
       .catch(() => {});
 
-    fetch("/api/pools?limit=1")
+    fetch(apiUrl("/api/pools?limit=1"))
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
         const formatted = formatLiquidityHeadline(String(data?.analytics?.totalLiquidity ?? "0"));

@@ -1,4 +1,5 @@
 import "dotenv/config";
+import "tsconfig-paths/register";
 import express, { type NextFunction, type Request, type Response } from "express";
 import helmet from "helmet";
 import cookieParser from "cookie-parser";
@@ -28,6 +29,9 @@ import trustRouter from "./routes/trust";
 import platformRouter from "./routes/platform";
 import creatorRouter from "./routes/creator";
 import cronRouter from "./routes/cron";
+import statsRouter from "./routes/stats";
+import trustPanelConfigRouter from "./routes/trust-panel-config";
+import v2Router from "./routes/v2";
 
 const app = express();
 const port = Number(process.env.PORT ?? 3001);
@@ -66,6 +70,9 @@ app.get("/health", async (_req, res) => {
 
 app.use(publicRateLimit);
 
+app.use("/api/stats", statsRouter);
+app.use("/api/trust-panel-config", trustPanelConfigRouter);
+app.use("/api/v2", v2Router);
 app.use("/api/tokens", tokensRouter);
 app.use("/api/pools", poolsRouter);
 app.use("/api/staking", stakingRouter);

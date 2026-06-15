@@ -1,5 +1,7 @@
 "use client";
 
+import { apiUrl } from "@/lib/api";
+
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -72,7 +74,7 @@ export function TokenSearch() {
 
     const timer = setTimeout(() => {
       setLoading(true);
-      fetch(`/api/tokens?q=${encodeURIComponent(q)}&limit=12&chainId=${getActiveChainId()}`)
+      fetch(apiUrl(`/api/tokens?q=${encodeURIComponent(q)}&limit=12&chainId=${getActiveChainId()}`))
         .then((r) => r.json())
         .then((d) => setResults(d.tokens ?? []))
         .catch(() => setResults([]))
@@ -87,7 +89,7 @@ export function TokenSearch() {
     if (!quickOpen) return;
     if (quickTokens.length > 0) return;
     setQuickLoading(true);
-    fetch(`/api/tokens?section=registry&limit=12&chainId=${getActiveChainId()}`)
+    fetch(apiUrl(`/api/tokens?section=registry&limit=12&chainId=${getActiveChainId()}`))
       .then((r) => r.json())
       .then((d) => {
         const registry = d.tokens ?? [];
@@ -95,7 +97,7 @@ export function TokenSearch() {
           setQuickTokens(registry);
           return;
         }
-        return fetch(`/api/tokens?section=trending&limit=12&chainId=${getActiveChainId()}`)
+        return fetch(apiUrl(`/api/tokens?section=trending&limit=12&chainId=${getActiveChainId()}`))
           .then((r) => r.json())
           .then((trending) => setQuickTokens(trending.tokens ?? []));
       })

@@ -57,7 +57,7 @@ const primaryActions: QuickAction[] = [
     ),
   },
   {
-    href: "/staking",
+    href: "/launchpool",
     label: "Launch Pool",
     icon: (
       <span className="flex h-11 w-11 items-center justify-center rounded-full border-2 border-primary/30 bg-primary/5 sm:h-12 sm:w-12 lg:h-14 lg:w-14">

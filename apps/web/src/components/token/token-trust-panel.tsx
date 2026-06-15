@@ -1,5 +1,7 @@
 "use client";
 
+import { apiUrl } from "@/lib/api";
+
 import { useEffect, useState } from "react";
 import { useReadContract } from "wagmi";
 import { TOKEN_FEATURES, hasFeature } from "@iopn/shared";
@@ -81,7 +83,7 @@ export function TokenTrustPanel({
   });
 
   useEffect(() => {
-    fetch("/api/trust-panel-config")
+    fetch(apiUrl("/api/trust-panel-config"))
       .then((r) => r.json())
       .then((d) => {
         if (d?.config) setConfig({ ...DEFAULT_CONFIG, ...d.config });

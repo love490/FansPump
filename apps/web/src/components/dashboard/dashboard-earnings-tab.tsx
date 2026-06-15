@@ -1,5 +1,7 @@
 "use client";
 
+import { apiUrl } from "@/lib/api";
+
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAccount, useSignMessage } from "wagmi";
@@ -84,7 +86,7 @@ export function DashboardEarningsTab() {
       return;
     }
     setLoading(true);
-    fetch(`/api/user/dashboard?wallet=${address.toLowerCase()}`)
+    fetch(apiUrl(`/api/user/dashboard?wallet=${address.toLowerCase()}`))
       .then((r) => (r.ok ? r.json() : null))
       .then(setData)
       .catch(() => setData(null))
@@ -142,7 +144,7 @@ export function DashboardEarningsTab() {
     try {
       const message = `${CLAIM_PREFIX}\nWallet: ${address.toLowerCase()}\nAmount: ${totalRevenueOpn} OPN\nTime: ${Date.now()}`;
       const signature = await signMessageAsync({ message });
-      const res = await fetch("/api/user/claim-rewards", {
+      const res = await fetch(apiUrl("/api/user/claim-rewards"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -237,11 +239,11 @@ export function DashboardEarningsTab() {
           )}
 
           {launchpoolRewards.length > 0 && (
-            <EarningsSection title="Launchpool" href="/staking?tab=launchpool" hrefLabel="View launchpools">
+            <EarningsSection title="Launchpool" href="/launchpool" hrefLabel="View launchpools">
               {launchpoolRewards.map((reward) => (
                 <Link
                   key={reward.id}
-                  href="/staking?tab=launchpool"
+                  href="/launchpool"
                   className="block rounded-lg border border-border px-3 py-3 transition-colors hover:bg-muted/30"
                 >
                   <p className="font-medium">{reward.launchpoolTitle}</p>

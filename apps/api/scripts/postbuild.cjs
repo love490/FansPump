@@ -8,7 +8,7 @@ if (!fs.existsSync(distIndex)) {
   process.exit(1);
 }
 
-const banner = `require('tsx/cjs/api').register();\n`;
+const banner = `require('tsx/cjs/api').register();\nrequire('tsconfig-paths/register');\n`;
 const original = fs.readFileSync(distIndex, "utf8");
 fs.writeFileSync(distIndex, banner + original, "utf8");
 console.log("postbuild: registered tsx loader for workspace TypeScript packages");

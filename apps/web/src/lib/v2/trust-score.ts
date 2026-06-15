@@ -1,5 +1,11 @@
 import { TOKEN_FEATURES, hasFeature } from "@iopn/shared";
-import type { TokenVerificationStatus } from "@iopn/database";
+
+export type TokenVerificationStatus =
+  | "NONE"
+  | "PENDING"
+  | "APPROVED"
+  | "REJECTED"
+  | "REVOKED";
 
 export type TrustRiskLevel = "excellent" | "good" | "moderate" | "high";
 

@@ -71,13 +71,13 @@ function NavItemWithChildren({
   onNavigate?: () => void;
   collapsed?: boolean;
 }) {
-  const dexOpenDefault = isDexPath(pathname);
-  const [open, setOpen] = useState(dexOpenDefault);
+  const sectionOpenDefault = link.id === "dex" ? isDexPath(pathname) : false;
+  const [open, setOpen] = useState(sectionOpenDefault);
   const parentActive = isSidebarNavActive(link.id, pathname, searchParams);
 
   useEffect(() => {
-    if (dexOpenDefault) setOpen(true);
-  }, [dexOpenDefault]);
+    if (sectionOpenDefault) setOpen(true);
+  }, [sectionOpenDefault]);
 
   if (!link.children?.length) {
     return (

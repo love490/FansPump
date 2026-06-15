@@ -4,15 +4,17 @@
     "target": "ES2022",
     "module": "CommonJS",
     "moduleResolution": "node",
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["../web/src/*"]
+    },
     "rootDir": "src",
     "outDir": "dist",
-    "declaration": false,
-    "sourceMap": true,
-    "noEmit": false,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "strict": true,
     "resolveJsonModule": true,
+    "noEmit": true,
     "types": ["node"]
   },
   "include": ["src/**/*"],

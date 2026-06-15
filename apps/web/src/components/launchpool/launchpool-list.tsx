@@ -1,5 +1,7 @@
 "use client";
 
+import { apiUrl } from "@/lib/api";
+
 import { useCallback, useEffect, useState } from "react";
 import { LaunchpoolCard } from "@/components/launchpool/launchpool-card";
 import { cn } from "@/lib/utils";
@@ -32,7 +34,7 @@ export function LaunchpoolList({
   const load = useCallback(() => {
     setLoading(true);
     setError(null);
-    fetch(`/api/launchpool?status=${tab}`)
+    fetch(apiUrl(`/api/launchpool?status=${tab}`))
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error("Failed to load"))))
       .then((data: { pools?: SerializedLaunchpool[] }) => {
         const rows = data.pools ?? [];

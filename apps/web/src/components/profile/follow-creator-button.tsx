@@ -1,5 +1,7 @@
 "use client";
 
+import { apiUrl } from "@/lib/api";
+
 import { useCallback, useEffect, useState } from "react";
 import { useAccount } from "wagmi";
 import { UserPlus, UserMinus } from "lucide-react";
@@ -30,7 +32,7 @@ export function FollowCreatorButton({ creatorWallet, className, size = "sm" }: F
     }
 
     setLoading(true);
-    fetch(`/api/user/follows?wallet=${viewer}&creator=${creator}`)
+    fetch(apiUrl(`/api/user/follows?wallet=${viewer}&creator=${creator}`))
       .then((r) => r.json())
       .then((data) => setFollowing(Boolean(data.following)))
       .catch(() => setFollowing(false))
@@ -45,7 +47,7 @@ export function FollowCreatorButton({ creatorWallet, className, size = "sm" }: F
     if (!viewer || isSelf || busy) return;
     setBusy(true);
     try {
-      const res = await fetch("/api/user/follows", {
+      const res = await fetch(apiUrl("/api/user/follows"), {
         method: following ? "DELETE" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

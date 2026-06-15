@@ -1,5 +1,7 @@
 "use client";
 
+import { apiUrl } from "@/lib/api";
+
 import { useCallback, useEffect, useState } from "react";
 import type { Address, PublicClient } from "viem";
 import { formatUnits } from "viem";
@@ -140,7 +142,7 @@ export function useTokenLiquidityStats(tokenAddress: string | undefined, tokenDe
 
       let burnAddresses: Address[] = [];
       try {
-        const res = await fetch(`/api/liquidity/${tokenAddress}`);
+        const res = await fetch(apiUrl(`/api/liquidity/${tokenAddress}`));
         if (res.ok) {
           const data = (await res.json()) as { burns?: { burnAddress: string }[] };
           burnAddresses = [

@@ -1,5 +1,7 @@
 "use client";
 
+import { apiUrl } from "@/lib/api";
+
 import { useState } from "react";
 import { useAccount, useSignMessage } from "wagmi";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -38,7 +40,7 @@ export function CreatorQuestSection({
       const prefix = process.env.NEXT_PUBLIC_CREATOR_ACTION_MESSAGE_PREFIX ?? "FansPump Creator Action";
       const message = `${prefix}\nComplete quest: ${questId}\nWallet: ${address.toLowerCase()}\nTime: ${Date.now()}`;
       const signature = await signMessageAsync({ message });
-      const res = await fetch(`/api/quests/${questId}/complete`, {
+      const res = await fetch(apiUrl(`/api/quests/${questId}/complete`), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ walletAddress: address, message, signature }),

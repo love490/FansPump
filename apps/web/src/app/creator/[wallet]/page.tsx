@@ -1,5 +1,7 @@
 "use client";
 
+import { apiUrl } from "@/lib/api";
+
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
@@ -73,9 +75,9 @@ export default function CreatorProfilePage() {
   function loadProfile() {
     if (!wallet) return;
     Promise.all([
-      fetch(`/api/creator/${wallet}`).then((r) => r.json()),
-      fetch(`/api/announcements?creatorWallet=${wallet}&limit=10`).then((r) => r.json()),
-      fetch(`/api/quests?creator=${wallet}`).then((r) => r.json()),
+      fetch(apiUrl(`/api/creator/${wallet}`)).then((r) => r.json()),
+      fetch(apiUrl(`/api/announcements?creatorWallet=${wallet}&limit=10`)).then((r) => r.json()),
+      fetch(apiUrl(`/api/quests?creator=${wallet}`)).then((r) => r.json()),
     ])
       .then(([profileData, annData, questData]) => {
         if (profileData.error) throw new Error(profileData.error);

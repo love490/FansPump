@@ -1,3 +1,4 @@
+import { apiUrl } from "@/lib/api";
 import type { PublicClient } from "viem";
 import type { Address } from "viem";
 import { erc20Abi } from "@/lib/swap/abis";
@@ -33,7 +34,7 @@ export async function resolveTokenByAddress(
   }
 
   try {
-    const r = await fetch(`/api/tokens/${lower}`);
+    const r = await fetch(apiUrl(`/api/tokens/${lower}`));
     if (r.ok) {
       const d = await r.json();
       if (d?.token) {

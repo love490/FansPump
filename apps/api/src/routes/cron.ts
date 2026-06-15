@@ -1,9 +1,31 @@
 import { Router } from "express";
-import { notImplemented, ok } from "../lib/route-utils";
+import { getActiveChainId } from "@/lib/chain-config/opn";
+import { recordDailyMetricsSnapshot, refreshAllTrustScores } from "@/lib/v2/metrics-snapshot";
+import { asyncHandler, requireAnalyticsSyncSecret } from "../lib/http-helpers";
 
 const router = Router();
 
-router.get("/", (req, res) => ok(req, res, "cron"));
-router.post("/metrics-snapshot", notImplemented);
+router.post(
+  "/metrics-snapshot",
+  asyncHandler(async (req, res) => {
+    if (!requireAnalyticsSyncSecret(req, res)) return;
+
+    try {
+      const chainId = getActiveChainId();
+      const [snapshots, trust] = await Promise.all([
+        recordDailyMetricsSnapshot(chainId),
+        refreshAllTrustScores(chainId),
+      ]);
+
+      res.json({ ok: true, snapshots, trust });
+    } catch (e) {
+      console.error("[POST /api/cron/metrics-snapshot]", e);
+      res.status(500).json({
+        error: "Snapshot failed",
+        detail: e instanceof Error ? e.message : String(e),
+      });
+    }
+  })
+);
 
 export default router;

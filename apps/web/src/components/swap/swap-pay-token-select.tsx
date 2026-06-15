@@ -1,5 +1,7 @@
 "use client";
 
+import { apiUrl } from "@/lib/api";
+
 import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { ChevronDown, Loader2, Search } from "lucide-react";
 import { useAccount, useBalance, usePublicClient } from "wagmi";
@@ -117,7 +119,7 @@ export function SwapPayTokenSelect({
 
   useEffect(() => {
     if (!open) return;
-    fetch("/api/tokens?section=new&limit=100")
+    fetch(apiUrl("/api/tokens?section=new&limit=100"))
       .then((r) => r.json())
       .then((d) => setListed(d.tokens ?? []))
       .catch(() => setListed([]));
@@ -212,7 +214,7 @@ export function SwapPayTokenSelect({
       }
 
       try {
-        const r = await fetch(`/api/tokens/${addr}`);
+        const r = await fetch(apiUrl(`/api/tokens/${addr}`));
         if (r.ok) {
           const d = await r.json();
           if (!cancelled && d?.token?.contractAddress) {

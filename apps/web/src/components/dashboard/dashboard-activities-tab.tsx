@@ -1,5 +1,7 @@
 "use client";
 
+import { apiUrl } from "@/lib/api";
+
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useAccount } from "wagmi";
@@ -33,7 +35,7 @@ export function DashboardActivitiesTab() {
       return;
     }
     setLoading(true);
-    fetch(`/api/user/dashboard?wallet=${address.toLowerCase()}`)
+    fetch(apiUrl(`/api/user/dashboard?wallet=${address.toLowerCase()}`))
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => setActivities(d?.activities ?? []))
       .catch(() => setActivities([]))

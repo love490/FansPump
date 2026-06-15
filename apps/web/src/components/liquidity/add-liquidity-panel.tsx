@@ -1,5 +1,7 @@
 "use client";
 
+import { apiUrl } from "@/lib/api";
+
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
@@ -424,7 +426,7 @@ export function AddLiquidityPanel({
                 txHash: addHash,
                 addedAt: new Date().toISOString(),
               });
-              void fetch("/api/pools/sync", {
+              void fetch(apiUrl("/api/pools/sync"), {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ poolAddress: pairAddr.toLowerCase() }),

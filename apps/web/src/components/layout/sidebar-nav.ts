@@ -29,7 +29,7 @@ export type SidebarNavId =
   | "lp-management"
   | "analytics"
   | "staking"
-  | "launchpad"
+  | "launchpool"
   | "support"
   | "advertise"
   | "how-it-works"
@@ -62,6 +62,7 @@ export const platformLinks: SidebarNavItem[] = [
   { id: "create", href: "/create", label: "Create Token", icon: Rocket },
   { id: "discover", href: "/discover?section=all", label: "Discover", icon: Compass },
   { id: "earn", href: "/earn", label: "Earn", icon: CircleDollarSign },
+  { id: "launchpool", href: "/launchpool", label: "Launchpool", icon: Rocket },
   {
     id: "dex",
     href: "/swap",
@@ -119,9 +120,9 @@ export function isSidebarNavActive(
     case "lp-management":
       return pathname === "/liquidity" || pathname.startsWith("/liquidity/");
     case "staking":
-      return pathname === "/staking" && searchParams.get("tab") !== "launchpool";
-    case "launchpad":
-      return pathname === "/staking" && searchParams.get("tab") === "launchpool";
+      return pathname === "/staking";
+    case "launchpool":
+      return pathname === "/launchpool";
     case "support":
       return pathname === "/support";
     case "advertise":

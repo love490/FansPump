@@ -1,5 +1,7 @@
 "use client";
 
+import { apiUrl } from "@/lib/api";
+
 import { useState } from "react";
 import { useAccount, useSignMessage } from "wagmi";
 import { Button } from "@/components/ui/button";
@@ -20,7 +22,7 @@ export default function VerifyPage() {
 
     try {
       const signature = await signMessageAsync({ message });
-      const res = await fetch("/api/verify", {
+      const res = await fetch(apiUrl("/api/verify"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ walletAddress: address, signature, message }),

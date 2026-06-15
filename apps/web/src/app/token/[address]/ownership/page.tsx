@@ -1,5 +1,7 @@
 "use client";
 
+import { apiUrl } from "@/lib/api";
+
 import { useEffect, useState } from "react";
 import { isAddress, getAddress } from "viem";
 import { useParams } from "next/navigation";
@@ -38,7 +40,7 @@ export default function OwnershipPage() {
 
   useEffect(() => {
     if (!renounced || !address) return;
-    fetch(`/api/tokens/${tokenAddress}`, {
+    fetch(apiUrl(`/api/tokens/${tokenAddress}`), {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ walletAddress: address, ownershipRenounced: true }),

@@ -1,5 +1,7 @@
 "use client";
 
+import { apiUrl } from "@/lib/api";
+
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useAccount } from "wagmi";
@@ -52,7 +54,7 @@ export function DashboardStatsPanel() {
       return;
     }
     setLoading(true);
-    fetch(`/api/user/dashboard?wallet=${address.toLowerCase()}`)
+    fetch(apiUrl(`/api/user/dashboard?wallet=${address.toLowerCase()}`))
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => setStats(d?.stats ?? null))
       .catch(() => setStats(null))

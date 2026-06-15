@@ -1,5 +1,7 @@
 "use client";
 
+import { apiUrl } from "@/lib/api";
+
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
@@ -57,7 +59,7 @@ export default function TokenPage() {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 20_000);
 
-    fetch(`/api/tokens/${address}`, { signal: controller.signal })
+    fetch(apiUrl(`/api/tokens/${address}`), { signal: controller.signal })
       .then(async (r) => {
         const data = await r.json().catch(() => null);
         if (!r.ok) {
@@ -103,7 +105,7 @@ export default function TokenPage() {
 
   async function toggleWatchlist() {
     if (!wallet || !token?.id) return;
-    await fetch("/api/watchlist", {
+    await fetch(apiUrl("/api/watchlist"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ tokenId: token.id, walletAddress: wallet }),
