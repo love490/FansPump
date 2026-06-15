@@ -18,7 +18,11 @@ import {
 } from "@/hooks/liquidity/useBasePoolLpPositions";
 import { stakingPositionGroupKey } from "@/lib/staking/position-key";
 import { DefiStatsOverview } from "@/components/defi/defi-stats-overview";
+import { LaunchpoolStakingTab } from "@/components/launchpool/launchpool-staking-tab";
+import { useWalletPortfolioBalance } from "@/hooks/dashboard/useWalletPortfolioBalance";
 import { formatReserve, formatTokenAmount } from "@/lib/defi/format-reserve";
+import { formatBalanceTotal } from "@/lib/dashboard/wallet-balance";
+import { cn } from "@/lib/utils";
 
 type StakingPosition = {
   id: string;
@@ -90,8 +94,10 @@ export default function StakingPage() {
   const { positions: lpPositions, loading: lpLoading, refresh: refreshLp } = useMyLiquidityPositions(address);
   const { positions: basePoolPositions, loading: basePoolLoading, refresh: refreshBasePools } =
     useBasePoolLpPositions(address);
+  const { opnUsdRate } = useWalletPortfolioBalance();
 
   const [positions, setPositions] = useState<StakingPosition[]>([]);
+  const [launchpoolOpnWei, setLaunchpoolOpnWei] = useState(0n);
   const [walletTier, setWalletTier] = useState<string | null>(null);
   const [config, setConfig] = useState<StakingConfig | null>(null);
   const [stakeTarget, setStakeTarget] = useState<StakeTarget>({ kind: "opn" });
@@ -101,6 +107,7 @@ export default function StakingPage() {
   const [unstakeLoadingId, setUnstakeLoadingId] = useState<string | null>(null);
   const [platformStats, setPlatformStats] = useState<PlatformStakingStats | null>(null);
   const [platformStatsLoading, setPlatformStatsLoading] = useState(true);
+  const [pageTab, setPageTab] = useState<"staking" | "launchpool">("staking");
 
   const walletTokenLpPositions = useMemo(
     () => lpPositions.filter((p) => p.lpToken && p.lpBalance > 0n && !p.pending),
@@ -162,6 +169,22 @@ export default function StakingPage() {
         setPositions(d.positions ?? []);
         setWalletTier(d.walletTier ?? null);
       });
+    fetch(`/api/user/dashboard?wallet=${address.toLowerCase()}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        const lpStakes = (d?.launchpoolStakes ?? []) as { assetSymbol: string; amount: string }[];
+        let opn = 0n;
+        for (const stake of lpStakes) {
+          if (stake.assetSymbol?.toUpperCase() !== "OPN") continue;
+          try {
+            opn += BigInt(stake.amount || "0");
+          } catch {
+            /* skip */
+          }
+        }
+        setLaunchpoolOpnWei(opn);
+      })
+      .catch(() => setLaunchpoolOpnWei(0n));
   }
 
   useEffect(() => {
@@ -316,6 +339,13 @@ export default function StakingPage() {
   const lpEnabled = config?.lpStakingEnabled !== false;
   const usdcConfigured = Boolean((process.env.NEXT_PUBLIC_USDC_ADDRESS ?? "").trim());
 
+  const opnRate = opnUsdRate > 0 ? opnUsdRate : 0.25;
+  const platformOpnUsd = platformStats
+    ? Number(formatUnits(BigInt(platformStats.totalStakedOpnWei || "0"), 18)) * opnRate
+    : 0;
+  const personalOpnWei = personalStakeTotals.opnWei + launchpoolOpnWei;
+  const personalOpnUsd = Number(formatUnits(personalOpnWei, 18)) * opnRate;
+
   return (
     <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6 lg:px-8">
       <header className="mb-8">
@@ -323,15 +353,41 @@ export default function StakingPage() {
           <Layers className="h-6 w-6" /> Staking
         </h1>
         <p className="mt-1 text-muted-foreground">
-          Stake OPN, OPN/USDT or OPN/USDC LP, or project token LP. Repeat stakes for the same asset
-          combine into one position.
+          Stake OPN, LP tokens, or join Launchpool campaigns to earn project tokens.
         </p>
-        {walletTier && (
+        <div className="mt-4 flex gap-2">
+          {(
+            [
+              { id: "staking" as const, label: "Pool Share Staking" },
+              { id: "launchpool" as const, label: "Launchpool" },
+            ] as const
+          ).map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setPageTab(tab.id)}
+              className={cn(
+                "rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors sm:text-sm",
+                pageTab === tab.id
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-border bg-background text-muted-foreground hover:border-primary/40"
+              )}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+        {pageTab === "staking" && walletTier && (
           <Badge className="mt-3" variant="secondary">
             Your tier: {STAKING_TIER_LABELS[walletTier as keyof typeof STAKING_TIER_LABELS] ?? walletTier}
           </Badge>
         )}
       </header>
+
+      {pageTab === "launchpool" ? (
+        <LaunchpoolStakingTab />
+      ) : (
+        <>
 
       <DefiStatsOverview
         className="mb-8"
@@ -344,6 +400,9 @@ export default function StakingPage() {
             value: platformStats
               ? formatTokenAmount(platformStats.totalStakedOpnWei, 18, "OPN")
               : "0 OPN",
+            subValue: platformStats
+              ? formatBalanceTotal(platformOpnUsd, "USD")
+              : undefined,
           },
           {
             label: "Total LP staked",
@@ -364,7 +423,9 @@ export default function StakingPage() {
         personalStats={[
           {
             label: "Your OPN staked",
-            value: formatTokenAmount(personalStakeTotals.opnWei.toString(), 18, "OPN"),
+            value: formatTokenAmount(personalOpnWei.toString(), 18, "OPN"),
+            subValue: personalOpnWei > 0n ? formatBalanceTotal(personalOpnUsd, "USD") : undefined,
+            hint: launchpoolOpnWei > 0n ? "Includes Launchpool OPN" : undefined,
           },
           {
             label: "Your LP staked",
@@ -684,6 +745,8 @@ export default function StakingPage() {
           )}
         </CardContent>
       </Card>
+        </>
+      )}
     </div>
   );
 }

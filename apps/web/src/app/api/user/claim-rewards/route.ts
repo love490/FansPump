@@ -4,6 +4,8 @@ import { getPlatformSetting, DEFAULT_SECURITY } from "@/lib/admin/platform-setti
 import { requireCreatorActionAuth, CreatorAuthError } from "@/lib/creator-auth";
 import { getCreatorEarningsTotal } from "@/lib/analytics/queries";
 import { weiToOpnFloat } from "@/lib/analytics/fee-split";
+import { markLaunchpoolRewardsClaimed, getUnclaimedLaunchpoolRewards } from "@/lib/launchpool/rewards";
+import { formatUnits } from "viem";
 import { prisma } from "@iopn/database";
 
 const CLAIM_PREFIX = "FansPump Claim Rewards";
@@ -46,16 +48,34 @@ export async function POST(request: NextRequest) {
       .reduce((sum, p) => sum + Number(p.bounty.rewardAmount || 0), 0);
 
     const creatorOpn = weiToOpnFloat(BigInt(creatorEarningsWei || "0"));
-    const totalOpn = bountyOpn + creatorOpn;
+    const launchpoolRewards = await getUnclaimedLaunchpoolRewards(wallet);
+    const launchpoolSummary = launchpoolRewards.map((reward) => ({
+      symbol: reward.tokenSymbol,
+      amount: formatUnits(BigInt(reward.amount || "0"), 18),
+      pool: reward.launchpool.title,
+    }));
 
-    if (totalOpn <= 0) {
+    const totalOpn = bountyOpn + creatorOpn;
+    const hasLaunchpoolRewards = launchpoolRewards.length > 0;
+
+    if (totalOpn <= 0 && !hasLaunchpoolRewards) {
       return NextResponse.json({ error: "No claimable rewards" }, { status: 400 });
     }
+
+    if (hasLaunchpoolRewards) {
+      await markLaunchpoolRewardsClaimed(wallet);
+    }
+
+    const launchpoolText =
+      launchpoolSummary.length > 0
+        ? ` Launchpool: ${launchpoolSummary.map((r) => `${r.amount} ${r.symbol}`).join(", ")}.`
+        : "";
 
     return NextResponse.json({
       ok: true,
       claimedOpn: totalOpn,
-      message: `Claim submitted for ${totalOpn.toLocaleString(undefined, { maximumFractionDigits: 4 })} OPN. Payout will be processed to your wallet.`,
+      launchpoolRewards: launchpoolSummary,
+      message: `Claim submitted for ${totalOpn > 0 ? `${totalOpn.toLocaleString(undefined, { maximumFractionDigits: 4 })} OPN` : "your launchpool rewards"}${launchpoolText} Payout will be processed to your wallet.`,
     });
   } catch (e) {
     if (e instanceof CreatorAuthError) {

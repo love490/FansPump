@@ -692,3 +692,101 @@ model BountyParticipation {
   @@index([bountyId])
   @@map("bounty_participations")
 }
+
+enum LaunchpoolStatus {
+  ACTIVE
+  ONGOING
+  ENDED
+}
+
+enum ContactInquiryType {
+  SUPPORT
+  ADVERTISE
+}
+
+model Launchpool {
+  id                 String           @id @default(cuid())
+  title              String
+  description        String           @db.Text
+  detailInfo         String           @map("detail_info") @db.Text
+  status             LaunchpoolStatus @default(ACTIVE)
+  rewardTokenSymbol  String           @map("reward_token_symbol")
+  rewardTokenAddress String?          @map("reward_token_address")
+  totalRewardUsd     Float            @map("total_reward_usd")
+  totalRewardAmount  String           @map("total_reward_amount")
+  startAt            DateTime         @map("start_at")
+  endAt              DateTime         @map("end_at")
+  durationLabel      String?          @map("duration_label")
+  isPublished        Boolean          @default(true) @map("is_published")
+  rewardsDistributed Boolean          @default(false) @map("rewards_distributed")
+  createdAt          DateTime         @default(now()) @map("created_at")
+  updatedAt          DateTime         @updatedAt @map("updated_at")
+
+  stakeAssets LaunchpoolStakeAsset[]
+  stakes      LaunchpoolStake[]
+  rewards     LaunchpoolReward[]
+
+  @@index([status, isPublished])
+  @@map("launchpools")
+}
+
+model LaunchpoolStakeAsset {
+  id           String  @id @default(cuid())
+  launchpoolId String  @map("launchpool_id")
+  assetType    String  @map("asset_type")
+  assetAddress String? @map("asset_address")
+  assetSymbol  String  @map("asset_symbol")
+
+  launchpool Launchpool @relation(fields: [launchpoolId], references: [id], onDelete: Cascade)
+
+  @@unique([launchpoolId, assetSymbol, assetAddress])
+  @@map("launchpool_stake_assets")
+}
+
+model LaunchpoolStake {
+  id            String    @id @default(cuid())
+  launchpoolId  String    @map("launchpool_id")
+  walletAddress String    @map("wallet_address")
+  assetType     String    @map("asset_type")
+  assetAddress  String?   @map("asset_address")
+  assetSymbol   String    @map("asset_symbol")
+  amount        String
+  stakedAt      DateTime  @default(now()) @map("staked_at")
+  unstakedAt    DateTime? @map("unstaked_at")
+  isActive      Boolean   @default(true) @map("is_active")
+
+  launchpool Launchpool @relation(fields: [launchpoolId], references: [id], onDelete: Cascade)
+
+  @@index([launchpoolId, walletAddress, isActive])
+  @@map("launchpool_stakes")
+}
+
+model LaunchpoolReward {
+  id            String    @id @default(cuid())
+  launchpoolId  String    @map("launchpool_id")
+  walletAddress String    @map("wallet_address")
+  amount        String
+  tokenSymbol   String    @map("token_symbol")
+  tokenAddress  String?   @map("token_address")
+  accruedAt     DateTime  @default(now()) @map("accrued_at")
+  claimedAt     DateTime? @map("claimed_at")
+
+  launchpool Launchpool @relation(fields: [launchpoolId], references: [id], onDelete: Cascade)
+
+  @@index([walletAddress, claimedAt])
+  @@map("launchpool_rewards")
+}
+
+model ContactInquiry {
+  id        String             @id @default(cuid())
+  type      ContactInquiryType
+  name      String
+  email     String
+  subject   String?
+  message   String             @db.Text
+  wallet    String?            @map("wallet_address")
+  createdAt DateTime           @default(now()) @map("created_at")
+
+  @@index([type, createdAt])
+  @@map("contact_inquiries")
+}

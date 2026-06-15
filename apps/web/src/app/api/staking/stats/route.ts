@@ -1,13 +1,19 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@iopn/database";
 
-/** Public platform-wide staking totals. */
+/** Public platform-wide staking totals (pool share + launchpool OPN). */
 export async function GET() {
   try {
-    const active = await prisma.stakingPosition.findMany({
-      where: { isActive: true },
-      select: { wallet: true, assetType: true, amount: true },
-    });
+    const [active, launchpoolOpn] = await Promise.all([
+      prisma.stakingPosition.findMany({
+        where: { isActive: true },
+        select: { wallet: true, assetType: true, amount: true },
+      }),
+      prisma.launchpoolStake.findMany({
+        where: { isActive: true, assetSymbol: { equals: "OPN", mode: "insensitive" } },
+        select: { walletAddress: true, amount: true },
+      }),
+    ]);
 
     let totalOpnWei = 0n;
     let totalLpAmount = 0n;
@@ -29,10 +35,19 @@ export async function GET() {
       }
     }
 
+    for (const row of launchpoolOpn) {
+      stakers.add(row.walletAddress.toLowerCase());
+      try {
+        totalOpnWei += BigInt(row.amount || "0");
+      } catch {
+        /* skip */
+      }
+    }
+
     return NextResponse.json(
       {
         activeStakers: stakers.size,
-        activeStakePositions: active.length,
+        activeStakePositions: active.length + launchpoolOpn.length,
         totalStakedOpnWei: totalOpnWei.toString(),
         totalStakedLpAmount: totalLpAmount.toString(),
         lpStakeCount,

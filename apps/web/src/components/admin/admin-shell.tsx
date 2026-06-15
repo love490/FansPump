@@ -19,6 +19,7 @@ const NAV: { id: string; label: string; perm: AdminPermission }[] = [
   { id: "categories", label: "Categories", perm: "categories" },
   { id: "announcements", label: "Announcements", perm: "announcements" },
   { id: "staking", label: "Staking Tiers", perm: "staking" },
+  { id: "launchpool", label: "Launchpool", perm: "launchpool" },
   { id: "trust-panel", label: "Trust Panel", perm: "trust_panel" },
   { id: "v2-platform", label: "V2 Platform", perm: "v2_platform" },
   { id: "discovery", label: "Discovery", perm: "discovery" },

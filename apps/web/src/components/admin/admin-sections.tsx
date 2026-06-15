@@ -13,6 +13,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Star, Download, AlertTriangle } from "lucide-react";
 import { useAccount } from "wagmi";
+import { LaunchpoolAdminSection } from "@/components/admin/launchpool-admin-section";
 
 function SaveButton({ saving, onClick }: { saving: boolean; onClick: () => void }) {
   return (
@@ -1020,6 +1021,7 @@ export function AdminSectionRouter({ section }: { section: string }) {
     categories: { perm: "categories", Component: CategoriesSection },
     announcements: { perm: "announcements", Component: AnnouncementsModerationSection },
     staking: { perm: "staking", Component: StakingConfigSection },
+    launchpool: { perm: "launchpool", Component: LaunchpoolAdminSection },
     "trust-panel": { perm: "trust_panel", Component: TrustPanelConfigSection },
     "v2-platform": { perm: "v2_platform", Component: V2PlatformSection },
     discovery: { perm: "discovery", Component: DiscoverySection },

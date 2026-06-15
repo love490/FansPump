@@ -7,6 +7,8 @@ export type DefiStatItem = {
   label: string;
   value: string;
   hint?: string;
+  /** Secondary line shown under value, e.g. USD equivalent. */
+  subValue?: string;
 };
 
 type DefiStatsOverviewProps = {
@@ -42,6 +44,11 @@ function StatGrid({
           <p className="mt-0.5 text-lg font-semibold tabular-nums">
             {loading ? "…" : stat.value}
           </p>
+          {stat.subValue && !loading && (
+            <p className="mt-0.5 text-sm font-medium tabular-nums text-muted-foreground">
+              {stat.subValue}
+            </p>
+          )}
           {stat.hint && (
             <p className="mt-0.5 text-[11px] text-muted-foreground">{stat.hint}</p>
           )}

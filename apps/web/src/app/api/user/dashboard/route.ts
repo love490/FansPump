@@ -10,6 +10,8 @@ import {
 } from "@/lib/dashboard/activities";
 import { consolidateStakingPositions } from "@/lib/staking/consolidate";
 import { serializeStakingPosition } from "@/lib/staking/config";
+import { getUnclaimedLaunchpoolRewards } from "@/lib/launchpool/rewards";
+import { formatUnits } from "viem";
 
 export async function GET(request: NextRequest) {
   const wallet = request.nextUrl.searchParams.get("wallet")?.toLowerCase();
@@ -27,6 +29,7 @@ export async function GET(request: NextRequest) {
       joinedQuests,
       completedParticipations,
       stakingRows,
+      launchpoolStakeRows,
     ] = await Promise.all([
       prisma.tokenProject.findMany({
         where: { creatorAddress: wallet },
@@ -90,6 +93,11 @@ export async function GET(request: NextRequest) {
         where: { wallet, isActive: true },
         orderBy: { stakedAt: "desc" },
       }),
+      prisma.launchpoolStake.findMany({
+        where: { walletAddress: wallet, isActive: true },
+        include: { launchpool: { select: { id: true, title: true } } },
+        orderBy: { stakedAt: "desc" },
+      }),
     ]);
 
     const lockAmountWei = liquidityLocks.reduce((sum, row) => sum + BigInt(row.amount || "0"), 0n);
@@ -110,7 +118,30 @@ export async function GET(request: NextRequest) {
     const creatorEarningsWei = await getCreatorEarningsTotal(wallet);
     const creatorEarningsOpn = weiToOpnFloat(BigInt(creatorEarningsWei || "0"));
 
+    const launchpoolRewards = await getUnclaimedLaunchpoolRewards(wallet);
+    const launchpoolRewardRows = launchpoolRewards.map((reward) => ({
+      id: reward.id,
+      launchpoolId: reward.launchpoolId,
+      launchpoolTitle: reward.launchpool.title,
+      amount: reward.amount,
+      tokenSymbol: reward.tokenSymbol,
+      tokenAddress: reward.tokenAddress,
+      displayAmount: formatUnits(BigInt(reward.amount || "0"), 18),
+      accruedAt: reward.accruedAt.toISOString(),
+    }));
+
     const stakingPositions = stakingRows.map(serializeStakingPosition);
+
+    const launchpoolStakes = launchpoolStakeRows.map((stake) => ({
+      id: stake.id,
+      launchpoolId: stake.launchpoolId,
+      launchpoolTitle: stake.launchpool.title,
+      assetType: stake.assetType,
+      assetSymbol: stake.assetSymbol,
+      assetAddress: stake.assetAddress,
+      amount: stake.amount,
+      stakedAt: stake.stakedAt.toISOString(),
+    }));
 
     const activities: UserActivity[] = [];
 
@@ -124,6 +155,19 @@ export async function GET(request: NextRequest) {
         platform: "FansPump",
         occurredAt: stake.stakedAt.toISOString(),
         href: "/staking",
+      });
+    }
+
+    for (const stake of launchpoolStakeRows) {
+      activities.push({
+        id: `launchpool-stake-${stake.id}`,
+        kind: "stake",
+        title: `Launchpool · ${stake.launchpool.title}`,
+        subtitle: `Staked ${stake.assetSymbol} · redeem anytime`,
+        amount: formatActivityAmount(stake.amount, 18, stake.assetSymbol),
+        platform: "FansPump",
+        occurredAt: stake.stakedAt.toISOString(),
+        href: "/launchpad",
       });
     }
 
@@ -204,9 +248,12 @@ export async function GET(request: NextRequest) {
         rewardsEarned: rewardSummaries,
         rewardsEarnedOpn: opnRewards,
         creatorEarningsOpn,
-        activeStakes: stakingRows.length,
+        activeStakes: stakingRows.length + launchpoolStakeRows.length,
+        launchpoolRewards: launchpoolRewardRows,
       },
       stakingPositions,
+      launchpoolStakes,
+      launchpoolRewards: launchpoolRewardRows,
       activities: sortActivities(activities),
     });
   } catch (e) {

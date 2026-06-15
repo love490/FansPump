@@ -22,6 +22,25 @@ type StakeRow = {
   asset?: string;
 };
 
+type LaunchpoolStakeRow = {
+  id: string;
+  launchpoolTitle: string;
+  assetSymbol: string;
+  amount: string;
+};
+
+function launchpoolStakeUsd(amountWei: string, symbol: string, opnRate: number): number {
+  try {
+    const amount = Number(formatUnits(BigInt(amountWei || "0"), 18));
+    const sym = symbol.toUpperCase();
+    if (sym === "OPN") return amount * opnRate;
+    if (sym === "USDT" || sym === "USDC") return amount;
+    return 0;
+  } catch {
+    return 0;
+  }
+}
+
 export function DashboardDefiTab() {
   const { address } = useAccount();
   const client = usePublicClient();
@@ -29,6 +48,7 @@ export function DashboardDefiTab() {
   const { positions: basePools, loading: baseLoading } = useBasePoolLpPositions(address);
   const { opnUsdRate: portfolioRate } = useWalletPortfolioBalance();
   const [stakes, setStakes] = useState<StakeRow[]>([]);
+  const [launchpoolStakes, setLaunchpoolStakes] = useState<LaunchpoolStakeRow[]>([]);
   const [loadingStakes, setLoadingStakes] = useState(false);
   const [totalInvestedUsd, setTotalInvestedUsd] = useState<number | null>(null);
   const [valuing, setValuing] = useState(false);
@@ -36,13 +56,20 @@ export function DashboardDefiTab() {
   useEffect(() => {
     if (!address) {
       setStakes([]);
+      setLaunchpoolStakes([]);
       return;
     }
     setLoadingStakes(true);
     fetch(`/api/user/dashboard?wallet=${address.toLowerCase()}`)
       .then((r) => (r.ok ? r.json() : null))
-      .then((d) => setStakes(d?.stakingPositions ?? []))
-      .catch(() => setStakes([]))
+      .then((d) => {
+        setStakes(d?.stakingPositions ?? []);
+        setLaunchpoolStakes(d?.launchpoolStakes ?? []);
+      })
+      .catch(() => {
+        setStakes([]);
+        setLaunchpoolStakes([]);
+      })
       .finally(() => setLoadingStakes(false));
   }, [address]);
 
@@ -101,6 +128,10 @@ export function DashboardDefiTab() {
         total += await quoteLpTokenUsd(client, row.lpToken as Address, row.lpBalance);
       }
 
+      for (const stake of launchpoolStakes) {
+        total += launchpoolStakeUsd(stake.amount, stake.assetSymbol, rate);
+      }
+
       if (!cancelled) setTotalInvestedUsd(total);
     })()
       .catch(() => {
@@ -113,7 +144,7 @@ export function DashboardDefiTab() {
     return () => {
       cancelled = true;
     };
-  }, [address, client, stakes, lpRows, portfolioRate]);
+  }, [address, client, stakes, lpRows, launchpoolStakes, portfolioRate]);
 
   const stakeRows = stakes.map((stake) => ({
     id: stake.id,
@@ -123,7 +154,14 @@ export function DashboardDefiTab() {
     href: "/staking",
   }));
 
-  const positionCount = lpRows.length + stakeRows.length;
+  const launchpoolStakeRows = launchpoolStakes.map((stake) => ({
+    id: stake.id,
+    label: `Launchpool · ${stake.launchpoolTitle}`,
+    amount: formatActivityAmount(stake.amount, 18, stake.assetSymbol),
+    href: "/launchpad",
+  }));
+
+  const positionCount = lpRows.length + stakeRows.length + launchpoolStakeRows.length;
   const loading = lpLoading || baseLoading || loadingStakes;
   const summaryLoading = loading || valuing;
 
@@ -197,6 +235,27 @@ export function DashboardDefiTab() {
                       </p>
                     </div>
                     <Badge variant="outline">FansPump</Badge>
+                  </Link>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {launchpoolStakeRows.length > 0 && (
+            <section className="space-y-2">
+              <h3 className="text-sm font-semibold">Launchpool</h3>
+              <div className="space-y-2">
+                {launchpoolStakeRows.map((row) => (
+                  <Link
+                    key={row.id}
+                    href={row.href}
+                    className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border px-3 py-3 transition-colors hover:bg-muted/30"
+                  >
+                    <div>
+                      <p className="font-medium">{row.label}</p>
+                      <p className="text-sm text-muted-foreground">{row.amount}</p>
+                    </div>
+                    <Badge variant="outline">Launchpool</Badge>
                   </Link>
                 ))}
               </div>

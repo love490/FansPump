@@ -19,7 +19,19 @@ type DashboardApi = {
     rewardsEarnedOpn: number;
     creatorEarningsOpn: number;
     questsCompleted: number;
+    launchpoolRewards?: {
+      id: string;
+      launchpoolTitle: string;
+      displayAmount: string;
+      tokenSymbol: string;
+    }[];
   };
+  launchpoolRewards?: {
+    id: string;
+    launchpoolTitle: string;
+    displayAmount: string;
+    tokenSymbol: string;
+  }[];
   stakingPositions?: {
     id: string;
     stakingType: "OPN" | "LP";
@@ -107,6 +119,7 @@ export function DashboardEarningsTab() {
   }, [lpPositions, basePools]);
 
   const stakingRows = data?.stakingPositions ?? [];
+  const launchpoolRewards = data?.launchpoolRewards ?? data?.stats?.launchpoolRewards ?? [];
   const bountyRewards = data?.stats?.rewardsEarned ?? [];
   const opnEarned = data?.stats?.rewardsEarnedOpn ?? 0;
   const creatorEarningsOpn = data?.stats?.creatorEarningsOpn ?? 0;
@@ -116,11 +129,13 @@ export function DashboardEarningsTab() {
   const hasAny =
     stakingRows.length > 0 ||
     bountyRewards.length > 0 ||
+    launchpoolRewards.length > 0 ||
     totalRevenueOpn > 0 ||
     liquidityEarnings.length > 0;
+  const canClaim = totalRevenueOpn > 0 || launchpoolRewards.length > 0;
 
   async function claimRewards() {
-    if (!address || totalRevenueOpn <= 0) return;
+    if (!address || !canClaim) return;
     setClaiming(true);
     setClaimError(null);
     setClaimMessage(null);
@@ -167,7 +182,7 @@ export function DashboardEarningsTab() {
           <Button
             type="button"
             size="sm"
-            disabled={claiming || isLoading || totalRevenueOpn <= 0}
+            disabled={claiming || isLoading || !canClaim}
             onClick={() => void claimRewards()}
           >
             <Gift className="mr-1.5 h-4 w-4" />
@@ -216,6 +231,23 @@ export function DashboardEarningsTab() {
                     </p>
                   </div>
                   <Badge variant="secondary">FansPump · pool share</Badge>
+                </Link>
+              ))}
+            </EarningsSection>
+          )}
+
+          {launchpoolRewards.length > 0 && (
+            <EarningsSection title="Launchpool" href="/launchpad" hrefLabel="View launchpad">
+              {launchpoolRewards.map((reward) => (
+                <Link
+                  key={reward.id}
+                  href="/launchpad"
+                  className="block rounded-lg border border-border px-3 py-3 transition-colors hover:bg-muted/30"
+                >
+                  <p className="font-medium">{reward.launchpoolTitle}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {reward.displayAmount} {reward.tokenSymbol} ready to claim
+                  </p>
                 </Link>
               ))}
             </EarningsSection>
