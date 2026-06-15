@@ -41,6 +41,8 @@ const nextConfig: NextConfig = {
     return [
       { source: "/app", destination: "/", permanent: true },
       { source: "/home", destination: "/", permanent: true },
+      { source: "/my-liquidity", destination: "/liquidity", permanent: true },
+      { source: "/launchpad", destination: "/staking?tab=launchpool", permanent: true },
     ];
   },
   async headers() {

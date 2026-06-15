@@ -112,7 +112,7 @@ export function DashboardEarningsTab() {
         id: `base-${p.poolId}`,
         label: p.pairLabel,
         detail: `${formatUnits(p.lpBalance, p.lpDecimals)} LP · OPN Network pool`,
-        href: "/my-liquidity",
+        href: "/liquidity",
       });
     }
     return rows;
@@ -237,11 +237,11 @@ export function DashboardEarningsTab() {
           )}
 
           {launchpoolRewards.length > 0 && (
-            <EarningsSection title="Launchpool" href="/launchpad" hrefLabel="View launchpad">
+            <EarningsSection title="Launchpool" href="/staking?tab=launchpool" hrefLabel="View launchpools">
               {launchpoolRewards.map((reward) => (
                 <Link
                   key={reward.id}
-                  href="/launchpad"
+                  href="/staking?tab=launchpool"
                   className="block rounded-lg border border-border px-3 py-3 transition-colors hover:bg-muted/30"
                 >
                   <p className="font-medium">{reward.launchpoolTitle}</p>
@@ -278,7 +278,7 @@ export function DashboardEarningsTab() {
           )}
 
           {liquidityEarnings.length > 0 && (
-            <EarningsSection title="Liquidity" href="/my-liquidity" hrefLabel="Manage liquidity">
+            <EarningsSection title="Liquidity" href="/liquidity" hrefLabel="Manage liquidity">
               {liquidityEarnings.map((row) => (
                 <Link
                   key={row.id}

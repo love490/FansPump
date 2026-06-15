@@ -167,7 +167,7 @@ export async function GET(request: NextRequest) {
         amount: formatActivityAmount(stake.amount, 18, stake.assetSymbol),
         platform: "FansPump",
         occurredAt: stake.stakedAt.toISOString(),
-        href: "/launchpad",
+        href: "/staking?tab=launchpool",
       });
     }
 

@@ -99,7 +99,7 @@ export function DashboardDefiTab() {
           label: p.pairLabel,
           amount: `${formatUnits(p.lpBalance, p.lpDecimals)} LP`,
           platform: "OPN Network",
-          href: "/my-liquidity",
+          href: "/liquidity",
           lpToken: p.lpToken,
           lpBalance: p.lpBalance,
         })),
@@ -185,7 +185,7 @@ export function DashboardDefiTab() {
 
       <div className="flex flex-wrap gap-2">
         <Button asChild size="sm" variant="outline">
-          <Link href="/my-liquidity">Manage liquidity</Link>
+          <Link href="/liquidity">Manage liquidity</Link>
         </Button>
         <Button asChild size="sm" variant="outline">
           <Link href="/staking">Manage staking</Link>

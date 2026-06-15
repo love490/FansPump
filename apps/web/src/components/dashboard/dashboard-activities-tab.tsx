@@ -68,7 +68,7 @@ export function DashboardActivitiesTab() {
         amount: `${formatUnits(pool.lpBalance, pool.lpDecimals)} LP`,
         platform: "OPN Network",
         occurredAt: now,
-        href: "/my-liquidity",
+        href: "/liquidity",
       });
     }
 

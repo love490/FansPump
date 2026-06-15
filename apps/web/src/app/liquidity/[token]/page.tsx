@@ -513,7 +513,7 @@ export default function LiquidityModulePage() {
             <CardTitle>No LP pair found</CardTitle>
             <CardDescription>
               No {tokenMeta?.symbol ?? "token"}/{pairMeta.symbol} pool yet. Add liquidity on{" "}
-              <Link href="/my-liquidity" className="text-primary hover:underline">
+              <Link href="/liquidity" className="text-primary hover:underline">
                 My Liquidity
               </Link>
               .

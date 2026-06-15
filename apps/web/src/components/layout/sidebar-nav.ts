@@ -50,10 +50,10 @@ export type SidebarNavItem = {
 
 export const dexNavChildren: SidebarNavItem[] = [
   { id: "swap", href: "/swap", label: "Swap", icon: ArrowLeftRight },
-  { id: "my-liquidity", href: "/my-liquidity", label: "Liquidity", icon: Droplets },
+  { id: "my-liquidity", href: "/liquidity", label: "Liquidity", icon: Droplets },
   { id: "pools", href: "/pools", label: "Pool", icon: Layers },
   { id: "staking", href: "/staking", label: "Staking", icon: Layers },
-  { id: "launchpad", href: "/launchpad", label: "Launchpad", icon: Rocket },
+  { id: "launchpad", href: "/staking?tab=launchpool", label: "Launchpool", icon: Rocket },
 ];
 
 /** @deprecated Use dexNavChildren */
@@ -116,11 +116,11 @@ export function isSidebarNavActive(
       return pathname === "/pools" || pathname.startsWith("/pools/");
     case "my-liquidity":
     case "lp-management":
-      return pathname === "/my-liquidity" || pathname.startsWith("/liquidity/");
+      return pathname === "/liquidity" || pathname.startsWith("/liquidity/");
     case "staking":
-      return pathname === "/staking";
+      return pathname === "/staking" && searchParams.get("tab") !== "launchpool";
     case "launchpad":
-      return pathname === "/launchpad";
+      return pathname === "/staking" && searchParams.get("tab") === "launchpool";
     case "support":
       return pathname === "/support";
     case "advertise":

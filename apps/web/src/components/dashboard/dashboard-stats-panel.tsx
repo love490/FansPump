@@ -74,7 +74,7 @@ export function DashboardStatsPanel() {
       value: lpLoading ? "…" : String(activeLpCount),
       detail: "Live LP on OPNChain",
       icon: Droplets,
-      href: "/my-liquidity",
+      href: "/liquidity",
     },
     {
       label: "Liquidity locked",
@@ -83,7 +83,7 @@ export function DashboardStatsPanel() {
         ? `${formatLockAmount(stats.liquidityLockedAmount)} LP locked`
         : "No LP locks yet",
       icon: Lock,
-      href: "/my-liquidity",
+      href: "/liquidity",
     },
     {
       label: "Quests completed",
@@ -149,7 +149,7 @@ export function DashboardStatsPanel() {
 
         <div className="mt-4 flex flex-wrap gap-2">
           <Button asChild variant="outline" size="sm">
-            <Link href="/my-liquidity">Manage liquidity</Link>
+            <Link href="/liquidity">Manage liquidity</Link>
           </Button>
           <Button asChild variant="outline" size="sm">
             <Link href="/earn">View quests</Link>

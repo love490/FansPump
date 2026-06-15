@@ -24,9 +24,10 @@ type DefiStatsOverviewProps = {
   isConnected?: boolean;
   connectMessage?: string;
   className?: string;
+  showPersonal?: boolean;
 };
 
-function StatGrid({
+export function StatGrid({
   stats,
   loading,
 }: {
@@ -71,9 +72,10 @@ export function DefiStatsOverview({
   isConnected = true,
   connectMessage = "Connect your wallet to see your personal totals.",
   className,
+  showPersonal = true,
 }: DefiStatsOverviewProps) {
   return (
-    <div className={cn("grid gap-4 md:grid-cols-2", className)}>
+    <div className={cn("grid gap-4", showPersonal ? "md:grid-cols-2" : "grid-cols-1", className)}>
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base">{platformTitle}</CardTitle>
@@ -84,6 +86,7 @@ export function DefiStatsOverview({
         </CardContent>
       </Card>
 
+      {showPersonal && (
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base">{personalTitle}</CardTitle>
@@ -99,6 +102,7 @@ export function DefiStatsOverview({
           )}
         </CardContent>
       </Card>
+      )}
     </div>
   );
 }

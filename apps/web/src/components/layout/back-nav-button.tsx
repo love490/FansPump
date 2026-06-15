@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
-import { ArrowRight } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -36,7 +36,7 @@ export function BackNavButton({ className }: { className?: string }) {
       onClick={goBack}
       aria-label="Go back to previous page"
     >
-      <ArrowRight className="h-4 w-4" strokeWidth={2.25} />
+      <ArrowLeft className="h-4 w-4" strokeWidth={2.25} />
     </Button>
   );
 }

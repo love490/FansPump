@@ -94,7 +94,7 @@ export function DashboardActivityFeed() {
         amount: `${formatUnits(pool.lpBalance, pool.lpDecimals)} LP`,
         platform: "OPN Network",
         occurredAt: now,
-        href: "/my-liquidity",
+        href: "/liquidity",
       });
     }
 
@@ -201,7 +201,7 @@ export function DashboardActivityFeed() {
             <Link href="/staking">Staking</Link>
           </Button>
           <Button asChild variant="outline" size="sm">
-            <Link href="/my-liquidity">Liquidity</Link>
+            <Link href="/liquidity">Liquidity</Link>
           </Button>
           <Button asChild variant="outline" size="sm">
             <Link href="/earn">Quests</Link>

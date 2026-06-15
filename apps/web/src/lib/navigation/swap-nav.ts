@@ -22,8 +22,8 @@ export type DexNavLink = {
 /** Home page DEX grid — includes LP Management; Pool covers analytics. */
 export const dexNavLinks: DexNavLink[] = [
   { id: "swap", href: "/swap", label: "Swap", icon: ArrowLeftRight },
-  { id: "liquidity", href: "/my-liquidity", label: "Liquidity", icon: Droplets },
-  { id: "lp-management", href: "/my-liquidity", label: "LP Management", icon: Wallet },
+  { id: "liquidity", href: "/liquidity", label: "Liquidity", icon: Droplets },
+  { id: "lp-management", href: "/liquidity", label: "LP Management", icon: Wallet },
   { id: "pool", href: "/pools", label: "Pool", icon: Layers },
   { id: "staking", href: "/staking", label: "Staking", icon: Layers },
 ];
@@ -31,7 +31,7 @@ export const dexNavLinks: DexNavLink[] = [
 /** Header / sidebar DEX menu — no LP Management or Analytics (same as Pool). */
 export const dexMenuNavLinks: DexNavLink[] = [
   { id: "swap", href: "/swap", label: "Swap", icon: ArrowLeftRight },
-  { id: "liquidity", href: "/my-liquidity", label: "Liquidity", icon: Droplets },
+  { id: "liquidity", href: "/liquidity", label: "Liquidity", icon: Droplets },
   { id: "pool", href: "/pools", label: "Pool", icon: Layers },
   { id: "staking", href: "/staking", label: "Staking", icon: Layers },
 ];
@@ -43,7 +43,7 @@ export function isDexPath(pathname: string): boolean {
   return (
     pathname === "/swap" ||
     pathname.startsWith("/swap/") ||
-    pathname === "/my-liquidity" ||
+    pathname === "/liquidity" ||
     pathname.startsWith("/liquidity/") ||
     pathname === "/pools" ||
     pathname.startsWith("/pools/") ||

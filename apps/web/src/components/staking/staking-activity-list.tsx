@@ -60,7 +60,7 @@ export function launchpoolStakeToActivityRow(stake: {
     label: `Launchpool · ${stake.launchpoolTitle}`,
     amount: formatActivityAmount(stake.amount, 18, stake.assetSymbol),
     detail: `Since ${new Date(stake.stakedAt).toLocaleDateString()}`,
-    href: "/launchpad",
+    href: "/staking?tab=launchpool",
     badge: "Launchpool",
   };
 }

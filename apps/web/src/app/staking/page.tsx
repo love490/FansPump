@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useAccount, useBalance, useSignMessage } from "wagmi";
 import { formatUnits, parseEther, parseUnits } from "viem";
 import { STAKING_TIER_LABELS, STAKING_TIERS, type SupportedLpPool } from "@iopn/shared";
@@ -53,6 +54,8 @@ type StakeTarget =
   | { kind: "base"; pool: BasePoolLpPosition }
   | { kind: "token"; lp: MyLiquidityPosition };
 
+type LpPoolChoice = "opn-usdt" | "opn-usdc" | "project";
+
 function lpPositionKey(p: MyLiquidityPosition) {
   return `${p.lpToken}:${p.tokenAddress}:${p.pairId}`;
 }
@@ -93,6 +96,37 @@ type PlatformStakingStats = {
 };
 
 export default function StakingPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6 lg:px-8">
+          <div className="h-24 animate-pulse rounded-lg bg-muted" />
+        </div>
+      }
+    >
+      <StakingContent />
+    </Suspense>
+  );
+}
+
+function StakingContent() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const pageTab: "staking" | "launchpool" =
+    searchParams.get("tab") === "launchpool" ? "launchpool" : "staking";
+
+  function selectPageTab(tab: "staking" | "launchpool") {
+    const params = new URLSearchParams(searchParams.toString());
+    if (tab === "launchpool") {
+      params.set("tab", "launchpool");
+    } else {
+      params.delete("tab");
+    }
+    const qs = params.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+  }
+
   const { address, isConnected } = useAccount();
   const { signMessageAsync } = useSignMessage();
   const { data: nativeBalance } = useBalance({ address });
@@ -121,7 +155,8 @@ export default function StakingPage() {
   const [unstakeLoadingId, setUnstakeLoadingId] = useState<string | null>(null);
   const [platformStats, setPlatformStats] = useState<PlatformStakingStats | null>(null);
   const [platformStatsLoading, setPlatformStatsLoading] = useState(true);
-  const [pageTab, setPageTab] = useState<"staking" | "launchpool">("staking");
+  const [lpPoolChoice, setLpPoolChoice] = useState<LpPoolChoice>("opn-usdt");
+  const [selectedProjectLpKey, setSelectedProjectLpKey] = useState("");
 
   const walletTokenLpPositions = useMemo(
     () => lpPositions.filter((p) => p.lpToken && p.lpBalance > 0n && !p.pending),
@@ -169,10 +204,28 @@ export default function StakingPage() {
     return { opnWei, lpWei, lpCount, positions: groupedPositions.length };
   }, [groupedPositions]);
 
-  useEffect(() => {
-    if (walletTokenLpPositions.length === 1) {
-      setStakeTarget({ kind: "token", lp: walletTokenLpPositions[0] });
+  const selectedProjectLp = useMemo(() => {
+    if (walletTokenLpPositions.length === 0) return null;
+    if (selectedProjectLpKey) {
+      return (
+        walletTokenLpPositions.find((p) => lpPositionKey(p) === selectedProjectLpKey) ??
+        walletTokenLpPositions[0]
+      );
     }
+    return walletTokenLpPositions[0];
+  }, [walletTokenLpPositions, selectedProjectLpKey]);
+
+  useEffect(() => {
+    if (walletTokenLpPositions.length === 0) {
+      setSelectedProjectLpKey("");
+      return;
+    }
+    setSelectedProjectLpKey((current) => {
+      if (current && walletTokenLpPositions.some((p) => lpPositionKey(p) === current)) {
+        return current;
+      }
+      return lpPositionKey(walletTokenLpPositions[0]);
+    });
   }, [walletTokenLpPositions]);
 
   function load() {
@@ -406,7 +459,7 @@ export default function StakingPage() {
             <button
               key={tab.id}
               type="button"
-              onClick={() => setPageTab(tab.id)}
+              onClick={() => selectPageTab(tab.id)}
               className={cn(
                 "rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors sm:text-sm",
                 pageTab === tab.id
@@ -436,8 +489,8 @@ export default function StakingPage() {
       <DefiStatsOverview
         className="mb-8"
         platformDescription="Total OPN and LP recorded as staked on FansPump."
-        personalTitle="Your activity"
-        personalDescription="Pool share staking, Launchpool stakes, and your tier."
+        personalTitle="Your totals"
+        personalDescription="Combined OPN, LP, and tier from pool share and Launchpool stakes."
         platformLoading={platformStatsLoading}
         platformStats={[
           {
@@ -540,179 +593,85 @@ export default function StakingPage() {
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Stake OPN / USDT &amp; OPN / USDC LP</CardTitle>
-              <CardDescription>
-                Base pool LP tokens — independent of project token stakes.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {basePoolLoading ? (
-                <p className="text-sm text-muted-foreground">Checking OPN/USDT and OPN/USDC LP balances…</p>
-              ) : (
-                <>
-                  <BasePoolStakeRow
-                    poolId="opn-usdt"
-                    label="OPN/USDT"
-                    pool={basePoolPositions.find((p) => p.poolId === "opn-usdt") ?? null}
-                    active={stakeTarget.kind === "base" && stakeTarget.pool.poolId === "opn-usdt"}
-                    amount={stakeTarget.kind === "base" && stakeTarget.pool.poolId === "opn-usdt" ? amount : ""}
-                    onSelect={() => {
-                      const pool = basePoolPositions.find((p) => p.poolId === "opn-usdt");
-                      if (pool) {
-                        setStakeTarget({ kind: "base", pool });
-                        setAmount("");
-                      }
-                    }}
-                    onAmountChange={(value) => {
-                      const pool = basePoolPositions.find((p) => p.poolId === "opn-usdt");
-                      if (pool) {
-                        setStakeTarget({ kind: "base", pool });
-                        setAmount(value);
-                      }
-                    }}
-                    onMax={() => {
-                      const pool = basePoolPositions.find((p) => p.poolId === "opn-usdt");
-                      if (pool) {
-                        setStakeTarget({ kind: "base", pool });
-                        setAmount(formatUnits(pool.lpBalance, pool.lpDecimals));
-                      }
-                    }}
-                    onStake={() => {
-                      const pool = basePoolPositions.find((p) => p.poolId === "opn-usdt");
-                      if (pool) void stake({ kind: "base", pool });
-                    }}
-                    staking={loading && stakeTarget.kind === "base" && stakeTarget.pool.poolId === "opn-usdt"}
-                    disabled={!lpEnabled || !basePoolPositions.some((p) => p.poolId === "opn-usdt")}
-                  />
-                  <BasePoolStakeRow
-                    poolId="opn-usdc"
-                    label="OPN/USDC"
-                    pool={basePoolPositions.find((p) => p.poolId === "opn-usdc") ?? null}
-                    active={stakeTarget.kind === "base" && stakeTarget.pool.poolId === "opn-usdc"}
-                    amount={stakeTarget.kind === "base" && stakeTarget.pool.poolId === "opn-usdc" ? amount : ""}
-                    onSelect={() => {
-                      const pool = basePoolPositions.find((p) => p.poolId === "opn-usdc");
-                      if (pool) {
-                        setStakeTarget({ kind: "base", pool });
-                        setAmount("");
-                      }
-                    }}
-                    onAmountChange={(value) => {
-                      const pool = basePoolPositions.find((p) => p.poolId === "opn-usdc");
-                      if (pool) {
-                        setStakeTarget({ kind: "base", pool });
-                        setAmount(value);
-                      }
-                    }}
-                    onMax={() => {
-                      const pool = basePoolPositions.find((p) => p.poolId === "opn-usdc");
-                      if (pool) {
-                        setStakeTarget({ kind: "base", pool });
-                        setAmount(formatUnits(pool.lpBalance, pool.lpDecimals));
-                      }
-                    }}
-                    onStake={() => {
-                      const pool = basePoolPositions.find((p) => p.poolId === "opn-usdc");
-                      if (pool) void stake({ kind: "base", pool });
-                    }}
-                    staking={loading && stakeTarget.kind === "base" && stakeTarget.pool.poolId === "opn-usdc"}
-                    disabled={!lpEnabled || !usdcConfigured || !basePoolPositions.some((p) => p.poolId === "opn-usdc")}
-                    unavailableNote={
-                      !usdcConfigured
-                        ? "Set NEXT_PUBLIC_USDC_ADDRESS to enable OPN/USDC LP staking."
-                        : "No OPN/USDC LP in wallet — add liquidity first."
-                    }
-                  />
-                </>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Stake project token LP</CardTitle>
-              <CardDescription>LP tokens from your project pairs (OPN, WOPN, or USDT).</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {lpLoading ? (
-                <p className="text-sm text-muted-foreground">Scanning wallet for token LP…</p>
-              ) : walletTokenLpPositions.length === 0 ? (
-                <p className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
-                  No project token LP found. Add liquidity on a token page, then return here to stake.
-                </p>
-              ) : walletTokenLpPositions.length === 1 ? (
-                <TokenLpStakeBlock
-                  lp={walletTokenLpPositions[0]}
-                  active={stakeTarget.kind === "token" && lpPositionKey(stakeTarget.lp) === lpPositionKey(walletTokenLpPositions[0])}
-                  amount={
-                    stakeTarget.kind === "token" &&
-                    lpPositionKey(stakeTarget.lp) === lpPositionKey(walletTokenLpPositions[0])
-                      ? amount
-                      : ""
-                  }
-                  onFocus={() => {
-                    setStakeTarget({ kind: "token", lp: walletTokenLpPositions[0] });
-                    setAmount("");
-                  }}
-                  onAmountChange={(value) => {
-                    setStakeTarget({ kind: "token", lp: walletTokenLpPositions[0] });
-                    setAmount(value);
-                  }}
-                  onMax={() => {
-                    setStakeTarget({ kind: "token", lp: walletTokenLpPositions[0] });
-                    setAmount(formatUnits(walletTokenLpPositions[0].lpBalance, walletTokenLpPositions[0].lpDecimals));
-                  }}
-                  onStake={() => void stake({ kind: "token", lp: walletTokenLpPositions[0] })}
-                  staking={
-                    loading &&
-                    stakeTarget.kind === "token" &&
-                    lpPositionKey(stakeTarget.lp) === lpPositionKey(walletTokenLpPositions[0])
-                  }
-                  disabled={!lpEnabled}
-                />
-              ) : (
-                <div className="space-y-3">
-                  <Label>Select token LP</Label>
-                  <select
-                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                    value={
-                      stakeTarget.kind === "token" ? lpPositionKey(stakeTarget.lp) : lpPositionKey(walletTokenLpPositions[0])
-                    }
-                    onChange={(e) => {
-                      const lp = walletTokenLpPositions.find((p) => lpPositionKey(p) === e.target.value);
-                      if (lp) {
-                        setStakeTarget({ kind: "token", lp });
-                        setAmount("");
-                      }
-                    }}
-                  >
-                    {walletTokenLpPositions.map((p) => (
-                      <option key={lpPositionKey(p)} value={lpPositionKey(p)}>
-                        {p.tokenSymbol} / {p.pairLabel} — {formatUnits(p.lpBalance, p.lpDecimals)} LP
-                      </option>
-                    ))}
-                  </select>
-                  {stakeTarget.kind === "token" && (
-                    <StakeAmountRow
-                      label="Amount (LP)"
-                      amount={amount}
-                      onAmountChange={setAmount}
-                      onMax={setStakeMax}
-                      onStake={() => {
-                        if (stakeTarget.kind === "token") void stake({ kind: "token", lp: stakeTarget.lp });
-                      }}
-                      staking={loading}
-                      disabled={!lpEnabled || loading || !amount}
-                      stakeLabel={loading ? "Staking…" : "Stake LP"}
-                      showStakeButton
-                    />
-                  )}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          <LpStakeCard
+            lpPoolChoice={lpPoolChoice}
+            onLpPoolChoiceChange={(choice) => {
+              setLpPoolChoice(choice);
+              setAmount("");
+              if (choice === "opn-usdt") {
+                const pool = basePoolPositions.find((p) => p.poolId === "opn-usdt");
+                if (pool) setStakeTarget({ kind: "base", pool });
+              } else if (choice === "opn-usdc") {
+                const pool = basePoolPositions.find((p) => p.poolId === "opn-usdc");
+                if (pool) setStakeTarget({ kind: "base", pool });
+              } else if (selectedProjectLp) {
+                setStakeTarget({ kind: "token", lp: selectedProjectLp });
+              }
+            }}
+            basePoolLoading={basePoolLoading}
+            lpLoading={lpLoading}
+            basePoolPositions={basePoolPositions}
+            walletTokenLpPositions={walletTokenLpPositions}
+            selectedProjectLpKey={selectedProjectLpKey}
+            onSelectedProjectLpKeyChange={(key) => {
+              setSelectedProjectLpKey(key);
+              setAmount("");
+              const lp = walletTokenLpPositions.find((p) => lpPositionKey(p) === key);
+              if (lp) setStakeTarget({ kind: "token", lp });
+            }}
+            selectedProjectLp={selectedProjectLp}
+            amount={amount}
+            onAmountChange={(value) => {
+              if (lpPoolChoice === "project" && selectedProjectLp) {
+                setStakeTarget({ kind: "token", lp: selectedProjectLp });
+              } else if (lpPoolChoice === "opn-usdt") {
+                const pool = basePoolPositions.find((p) => p.poolId === "opn-usdt");
+                if (pool) setStakeTarget({ kind: "base", pool });
+              } else {
+                const pool = basePoolPositions.find((p) => p.poolId === "opn-usdc");
+                if (pool) setStakeTarget({ kind: "base", pool });
+              }
+              setAmount(value);
+            }}
+            onMax={() => {
+              if (lpPoolChoice === "project" && selectedProjectLp) {
+                setStakeTarget({ kind: "token", lp: selectedProjectLp });
+                setAmount(
+                  formatUnits(selectedProjectLp.lpBalance, selectedProjectLp.lpDecimals)
+                );
+                return;
+              }
+              if (lpPoolChoice === "opn-usdt") {
+                const pool = basePoolPositions.find((p) => p.poolId === "opn-usdt");
+                if (pool) {
+                  setStakeTarget({ kind: "base", pool });
+                  setAmount(formatUnits(pool.lpBalance, pool.lpDecimals));
+                }
+                return;
+              }
+              const pool = basePoolPositions.find((p) => p.poolId === "opn-usdc");
+              if (pool) {
+                setStakeTarget({ kind: "base", pool });
+                setAmount(formatUnits(pool.lpBalance, pool.lpDecimals));
+              }
+            }}
+            onStake={() => {
+              if (lpPoolChoice === "project" && selectedProjectLp) {
+                void stake({ kind: "token", lp: selectedProjectLp });
+                return;
+              }
+              if (lpPoolChoice === "opn-usdt") {
+                const pool = basePoolPositions.find((p) => p.poolId === "opn-usdt");
+                if (pool) void stake({ kind: "base", pool });
+                return;
+              }
+              const pool = basePoolPositions.find((p) => p.poolId === "opn-usdc");
+              if (pool) void stake({ kind: "base", pool });
+            }}
+            staking={loading && stakeTarget.kind !== "opn"}
+            disabled={!lpEnabled}
+            usdcConfigured={usdcConfigured}
+          />
         </div>
       )}
 
@@ -863,110 +822,141 @@ function StakeAmountRow({
   );
 }
 
-function BasePoolStakeRow({
-  label,
-  pool,
-  active,
+function LpStakeCard({
+  lpPoolChoice,
+  onLpPoolChoiceChange,
+  basePoolLoading,
+  lpLoading,
+  basePoolPositions,
+  walletTokenLpPositions,
+  selectedProjectLpKey,
+  onSelectedProjectLpKeyChange,
+  selectedProjectLp,
   amount,
-  onSelect,
   onAmountChange,
   onMax,
   onStake,
   staking,
   disabled,
-  unavailableNote,
+  usdcConfigured,
 }: {
-  poolId: string;
-  label: string;
-  pool: BasePoolLpPosition | null;
-  active: boolean;
+  lpPoolChoice: LpPoolChoice;
+  onLpPoolChoiceChange: (choice: LpPoolChoice) => void;
+  basePoolLoading: boolean;
+  lpLoading: boolean;
+  basePoolPositions: BasePoolLpPosition[];
+  walletTokenLpPositions: MyLiquidityPosition[];
+  selectedProjectLpKey: string;
+  onSelectedProjectLpKeyChange: (key: string) => void;
+  selectedProjectLp: MyLiquidityPosition | null;
   amount: string;
-  onSelect: () => void;
   onAmountChange: (value: string) => void;
   onMax: () => void;
   onStake: () => void;
   staking: boolean;
   disabled: boolean;
-  unavailableNote?: string;
+  usdcConfigured: boolean;
 }) {
-  return (
-    <div
-      className={`rounded-lg border p-3 ${active ? "border-primary/40 bg-primary/5" : "border-border"}`}
-      onFocus={onSelect}
-    >
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div>
-          <p className="font-medium">{label} LP</p>
-          {pool ? (
-            <p className="text-sm text-muted-foreground">
-              Balance: {formatUnits(pool.lpBalance, pool.lpDecimals)} LP
-            </p>
-          ) : (
-            <p className="text-sm text-muted-foreground">{unavailableNote ?? "No LP in wallet."}</p>
-          )}
-        </div>
-      </div>
-      {pool && (
-        <div className="mt-3 space-y-3" onClick={onSelect}>
-          <StakeAmountRow
-            label="Amount (LP)"
-            amount={amount}
-            onAmountChange={onAmountChange}
-            onMax={onMax}
-            onStake={onStake}
-            staking={staking}
-            disabled={disabled}
-            stakeLabel={staking ? "Staking…" : `Stake ${label} LP`}
-            showStakeButton={active}
-          />
-        </div>
-      )}
-    </div>
-  );
-}
+  const opnUsdtPool = basePoolPositions.find((p) => p.poolId === "opn-usdt") ?? null;
+  const opnUsdcPool = basePoolPositions.find((p) => p.poolId === "opn-usdc") ?? null;
 
-function TokenLpStakeBlock({
-  lp,
-  active,
-  amount,
-  onFocus,
-  onAmountChange,
-  onMax,
-  onStake,
-  staking,
-  disabled,
-}: {
-  lp: MyLiquidityPosition;
-  active: boolean;
-  amount: string;
-  onFocus: () => void;
-  onAmountChange: (value: string) => void;
-  onMax: () => void;
-  onStake: () => void;
-  staking: boolean;
-  disabled: boolean;
-}) {
+  const lpBalance =
+    lpPoolChoice === "project" && selectedProjectLp
+      ? { value: selectedProjectLp.lpBalance, decimals: selectedProjectLp.lpDecimals }
+      : lpPoolChoice === "opn-usdt" && opnUsdtPool
+        ? { value: opnUsdtPool.lpBalance, decimals: opnUsdtPool.lpDecimals }
+        : lpPoolChoice === "opn-usdc" && opnUsdcPool
+          ? { value: opnUsdcPool.lpBalance, decimals: opnUsdcPool.lpDecimals }
+          : null;
+
+  const balanceLabel =
+    lpPoolChoice === "project" && selectedProjectLp
+      ? `${selectedProjectLp.tokenSymbol} / ${selectedProjectLp.pairLabel}`
+      : lpPoolChoice === "opn-usdt"
+        ? "OPN/USDT"
+        : "OPN/USDC";
+
+  const emptyMessage =
+    lpPoolChoice === "project"
+      ? "No project token LP found. Add liquidity on a token page, then return here to stake."
+      : lpPoolChoice === "opn-usdc" && !usdcConfigured
+        ? "Set NEXT_PUBLIC_USDC_ADDRESS to enable OPN/USDC LP staking."
+        : `No ${balanceLabel} LP in wallet — add liquidity first.`;
+
   return (
-    <div className="space-y-3" onFocus={onFocus}>
-      <div className="rounded-lg border border-border bg-muted/30 px-3 py-2 text-sm">
-        <p className="font-medium">
-          {lp.tokenSymbol} / {lp.pairLabel}
-        </p>
-        <p className="text-muted-foreground">
-          Balance: {formatUnits(lp.lpBalance, lp.lpDecimals)} LP
-        </p>
-      </div>
-      <StakeAmountRow
-        label="Amount (LP)"
-        amount={amount}
-        onAmountChange={onAmountChange}
-        onMax={onMax}
-        onStake={onStake}
-        staking={staking}
-        disabled={disabled || staking || !amount}
-        stakeLabel={staking ? "Staking…" : "Stake LP"}
-        showStakeButton
-      />
-    </div>
+    <Card>
+      <CardHeader>
+        <CardTitle>Stake LP</CardTitle>
+        <CardDescription>OPN/USDT, OPN/USDC, or project token pair LP.</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {basePoolLoading || lpLoading ? (
+          <p className="text-sm text-muted-foreground">Checking wallet LP balances…</p>
+        ) : (
+          <>
+            <div className="space-y-2">
+              <Label htmlFor="lp-pool-choice">LP pool</Label>
+              <select
+                id="lp-pool-choice"
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                value={lpPoolChoice}
+                onChange={(e) => onLpPoolChoiceChange(e.target.value as LpPoolChoice)}
+              >
+                <option value="opn-usdt">OPN/USDT LP</option>
+                <option value="opn-usdc" disabled={!usdcConfigured}>
+                  OPN/USDC LP
+                </option>
+                <option value="project">Project pair LP</option>
+              </select>
+            </div>
+
+            {lpPoolChoice === "project" && walletTokenLpPositions.length > 1 && (
+              <div className="space-y-2">
+                <Label htmlFor="project-lp-choice">Project pair</Label>
+                <select
+                  id="project-lp-choice"
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  value={selectedProjectLpKey}
+                  onChange={(e) => onSelectedProjectLpKeyChange(e.target.value)}
+                >
+                  {walletTokenLpPositions.map((p) => (
+                    <option key={lpPositionKey(p)} value={lpPositionKey(p)}>
+                      {p.tokenSymbol} / {p.pairLabel} — {formatUnits(p.lpBalance, p.lpDecimals)} LP
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {lpBalance ? (
+              <div className="rounded-lg border border-border bg-muted/30 px-3 py-2 text-sm">
+                <p className="font-medium">{balanceLabel}</p>
+                <p className="text-muted-foreground">
+                  Balance: {formatUnits(lpBalance.value, lpBalance.decimals)} LP
+                </p>
+              </div>
+            ) : (
+              <p className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+                {emptyMessage}
+              </p>
+            )}
+
+            {lpBalance && (
+              <StakeAmountRow
+                label="Amount (LP)"
+                amount={amount}
+                onAmountChange={onAmountChange}
+                onMax={onMax}
+                onStake={onStake}
+                staking={staking}
+                disabled={disabled || staking || !amount}
+                stakeLabel={staking ? "Staking…" : "Stake LP"}
+                showStakeButton
+              />
+            )}
+          </>
+        )}
+      </CardContent>
+    </Card>
   );
 }
