@@ -84,9 +84,9 @@ export function TokenPreviewCard({
           priority={index < 4}
         />
 
-        <div className="flex min-h-0 flex-1 flex-col gap-1 p-2.5 sm:gap-1.5 sm:p-3">
+        <div className="flex min-h-0 flex-1 flex-col gap-1 p-2 sm:gap-1 sm:p-2.5">
           <div className="min-w-0 flex-1">
-            <div className="min-h-[4.75rem] sm:min-h-[5rem]">
+            <div className="min-h-[4rem] sm:min-h-[4.25rem]">
               <div className="flex flex-wrap items-center gap-1">
                 <h3 className="truncate text-sm font-bold leading-tight text-foreground group-hover/card:text-primary sm:text-base">
                   {token.name}
@@ -138,7 +138,7 @@ export function TokenPreviewCard({
 
             <p
               className={cn(
-                "mt-1.5 line-clamp-2 min-h-[2.25rem] text-[11px] leading-relaxed text-muted-foreground sm:min-h-[2.5rem] sm:text-xs",
+                "mt-1 line-clamp-1 min-h-[1.125rem] text-[11px] leading-snug text-muted-foreground sm:min-h-[1.25rem] sm:text-xs",
                 !token.description?.trim() && "invisible"
               )}
             >

@@ -11,14 +11,14 @@ export const tokenCardShellClass = cn(
 
 /** Mobile carousel peek: ~1.5 cards visible in horizontal scroll. */
 export const tokenCardMobilePeekClass =
-  "snap-start shrink-0 w-[calc((100vw-3rem)/1.5)] max-w-[260px] md:w-auto md:max-w-none md:shrink md:snap-align-none";
+  "snap-start shrink-0 w-[calc((100vw-3rem)/1.65)] max-w-[210px] md:w-auto md:max-w-none md:shrink md:snap-align-none";
 
 /** Fixed hero ratio so every card image area matches card width. */
-export const tokenCardHeroClass = "relative aspect-[5/4] w-full shrink-0 overflow-hidden bg-muted";
+export const tokenCardHeroClass = "relative aspect-[3/2] w-full shrink-0 overflow-hidden bg-muted";
 
 /** Bottom metrics row height is consistent across cards. */
 export const tokenCardMetricsClass =
-  "mt-auto grid grid-cols-3 gap-2 border-t border-border/50 pt-3 sm:gap-3";
+  "mt-auto grid grid-cols-3 gap-1.5 border-t border-border/50 pt-2 sm:gap-2 sm:pt-2.5";
 
 /** Grid layouts for token card lists (discover, dashboard, watchlist, etc.). */
 export const tokenCardGridClass = cn(

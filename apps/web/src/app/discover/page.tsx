@@ -9,7 +9,7 @@ import {
   countDiscoverFilters,
   DiscoverFilterPanel,
 } from "@/components/discover/discover-filter-panel";
-import { DiscoverSpotlightCarousel } from "@/components/discover/discover-spotlight-carousel";
+import { DiscoverShuffleGrid } from "@/components/discover/discover-shuffle-grid";
 import { cn } from "@/lib/utils";
 import { fetchDiscoverTokens, tokenQueryKeys, type DiscoverFilters } from "@/lib/tokens-api";
 import { getActiveChainId } from "@/lib/chain-config/opn";
@@ -221,9 +221,9 @@ function DiscoverContent() {
         </div>
       )}
 
-      <DiscoverSpotlightCarousel />
-
-      {activeSection !== "all" && (
+      {activeSection === "all" ? (
+        <DiscoverShuffleGrid filters={queryFilters} />
+      ) : (
         <TokenGridCarousel
           id={`section-${activeSection}`}
           title={meta.label}
