@@ -19,6 +19,11 @@ import {
 import { stakingPositionGroupKey } from "@/lib/staking/position-key";
 import { DefiStatsOverview } from "@/components/defi/defi-stats-overview";
 import { LaunchpoolStakingTab } from "@/components/launchpool/launchpool-staking-tab";
+import {
+  launchpoolStakeToActivityRow,
+  StakingActivityList,
+  type StakingActivityRow,
+} from "@/components/staking/staking-activity-list";
 import { useWalletPortfolioBalance } from "@/hooks/dashboard/useWalletPortfolioBalance";
 import { formatReserve, formatTokenAmount } from "@/lib/defi/format-reserve";
 import { formatBalanceTotal } from "@/lib/dashboard/wallet-balance";
@@ -98,6 +103,15 @@ export default function StakingPage() {
 
   const [positions, setPositions] = useState<StakingPosition[]>([]);
   const [launchpoolOpnWei, setLaunchpoolOpnWei] = useState(0n);
+  const [launchpoolStakes, setLaunchpoolStakes] = useState<
+    {
+      id: string;
+      launchpoolTitle: string;
+      assetSymbol: string;
+      amount: string;
+      stakedAt: string;
+    }[]
+  >([]);
   const [walletTier, setWalletTier] = useState<string | null>(null);
   const [config, setConfig] = useState<StakingConfig | null>(null);
   const [stakeTarget, setStakeTarget] = useState<StakeTarget>({ kind: "opn" });
@@ -172,7 +186,14 @@ export default function StakingPage() {
     fetch(`/api/user/dashboard?wallet=${address.toLowerCase()}`)
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
-        const lpStakes = (d?.launchpoolStakes ?? []) as { assetSymbol: string; amount: string }[];
+        const lpStakes = (d?.launchpoolStakes ?? []) as {
+          id: string;
+          launchpoolTitle: string;
+          assetSymbol: string;
+          amount: string;
+          stakedAt: string;
+        }[];
+        setLaunchpoolStakes(lpStakes);
         let opn = 0n;
         for (const stake of lpStakes) {
           if (stake.assetSymbol?.toUpperCase() !== "OPN") continue;
@@ -184,7 +205,10 @@ export default function StakingPage() {
         }
         setLaunchpoolOpnWei(opn);
       })
-      .catch(() => setLaunchpoolOpnWei(0n));
+      .catch(() => {
+        setLaunchpoolStakes([]);
+        setLaunchpoolOpnWei(0n);
+      });
   }
 
   useEffect(() => {
@@ -346,6 +370,23 @@ export default function StakingPage() {
   const personalOpnWei = personalStakeTotals.opnWei + launchpoolOpnWei;
   const personalOpnUsd = Number(formatUnits(personalOpnWei, 18)) * opnRate;
 
+  const stakingActivityRows = useMemo((): StakingActivityRow[] => {
+    const poolShare: StakingActivityRow[] = groupedPositions.map((p) => {
+      const label = positionLabel(p, walletTokenLpPositions, basePoolPositions);
+      const stakedDisplay = formatStakeAmount(p.amount);
+      return {
+        id: `pool-${stakingPositionGroupKey(p)}`,
+        label,
+        amount: `${stakedDisplay} ${p.stakingType === "OPN" ? "OPN" : "LP"}`,
+        detail: `Since ${new Date(p.stakedAt).toLocaleDateString()}${p.tier ? ` · ${p.tier}` : ""}`,
+        href: "/staking",
+        badge: "Pool share",
+      };
+    });
+    const launchpool = launchpoolStakes.map(launchpoolStakeToActivityRow);
+    return [...poolShare, ...launchpool];
+  }, [groupedPositions, launchpoolStakes, walletTokenLpPositions, basePoolPositions]);
+
   return (
     <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6 lg:px-8">
       <header className="mb-8">
@@ -385,14 +426,18 @@ export default function StakingPage() {
       </header>
 
       {pageTab === "launchpool" ? (
-        <LaunchpoolStakingTab />
+        <LaunchpoolStakingTab
+          activityRows={launchpoolStakes.map(launchpoolStakeToActivityRow)}
+          isConnected={isConnected}
+        />
       ) : (
         <>
 
       <DefiStatsOverview
         className="mb-8"
         platformDescription="Total OPN and LP recorded as staked on FansPump."
-        personalDescription="Your active stake positions and tier."
+        personalTitle="Your activity"
+        personalDescription="Pool share staking, Launchpool stakes, and your tier."
         platformLoading={platformStatsLoading}
         platformStats={[
           {
@@ -440,7 +485,11 @@ export default function StakingPage() {
           },
           {
             label: "Your stake positions",
-            value: String(personalStakeTotals.positions),
+            value: String(personalStakeTotals.positions + launchpoolStakes.length),
+            hint:
+              launchpoolStakes.length > 0
+                ? `${launchpoolStakes.length} Launchpool · ${personalStakeTotals.positions} pool share`
+                : undefined,
           },
           {
             label: "Your tier",
@@ -669,17 +718,32 @@ export default function StakingPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Your stake details</CardTitle>
+          <CardTitle>Your activity</CardTitle>
           <CardDescription>
-            One row per asset — additional stakes merge here automatically (up to any number of deposits).
+            All active stakes — pool share staking and Launchpool (OPN, USDT, USDC, project tokens).
           </CardDescription>
         </CardHeader>
         <CardContent>
           {!isConnected ? (
             <p className="text-sm text-muted-foreground">Connect wallet to view positions.</p>
-          ) : groupedPositions.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No active stake positions.</p>
           ) : (
+            <StakingActivityList
+              rows={stakingActivityRows}
+              emptyMessage="No active staking positions. Stake OPN/LP or join a Launchpool."
+            />
+          )}
+        </CardContent>
+      </Card>
+
+      {groupedPositions.length > 0 && (
+      <Card>
+        <CardHeader>
+          <CardTitle>Manage pool share stakes</CardTitle>
+          <CardDescription>
+            Unstake pool share positions — additional deposits merge into one row per asset.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
             <div className="space-y-3">
               {groupedPositions.map((p) => {
                 const groupKey = stakingPositionGroupKey(p);
@@ -742,9 +806,9 @@ export default function StakingPage() {
                 );
               })}
             </div>
-          )}
         </CardContent>
       </Card>
+      )}
         </>
       )}
     </div>

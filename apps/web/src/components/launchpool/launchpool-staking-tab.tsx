@@ -5,8 +5,14 @@ import { Rocket } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { LaunchpoolList } from "@/components/launchpool/launchpool-list";
+import { StakingActivityList, type StakingActivityRow } from "@/components/staking/staking-activity-list";
 
-export function LaunchpoolStakingTab() {
+type LaunchpoolStakingTabProps = {
+  activityRows: StakingActivityRow[];
+  isConnected: boolean;
+};
+
+export function LaunchpoolStakingTab({ activityRows, isConnected }: LaunchpoolStakingTabProps) {
   return (
     <div className="space-y-6">
       <Card className="border-primary/20 bg-primary/5">
@@ -24,6 +30,25 @@ export function LaunchpoolStakingTab() {
           <Button asChild size="sm">
             <Link href="/launchpad">Open Launchpad</Link>
           </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Your activity</CardTitle>
+          <CardDescription>
+            Every token you have staked in Launchpool campaigns (OPN, USDT, USDC, project tokens).
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {!isConnected ? (
+            <p className="text-sm text-muted-foreground">Connect wallet to view Launchpool stakes.</p>
+          ) : (
+            <StakingActivityList
+              rows={activityRows}
+              emptyMessage="No Launchpool stakes yet. Open the Launchpad to participate."
+            />
+          )}
         </CardContent>
       </Card>
 

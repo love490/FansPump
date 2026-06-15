@@ -13,6 +13,11 @@ import { useWalletPortfolioBalance } from "@/hooks/dashboard/useWalletPortfolioB
 import { formatActivityAmount } from "@/lib/dashboard/activities";
 import { formatBalanceTotal } from "@/lib/dashboard/wallet-balance";
 import { fetchOpnUsdRate, quoteLpTokenUsd } from "@/lib/dashboard/token-quotes";
+import {
+  launchpoolStakeToActivityRow,
+  StakingActivityList,
+  type StakingActivityRow,
+} from "@/components/staking/staking-activity-list";
 
 type StakeRow = {
   id: string;
@@ -27,6 +32,7 @@ type LaunchpoolStakeRow = {
   launchpoolTitle: string;
   assetSymbol: string;
   amount: string;
+  stakedAt: string;
 };
 
 function launchpoolStakeUsd(amountWei: string, symbol: string, opnRate: number): number {
@@ -146,22 +152,20 @@ export function DashboardDefiTab() {
     };
   }, [address, client, stakes, lpRows, launchpoolStakes, portfolioRate]);
 
-  const stakeRows = stakes.map((stake) => ({
-    id: stake.id,
-    label: stake.stakingType === "OPN" ? "OPN stake" : "LP stake",
-    amount: formatActivityAmount(stake.amount, 18, stake.stakingType === "OPN" ? "OPN" : "LP"),
-    tier: stake.tier,
-    href: "/staking",
-  }));
+  const stakingActivityRows = useMemo((): StakingActivityRow[] => {
+    const poolShare: StakingActivityRow[] = stakes.map((stake) => ({
+      id: stake.id,
+      label: stake.stakingType === "OPN" ? "OPN stake" : "LP stake",
+      amount: formatActivityAmount(stake.amount, 18, stake.stakingType === "OPN" ? "OPN" : "LP"),
+      detail: stake.tier ?? undefined,
+      href: "/staking",
+      badge: "Pool share",
+    }));
+    const launchpool = launchpoolStakes.map(launchpoolStakeToActivityRow);
+    return [...poolShare, ...launchpool];
+  }, [stakes, launchpoolStakes]);
 
-  const launchpoolStakeRows = launchpoolStakes.map((stake) => ({
-    id: stake.id,
-    label: `Launchpool · ${stake.launchpoolTitle}`,
-    amount: formatActivityAmount(stake.amount, 18, stake.assetSymbol),
-    href: "/launchpad",
-  }));
-
-  const positionCount = lpRows.length + stakeRows.length + launchpoolStakeRows.length;
+  const positionCount = lpRows.length + stakingActivityRows.length;
   const loading = lpLoading || baseLoading || loadingStakes;
   const summaryLoading = loading || valuing;
 
@@ -217,48 +221,10 @@ export function DashboardDefiTab() {
             </section>
           )}
 
-          {stakeRows.length > 0 && (
+          {stakingActivityRows.length > 0 && (
             <section className="space-y-2">
-              <h3 className="text-sm font-semibold">Staked</h3>
-              <div className="space-y-2">
-                {stakeRows.map((row) => (
-                  <Link
-                    key={row.id}
-                    href={row.href}
-                    className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border px-3 py-3 transition-colors hover:bg-muted/30"
-                  >
-                    <div>
-                      <p className="font-medium">{row.label}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {row.amount}
-                        {row.tier ? ` · ${row.tier}` : ""}
-                      </p>
-                    </div>
-                    <Badge variant="outline">FansPump</Badge>
-                  </Link>
-                ))}
-              </div>
-            </section>
-          )}
-
-          {launchpoolStakeRows.length > 0 && (
-            <section className="space-y-2">
-              <h3 className="text-sm font-semibold">Launchpool</h3>
-              <div className="space-y-2">
-                {launchpoolStakeRows.map((row) => (
-                  <Link
-                    key={row.id}
-                    href={row.href}
-                    className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border px-3 py-3 transition-colors hover:bg-muted/30"
-                  >
-                    <div>
-                      <p className="font-medium">{row.label}</p>
-                      <p className="text-sm text-muted-foreground">{row.amount}</p>
-                    </div>
-                    <Badge variant="outline">Launchpool</Badge>
-                  </Link>
-                ))}
-              </div>
+              <h3 className="text-sm font-semibold">Staking activity</h3>
+              <StakingActivityList rows={stakingActivityRows} />
             </section>
           )}
         </div>
