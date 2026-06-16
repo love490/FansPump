@@ -1,15 +1,15 @@
 import { Router } from "express";
 import { z } from "zod";
-import { AdminAuthError } from "@/lib/admin-auth";
-import { bootstrapAdminFromEnv } from "@/lib/admin/bootstrap";
+import { AdminAuthError } from "../../lib/admin-auth";
+import { bootstrapAdminFromEnv } from "../../lib/admin/bootstrap";
 import {
   adminEmailSchema,
   adminPasswordSchema,
   hashAdminPassword,
   normalizeAdminEmail,
   verifyAdminPassword,
-} from "@/lib/admin/password";
-import { getRolePermissions } from "@/lib/admin/roles";
+} from "../../lib/admin/password";
+import { getRolePermissions } from "../../lib/admin/roles";
 import {
   generateBackupCodes,
   hashBackupCodes,
@@ -17,7 +17,7 @@ import {
   verifyTotpCode,
   generateTotpSecret,
   buildTotpQrDataUrl,
-} from "@/lib/admin/totp";
+} from "../../lib/admin/totp";
 import prisma from "../../lib/prisma";
 import { asyncHandler } from "../../lib/http-helpers";
 import { authRateLimit } from "../../middleware/rateLimit";
@@ -528,3 +528,4 @@ router.post(
 );
 
 export default router;
+

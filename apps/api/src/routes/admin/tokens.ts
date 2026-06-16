@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
-import { AdminAuthError } from "@/lib/admin-auth";
+import { AdminAuthError } from "../../lib/admin-auth";
 import prisma from "../../lib/prisma";
 import { asyncHandler, getRouteParam, queryToSearchParams } from "../../lib/http-helpers";
 import {
@@ -114,4 +114,5 @@ router.patch(
 );
 
 export default router;
+
 

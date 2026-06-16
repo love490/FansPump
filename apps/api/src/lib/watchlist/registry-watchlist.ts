@@ -1,4 +1,4 @@
-import type { TokenCardData } from "@/components/tokens/token-card";
+import type { TokenCardData } from "@/lib/tokens/token-card-data";
 import { getPopularRegistryTokens } from "@/lib/token-registry";
 import { registryToTokenCardData } from "@/lib/tokens/market-metrics";
 

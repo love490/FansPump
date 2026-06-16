@@ -4,7 +4,7 @@ import {
   DEFAULT_STAKING_PLATFORM_CONFIG,
   type StakingPlatformConfig,
 } from "@iopn/shared";
-import { AdminAuthError } from "@/lib/admin-auth";
+import { AdminAuthError } from "../../lib/admin-auth";
 import {
   platformSettings,
   getPlatformSetting,
@@ -17,9 +17,9 @@ import {
   type TreasuryConfig,
   type BridgeConfig,
   type SecurityConfig,
-} from "@/lib/admin/platform-settings";
-import { STAKING_CONFIG_KEY } from "@/lib/staking/config";
-import { getPublicV2FeatureFlags } from "@/lib/v2/feature-flags";
+} from "../../lib/admin/platform-settings";
+import { STAKING_CONFIG_KEY } from "../../lib/staking/config";
+import { getPublicV2FeatureFlags } from "../../lib/v2/feature-flags";
 import { asyncHandler } from "../../lib/http-helpers";
 import { requirePermission } from "../../lib/admin/express-api-auth";
 import { logAdminAction } from "../../lib/admin/express-audit";
@@ -461,3 +461,4 @@ router.patch(
 );
 
 export default router;
+

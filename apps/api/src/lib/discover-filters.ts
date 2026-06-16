@@ -1,4 +1,4 @@
-import { type Prisma } from "@iopn/database";
+import { type Prisma, type TokenCategory } from "@iopn/database";
 
 export interface DiscoverFilters {
   category?: string;
@@ -27,7 +27,7 @@ export function buildDiscoverWhere(
   const conditions: Prisma.TokenProjectWhereInput[] = [{ chainId }];
 
   if (filters.category) {
-    conditions.push({ category: filters.category });
+    conditions.push({ category: filters.category as TokenCategory });
   }
 
   if (filters.verified) {

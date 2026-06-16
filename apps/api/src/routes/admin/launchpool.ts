@@ -1,9 +1,9 @@
 import { Router } from "express";
 import { z } from "zod";
-import { AdminAuthError } from "@/lib/admin-auth";
-import { roleHasPermission } from "@/lib/admin/roles";
-import { serializeLaunchpool } from "@/lib/launchpool/serialize";
-import { getLaunchpoolStakeStats, distributeLaunchpoolRewards } from "@/lib/launchpool/rewards";
+import { AdminAuthError } from "../../lib/admin-auth";
+import { roleHasPermission } from "../../lib/admin/roles";
+import { serializeLaunchpool } from "../../lib/launchpool/serialize";
+import { getLaunchpoolStakeStats, distributeLaunchpoolRewards } from "../../lib/launchpool/rewards";
 import prisma from "../../lib/prisma";
 import { asyncHandler, getRouteParam } from "../../lib/http-helpers";
 import {
@@ -235,3 +235,4 @@ router.delete(
 );
 
 export default router;
+

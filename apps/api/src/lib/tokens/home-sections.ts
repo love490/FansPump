@@ -1,4 +1,4 @@
-import type { TokenCardData } from "@/components/tokens/token-card";
+import type { TokenCardData } from "@/lib/tokens/token-card-data";
 
 export function sortTokensTrending(tokens: TokenCardData[]): TokenCardData[] {
   return [...tokens].sort((a, b) => {
