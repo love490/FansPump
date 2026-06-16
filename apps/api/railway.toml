@@ -1,6 +1,6 @@
 [build]
 builder = "NIXPACKS"
-buildCommand = "pnpm install --no-frozen-lockfile && pnpm db:generate && pnpm --filter @iopn/api build"
+nixpacksConfigPath = "nixpacks.toml"
 
 [deploy]
 startCommand = "pnpm --filter @iopn/api start"

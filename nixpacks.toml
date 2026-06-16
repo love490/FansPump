@@ -1,0 +1,20 @@
+# FansPump API — pnpm monorepo (Railway / Nixpacks)
+providers = ["node"]
+
+[variables]
+NIXPACKS_NODE_VERSION = "20"
+
+[phases.setup]
+nixPkgs = ["nodejs_20", "pnpm-9_x"]
+cmds = ["corepack enable", "corepack prepare pnpm@9.15.0 --activate"]
+
+[phases.install]
+dependsOn = ["setup"]
+cmds = ["pnpm install --no-frozen-lockfile --filter @iopn/api..."]
+
+[phases.build]
+dependsOn = ["install"]
+cmds = ["pnpm db:generate", "pnpm --filter @iopn/api build"]
+
+[start]
+cmd = "pnpm --filter @iopn/api start"
