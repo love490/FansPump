@@ -26,8 +26,8 @@ COPY pnpm-lock.yaml pnpm-workspace.yaml package.json tsconfig.json ./
 COPY packages/database packages/database
 COPY packages/shared packages/shared
 COPY apps/api apps/api
+COPY apps/web/package.json apps/web/package.json
 COPY apps/web/src apps/web/src
-COPY apps/web/tsconfig.json apps/web/tsconfig.json
 RUN pnpm db:generate && pnpm --filter @iopn/api build
 
 FROM node:20-alpine AS runner
