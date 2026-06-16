@@ -1,0 +1,25 @@
+export type AdminPermission =
+  | "overview"
+  | "creation_fees"
+  | "trading_fees"
+  | "treasury"
+  | "verification"
+  | "discovery"
+  | "analytics"
+  | "creator_earnings"
+  | "pool_share"
+  | "bridge"
+  | "security"
+  | "system"
+  | "activity_logs"
+  | "roles"
+  | "factory"
+  | "categories"
+  | "announcements"
+  | "staking"
+  | "launchpool"
+  | "trust_panel"
+  | "v2_platform"
+  | "write";
+
+export type AdminRole = "SUPER_ADMIN" | "MODERATOR" | "SUPPORT" | "VIEWER";
