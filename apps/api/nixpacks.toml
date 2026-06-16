@@ -6,11 +6,11 @@ cmds = [
   "npm install -g corepack@0.24.1",
   "corepack enable",
   "corepack prepare pnpm@9.15.0 --activate",
-  "cd /app && pnpm install --no-frozen-lockfile"
+  "pnpm install --no-frozen-lockfile"
 ]
 
 [phases.build]
-cmds = ["cd /app && pnpm --filter @iopn/api build"]
+cmds = ["pnpm db:generate", "pnpm --filter @iopn/api build"]
 
 [start]
-cmd = "cd /app && pnpm --filter @iopn/api start"
+cmd = "pnpm --filter @iopn/api start"
