@@ -8,8 +8,7 @@ import { ChevronDown, LogOut, User, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SignInModal } from "@/components/auth/sign-in-modal";
 import { useAuth } from "@/components/auth/auth-provider";
-import { useUserProfile } from "@/hooks/useUserProfile";
-import { formatCreatorDisplay } from "@/lib/username";
+import { useAccountDisplayLabel } from "@/hooks/useAccountDisplayLabel";
 import { cn, shortenAddress } from "@/lib/utils";
 
 type SignInButtonProps = {
@@ -23,15 +22,18 @@ type SignInButtonProps = {
 export function SignInButton({
   className,
   size = "default",
+  showBalance = false,
+  accountStatus = "address",
 }: SignInButtonProps) {
   const [modalOpen, setModalOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
-  const { account, isSignedIn, isLoading, signOut } = useAuth();
-  const { address, isConnected } = useAccount();
-  const { profile } = useUserProfile(address);
+  const { isSignedIn, isLoading, signOut } = useAuth();
+  const { isConnected } = useAccount();
   const { disconnect } = useDisconnect();
   const { openConnectModal } = useConnectModal();
+  const { primaryLabel, socialName, balanceLabel, walletAddress, account, avatarUrl } =
+    useAccountDisplayLabel({ preferBalance: showBalance });
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -43,18 +45,6 @@ export function SignInButton({
     document.addEventListener("mousedown", onPointerDown);
     return () => document.removeEventListener("mousedown", onPointerDown);
   }, [menuOpen]);
-
-  const walletLabel =
-    isConnected && address ? formatCreatorDisplay(profile?.username, address, shortenAddress) : null;
-
-  const label =
-    profile?.username?.trim() ||
-    (isSignedIn && account?.displayName) ||
-    (isSignedIn && account?.email?.split("@")[0]) ||
-    walletLabel ||
-    "Sign in";
-
-  const avatarUrl = account?.avatarUrl ?? profile?.profileImageUrl ?? null;
 
   if (isLoading) {
     return (
@@ -80,6 +70,8 @@ export function SignInButton({
     );
   }
 
+  const showAvatar = accountStatus === "avatar" || accountStatus === "full" || Boolean(avatarUrl);
+
   return (
     <div ref={rootRef} className="relative">
       <Button
@@ -90,7 +82,7 @@ export function SignInButton({
         aria-expanded={menuOpen}
         aria-haspopup="menu"
       >
-        {avatarUrl ? (
+        {showAvatar && avatarUrl ? (
           <Image
             src={avatarUrl}
             alt=""
@@ -101,7 +93,7 @@ export function SignInButton({
         ) : (
           <User className="h-4 w-4 shrink-0 text-primary" />
         )}
-        <span className="max-w-[7rem] truncate text-sm">{label}</span>
+        <span className="max-w-[8rem] truncate text-sm tabular-nums">{primaryLabel}</span>
         <ChevronDown className={cn("h-4 w-4 shrink-0 opacity-60", menuOpen && "rotate-180")} />
       </Button>
 
@@ -110,13 +102,18 @@ export function SignInButton({
           role="menu"
           className="absolute right-0 top-full z-[120] mt-2 min-w-[12rem] rounded-lg border border-border bg-popover p-1 shadow-lg"
         >
+          {socialName && balanceLabel && showBalance && (
+            <p className="px-3 py-2 text-sm font-medium tabular-nums">{balanceLabel}</p>
+          )}
           {isSignedIn && account?.email && (
             <p className="break-all px-3 py-2 text-xs text-muted-foreground">{account.email}</p>
           )}
-          {isConnected && address ? (
-            <p className="break-all px-3 py-1 font-mono text-xs text-muted-foreground">{address}</p>
+          {isConnected && walletAddress ? (
+            <p className="break-all px-3 py-1 font-mono text-xs text-muted-foreground">
+              {shortenAddress(walletAddress, 6)}
+            </p>
           ) : (
-            <p className="px-3 py-2 text-xs text-amber-600">Wallet not connected</p>
+            !isSignedIn && <p className="px-3 py-2 text-xs text-amber-600">Wallet not connected</p>
           )}
 
           {!isConnected && (

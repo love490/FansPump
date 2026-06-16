@@ -1,11 +1,17 @@
-import { apiUrl } from "@/lib/api";
+import { apiUrl, formatFetchError } from "@/lib/api";
 export async function uploadProfileAvatar(file: File): Promise<string> {
   const formData = new FormData();
   formData.append("file", file);
   formData.append("kind", "avatar");
 
-  const res = await fetch(apiUrl("/api/upload"), { method: "POST", body: formData });
-  const data = (await res.json()) as { error?: string; url?: string | null };
+  let res: Response;
+  try {
+    res = await fetch(apiUrl("/api/upload"), { method: "POST", body: formData });
+  } catch (error) {
+    throw new Error(formatFetchError(error, "Upload"));
+  }
+
+  const data = (await res.json().catch(() => ({}))) as { error?: string; url?: string | null };
 
   if (!res.ok) throw new Error(data.error ?? "Upload failed");
   if (!data.url) throw new Error("Image storage is not configured yet.");

@@ -7,6 +7,7 @@ import type { Address } from "viem";
 import { usePublicClient } from "wagmi";
 import { erc20Abi } from "@/lib/swap/abis";
 import { getActiveChainId } from "@/lib/chain-config/opn";
+import { getPopularRegistryTokens } from "@/lib/token-registry";
 
 export type WalletLiquidityToken = {
   contractAddress: string;
@@ -74,6 +75,19 @@ export function useWalletLiquidityTokens(walletAddress: string | undefined) {
           symbol: t.symbol || existing?.symbol || "???",
           logoUrl: t.logoUrl ?? existing?.logoUrl,
           isCreator: creatorSet.has(addr) || existing?.isCreator === true,
+        });
+      }
+
+      for (const reg of getPopularRegistryTokens()) {
+        if (reg.isNative || !reg.contractAddress.startsWith("0x")) continue;
+        const addr = reg.contractAddress.toLowerCase();
+        if (merged.has(addr)) continue;
+        merged.set(addr, {
+          contractAddress: addr,
+          name: reg.name,
+          symbol: reg.symbol,
+          logoUrl: reg.logoUrl,
+          isCreator: creatorSet.has(addr),
         });
       }
 

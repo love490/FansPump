@@ -1,23 +1,27 @@
 "use client";
 
 import Link from "next/link";
-import { useAccount } from "wagmi";
 import { Pencil } from "lucide-react";
 import { CreatorAvatar } from "@/components/tokens/token-card-hero";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { useActiveWallet } from "@/hooks/useActiveWallet";
+import { useAuth } from "@/components/auth/auth-provider";
 import { cn, shortenAddress } from "@/lib/utils";
 import { formatCreatorDisplay } from "@/lib/username";
 
 export function DashboardProfileLink({ className }: { className?: string }) {
-  const { walletAddress } = useActiveWallet();
-  const { address } = useAccount();
-  const resolved = walletAddress ?? address;
-  const { profile } = useUserProfile(resolved);
+  const { walletAddress, hasWallet, isSignedIn } = useActiveWallet();
+  const { account } = useAuth();
+  const { profile } = useUserProfile(walletAddress);
 
-  if (!resolved) return null;
+  if (!hasWallet && !isSignedIn) return null;
 
-  const displayName = formatCreatorDisplay(profile?.username, resolved, shortenAddress);
+  const displayName = walletAddress
+    ? formatCreatorDisplay(profile?.username, walletAddress, shortenAddress)
+    : account?.displayName || account?.email?.split("@")[0] || "Profile";
+
+  const avatarAddress = walletAddress ?? "0x0000000000000000000000000000000000000000";
+  const avatarUrl = profile?.profileImageUrl ?? account?.avatarUrl ?? null;
 
   return (
     <div className={cn("flex flex-col items-center gap-1.5 text-center", className)}>
@@ -28,10 +32,10 @@ export function DashboardProfileLink({ className }: { className?: string }) {
         aria-label="Edit profile"
       >
         <CreatorAvatar
-          key={profile?.profileImageUrl ?? "fallback"}
-          username={profile?.username}
-          address={resolved}
-          imageUrl={profile?.profileImageUrl}
+          key={avatarUrl ?? "fallback"}
+          username={profile?.username ?? account?.displayName}
+          address={avatarAddress}
+          imageUrl={avatarUrl}
           className="h-14 w-14 text-base ring-0"
         />
         <span className="pointer-events-none absolute -bottom-0.5 -right-0.5 flex h-5 w-5 items-center justify-center rounded-full border border-background bg-primary text-primary-foreground shadow-sm">

@@ -29,7 +29,7 @@ export default function DashboardPage() {
   return (
     <div className="mx-auto max-w-3xl space-y-6 py-2 sm:py-4">
       <header className="flex flex-col items-center gap-4 text-center sm:flex-row sm:items-start sm:text-left">
-        <DashboardProfileLink className="sm:order-first" />
+        {(hasWallet || isSignedIn) && <DashboardProfileLink className="sm:order-first" />}
         <div className="min-w-0 flex-1">
           <h1 className="text-2xl font-bold">Dashboard</h1>
           <p className="mt-1 text-sm text-muted-foreground">

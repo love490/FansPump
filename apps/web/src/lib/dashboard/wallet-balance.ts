@@ -49,6 +49,9 @@ export type PortfolioAsset = {
   amount: number;
   opnValue: number;
   usdValue: number;
+  contractAddress?: string | null;
+  logoUrl?: string | null;
+  isNative?: boolean;
 };
 
 export function sumPortfolio(assets: PortfolioAsset[]) {

@@ -327,14 +327,14 @@ export function SwapPanel({ initialToken = "", initialMode = "buy" }: SwapPanelP
   return (
     <div className="mx-auto w-full max-w-lg space-y-4">
       <Card ref={swapCardRef} className="overflow-visible border-border shadow-sm">
-        <CardHeader className="pb-4">
+        <CardHeader className="relative z-20 pb-4">
           <div className="flex items-start justify-between gap-3">
             <div>
               <CardTitle className="text-2xl">Swap</CardTitle>
               <CardDescription>Trade tokens instantly</CardDescription>
             </div>
             {!isWrapOrUnwrap && (
-              <div ref={settingsRef} className="relative shrink-0">
+              <div ref={settingsRef} className="relative z-30 shrink-0">
                 <button
                   type="button"
                   onClick={() => setSettingsOpen((o) => !o)}
@@ -343,12 +343,17 @@ export function SwapPanel({ initialToken = "", initialMode = "buy" }: SwapPanelP
                     settingsOpen && "border-primary/40 bg-primary/5 text-primary"
                   )}
                   aria-label="Swap settings"
+                  aria-expanded={settingsOpen}
                 >
                   <Settings2 className="h-4 w-4" />
                 </button>
                 {settingsOpen && (
-                  <div className="absolute bottom-full right-0 z-50 mb-2 w-[min(13rem,calc(100vw-2rem))] rounded-lg border bg-popover p-3 shadow-lg sm:bottom-auto sm:top-full sm:mb-0 sm:mt-2 sm:w-52">
-                    <p className="mb-2 text-xs font-medium text-muted-foreground">Slippage tolerance</p>
+                  <div
+                    className="absolute right-0 top-full z-50 mt-2 w-52 rounded-lg border border-border bg-background p-3 shadow-xl"
+                    role="dialog"
+                    aria-label="Slippage settings"
+                  >
+                    <p className="mb-2 text-xs font-medium text-foreground">Slippage tolerance</p>
                     <div className="flex flex-wrap gap-1.5">
                       {SLIPPAGE_OPTIONS.map((s) => (
                         <button
@@ -359,7 +364,7 @@ export function SwapPanel({ initialToken = "", initialMode = "buy" }: SwapPanelP
                             "rounded-full border px-2.5 py-1 text-xs font-medium transition-colors",
                             slippage === s
                               ? "border-primary bg-primary/10 text-primary"
-                              : "border-border/60 text-muted-foreground hover:border-border"
+                              : "border-border bg-muted/30 text-foreground hover:border-border"
                           )}
                         >
                           {s}%
@@ -373,7 +378,7 @@ export function SwapPanel({ initialToken = "", initialMode = "buy" }: SwapPanelP
           </div>
         </CardHeader>
 
-        <CardContent className="space-y-3 overflow-visible">
+        <CardContent className="relative z-0 space-y-3 overflow-visible">
           {wrongNetwork && (
             <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
               <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />

@@ -19,7 +19,8 @@ function parseOrigins(): string[] {
 export const corsMiddleware = cors({
   origin(origin, callback) {
     const allowed = parseOrigins();
-    if (!origin || allowed.includes(origin)) {
+    // Allow Vercel preview deployments
+    if (!origin || allowed.includes(origin) || origin.endsWith(".vercel.app")) {
       callback(null, true);
       return;
     }
@@ -27,7 +28,12 @@ export const corsMiddleware = cors({
   },
   credentials: true,
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+  allowedHeaders: [
+    "Content-Type",
+    "Authorization",
+    "X-Requested-With",
+    "X-CSRF-Token",
+  ],
 });
 
 export { parseOrigins as getAllowedOrigins };

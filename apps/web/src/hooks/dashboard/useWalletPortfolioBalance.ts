@@ -9,6 +9,7 @@ import { erc20Abi } from "@/lib/swap/abis";
 import { getRouterAddress } from "@/lib/swap/routerAdapter";
 import { getBuiltinPayTokens, type PayToken } from "@/lib/swap/payment-tokens";
 import { opnChainConfig } from "@/lib/chain-config/opn";
+import { getRegistryTokenByAddress } from "@/lib/token-registry";
 import { useWalletLiquidityTokens } from "@/hooks/liquidity/useWalletLiquidityTokens";
 import {
   bigintToFloat,
@@ -39,7 +40,11 @@ export function useWalletPortfolioBalance() {
   const { walletAddress } = useActiveWallet();
   const client = usePublicClient();
   const { data: nativeBalance, isLoading: nativeLoading } = useBalance({ address: walletAddress });
-  const { tokens: walletTokens, loading: walletTokensLoading } = useWalletLiquidityTokens(walletAddress);
+  const {
+    tokens: walletTokens,
+    loading: walletTokensLoading,
+    refresh: refreshWalletTokens,
+  } = useWalletLiquidityTokens(walletAddress);
 
   const [payBalances, setPayBalances] = useState<Record<string, bigint>>({});
   const [payLoading, setPayLoading] = useState(false);
@@ -139,6 +144,8 @@ export function useWalletPortfolioBalance() {
         amount,
         opnValue: amount,
         usdValue: amount * rate,
+        isNative: true,
+        contractAddress: null,
       });
     }
 
@@ -149,12 +156,16 @@ export function useWalletPortfolioBalance() {
       const upper = token.symbol.toUpperCase();
       const isStable = upper === "USDT" || upper === "USDC";
       const isWrappedOpn = upper === "WOPN" || upper === "OPNT";
+      const addr = token.address?.toLowerCase() ?? null;
+      const registry = addr ? getRegistryTokenByAddress(addr) : undefined;
       rows.push({
         symbol: token.symbol,
-        name: token.symbol,
+        name: registry?.name ?? token.symbol,
         amount,
         opnValue: isStable ? amount / rate : isWrappedOpn ? amount : amount / rate,
-        usdValue: isStable ? amount : amount * rate,
+        usdValue: isStable ? amount : isWrappedOpn ? amount * rate : amount * rate,
+        contractAddress: addr,
+        logoUrl: registry?.logoUrl,
       });
     }
 
@@ -170,6 +181,8 @@ export function useWalletPortfolioBalance() {
         amount,
         opnValue: usdValue > 0 ? usdValue / rate : 0,
         usdValue,
+        contractAddress: addr,
+        logoUrl: token.logoUrl,
       });
     }
 
@@ -181,12 +194,16 @@ export function useWalletPortfolioBalance() {
   const loading =
     nativeLoading || payLoading || walletTokensLoading || rateLoading || quotesLoading;
 
+  const refresh = useCallback(async () => {
+    await Promise.all([refreshPayBalances(), refreshWalletTokens()]);
+  }, [refreshPayBalances, refreshWalletTokens]);
+
   return {
     assets,
     totals,
     opnUsdRate,
     tokenUsdMap,
     loading,
-    refresh: refreshPayBalances,
+    refresh,
   };
 }

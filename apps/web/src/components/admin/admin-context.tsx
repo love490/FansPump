@@ -1,6 +1,6 @@
 "use client";
 
-import { apiUrl } from "@/lib/api";
+import { apiUrl, formatFetchError } from "@/lib/api";
 
 import {
   createContext,
@@ -135,7 +135,7 @@ export function AdminProvider({ children }: { children: ReactNode }) {
         router.push("/admin/dashboard");
         return "ok";
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Sign-in failed.");
+        setError(formatFetchError(e, "Sign-in"));
         return "failed";
       } finally {
         setLoading(false);
@@ -166,7 +166,7 @@ export function AdminProvider({ children }: { children: ReactNode }) {
         router.push("/admin/dashboard");
         return true;
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Verification failed.");
+        setError(formatFetchError(e, "Verification"));
         return false;
       } finally {
         setLoading(false);

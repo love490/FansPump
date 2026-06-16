@@ -111,7 +111,7 @@ export function DashboardDefiTab() {
   }, [lpPositions, basePools]);
 
   useEffect(() => {
-    if (!client || !address) {
+    if (!client || !walletAddress) {
       setTotalInvestedUsd(null);
       return;
     }

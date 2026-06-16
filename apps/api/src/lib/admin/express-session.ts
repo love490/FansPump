@@ -38,12 +38,14 @@ export function getClientIp(req?: Request): string | null {
 
 function cookieOptions(expires: Date) {
   const secure = process.env.NODE_ENV === "production";
+  const domain = process.env.ADMIN_COOKIE_DOMAIN?.trim() || undefined;
   return {
     httpOnly: true as const,
     secure,
-    sameSite: "lax" as const,
+    sameSite: (domain ? "none" : "lax") as "none" | "lax",
     path: "/",
     expires,
+    ...(domain ? { domain } : {}),
   };
 }
 
@@ -83,12 +85,14 @@ export function attachSessionCookie(res: Response, token: string, expiresAt: Dat
 }
 
 export function clearSessionCookie(res: Response): void {
+  const domain = process.env.ADMIN_COOKIE_DOMAIN?.trim() || undefined;
   res.cookie(ADMIN_SESSION_COOKIE, "", {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
+    sameSite: domain ? "none" : "lax",
     path: "/",
     maxAge: 0,
+    ...(domain ? { domain } : {}),
   });
 }
 

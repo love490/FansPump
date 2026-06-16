@@ -86,7 +86,7 @@ function MobileBottomNavInner() {
       {(dexOpen || menuOpen) && (
         <button
           type="button"
-          className="fixed inset-0 z-[90] bg-black/40 md:hidden"
+          className="fixed inset-0 z-[90] bg-black/40 max-md:block hidden"
           aria-label="Close navigation"
           onClick={() => {
             setDexOpen(false);
@@ -97,7 +97,7 @@ function MobileBottomNavInner() {
 
       {dexOpen && (
         <div
-          className="fixed inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-[95] mx-3 rounded-xl border border-border bg-background p-3 shadow-xl md:hidden"
+          className="fixed inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-[95] mx-3 rounded-xl border border-border bg-background p-3 shadow-xl max-md:block hidden"
           role="dialog"
           aria-label={`${DEX_LABEL} navigation`}
         >
@@ -139,7 +139,7 @@ function MobileBottomNavInner() {
 
       {menuOpen && (
         <aside
-          className="fixed inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-[95] flex max-h-[min(70vh,32rem)] flex-col rounded-t-2xl border border-border bg-background shadow-2xl md:hidden"
+          className="fixed inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-[95] flex max-h-[min(70vh,32rem)] flex-col rounded-t-2xl border border-border bg-background shadow-2xl max-md:flex hidden"
           role="dialog"
           aria-modal="true"
           aria-label="Navigation menu"
@@ -169,7 +169,7 @@ function MobileBottomNavInner() {
       )}
 
       <nav
-        className="fixed inset-x-0 bottom-0 z-[100] border-t border-border bg-background/95 backdrop-blur-md md:hidden"
+        className="fixed inset-x-0 bottom-0 z-[100] border-t border-border bg-background/95 backdrop-blur-md max-md:block hidden"
         style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
         aria-label="Mobile navigation"
       >
@@ -221,13 +221,16 @@ function MobileBottomNavInner() {
   );
 }
 
+/** Phones only (<768px). iPad and desktop use the sidebar instead. */
 export function MobileBottomNav() {
   return (
-    <Suspense fallback={null}>
-      <MobileBottomNavInner />
-    </Suspense>
+    <div className="md:hidden">
+      <Suspense fallback={null}>
+        <MobileBottomNavInner />
+      </Suspense>
+    </div>
   );
 }
 
-/** Bottom padding for main content above the mobile nav bar. */
-export const MOBILE_BOTTOM_NAV_PADDING = "pb-[calc(3.5rem+env(safe-area-inset-bottom))] md:pb-0";
+/** Bottom padding for main content above the mobile nav bar (phones only). */
+export const MOBILE_BOTTOM_NAV_PADDING = "max-md:pb-[calc(3.5rem+env(safe-area-inset-bottom))]";

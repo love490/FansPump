@@ -10,7 +10,7 @@ import { formatBalanceTotal } from "@/lib/dashboard/wallet-balance";
 
 export function DashboardBalancePanel() {
   const { walletAddress, hasWallet } = useActiveWallet();
-  const { totals, assets, loading, refresh } = useWalletPortfolioBalance();
+  const { totals, loading, refresh } = useWalletPortfolioBalance();
 
   if (!hasWallet || !walletAddress) return null;
 
@@ -33,35 +33,12 @@ export function DashboardBalancePanel() {
           <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
         </Button>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <div>
-          <p className="text-3xl font-bold tracking-tight sm:text-4xl">
-            {loading ? "…" : formatBalanceTotal(totals.usd, "USD")}
-          </p>
-        </div>
-
-        {!loading && assets.length > 0 && (
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {assets.slice(0, 6).map((asset, index) => (
-              <div
-                key={`${asset.symbol}-${index}`}
-                className="rounded-lg border border-border/80 bg-background/70 px-3 py-2 text-sm"
-              >
-                <p className="font-medium">{asset.name !== asset.symbol ? asset.name : asset.symbol}</p>
-                <p className="mt-0.5 tabular-nums text-muted-foreground">
-                  {asset.amount.toLocaleString(undefined, { maximumFractionDigits: 4 })}{" "}
-                  {asset.symbol}
-                </p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {formatBalanceTotal(asset.usdValue, "USD")}
-                </p>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {!loading && assets.length === 0 && (
-          <p className="text-sm text-muted-foreground">No token balances detected in this wallet yet.</p>
+      <CardContent>
+        <p className="text-3xl font-bold tracking-tight tabular-nums sm:text-4xl">
+          {loading ? "…" : formatBalanceTotal(totals.usd, "USD")}
+        </p>
+        {!loading && totals.usd <= 0 && (
+          <p className="mt-2 text-sm text-muted-foreground">No token balances detected in this wallet yet.</p>
         )}
       </CardContent>
     </Card>

@@ -24,7 +24,16 @@ const nextConfig: NextConfig = {
     ],
   },
   async rewrites() {
-    return [];
+    const destination =
+      process.env.API_URL ||
+      process.env.NEXT_PUBLIC_API_URL ||
+      "http://localhost:3001";
+    return [
+      {
+        source: "/api/:path*",
+        destination: `${destination.replace(/\/$/, "")}/api/:path*`,
+      },
+    ];
   },
   async redirects() {
     return [

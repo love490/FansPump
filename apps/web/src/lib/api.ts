@@ -7,7 +7,19 @@ export function apiUrl(endpoint: string): string {
     return endpoint;
   }
   const path = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
+  // Browser: same-origin `/api/*` is proxied to the Express API (see next.config rewrites).
+  if (typeof window !== "undefined") {
+    return path;
+  }
   return `${API_URL}${path}`;
+}
+
+/** User-friendly message when fetch() fails before a response (network / CORS). */
+export function formatFetchError(error: unknown, context = "Request"): string {
+  if (error instanceof TypeError && /fetch|network|failed/i.test(error.message)) {
+    return `${context} failed — could not reach the API. Check your connection or try again shortly.`;
+  }
+  return error instanceof Error ? error.message : `${context} failed`;
 }
 
 export async function getServerCookieHeader(): Promise<string | undefined> {

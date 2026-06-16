@@ -1,21 +1,20 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useAccount, useDisconnect } from "wagmi";
+import { useDisconnect } from "wagmi";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { ChevronDown, LogOut, User, Wallet } from "lucide-react";
 import { SignInModal } from "@/components/auth/sign-in-modal";
 import { useAuth } from "@/components/auth/auth-provider";
-import { useUserProfile } from "@/hooks/useUserProfile";
-import { formatCreatorDisplay } from "@/lib/username";
+import { useAccountDisplayLabel } from "@/hooks/useAccountDisplayLabel";
 import { cn, shortenAddress } from "@/lib/utils";
 
 export function SidebarWallet({ collapsed }: { collapsed?: boolean }) {
-  const { address, isConnected } = useAccount();
   const { disconnect } = useDisconnect();
   const { openConnectModal } = useConnectModal();
-  const { account, isSignedIn, signOut } = useAuth();
-  const { profile } = useUserProfile(address);
+  const { isSignedIn, signOut } = useAuth();
+  const { primaryLabel, socialName, balanceLabel, walletAddress, isConnected } =
+    useAccountDisplayLabel({ preferBalance: true });
   const [open, setOpen] = useState(false);
   const [signInOpen, setSignInOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -55,12 +54,6 @@ export function SidebarWallet({ collapsed }: { collapsed?: boolean }) {
     );
   }
 
-  const displayLabel =
-    profile?.username?.trim() ||
-    account?.displayName ||
-    account?.email?.split("@")[0] ||
-    (isConnected && address ? formatCreatorDisplay(profile?.username, address, shortenAddress) : "Signed in");
-
   return (
     <div ref={rootRef} className="relative">
       <button
@@ -70,14 +63,14 @@ export function SidebarWallet({ collapsed }: { collapsed?: boolean }) {
           "flex w-full items-center rounded-lg border border-border bg-muted/50 py-2 text-sm font-medium transition-colors hover:bg-muted",
           collapsed ? "justify-center px-2" : "gap-2 px-3"
         )}
-        title={collapsed ? displayLabel : undefined}
+        title={collapsed ? primaryLabel : undefined}
         aria-expanded={open}
         aria-haspopup="menu"
       >
         <Wallet className="h-4 w-4 shrink-0 text-primary" />
         {!collapsed && (
           <>
-            <span className="min-w-0 flex-1 truncate text-left text-xs">{displayLabel}</span>
+            <span className="min-w-0 flex-1 truncate text-left text-xs tabular-nums">{primaryLabel}</span>
             <ChevronDown
               className={cn("h-4 w-4 shrink-0 text-muted-foreground transition-transform", open && "rotate-180")}
             />
@@ -93,11 +86,13 @@ export function SidebarWallet({ collapsed }: { collapsed?: boolean }) {
             collapsed ? "left-full top-0 ml-2 min-w-[11rem]" : "bottom-full left-0 right-0 mb-2"
           )}
         >
-          {isSignedIn && account?.email && (
-            <p className="break-all px-3 py-2 text-xs text-muted-foreground">{account.email}</p>
+          {socialName && balanceLabel && (
+            <p className="px-3 py-2 text-sm font-medium tabular-nums">{balanceLabel}</p>
           )}
-          {isConnected && address && (
-            <p className="break-all px-3 py-1 font-mono text-xs text-muted-foreground">{address}</p>
+          {isConnected && walletAddress && (
+            <p className="break-all px-3 py-1 font-mono text-xs text-muted-foreground">
+              {shortenAddress(walletAddress, 6)}
+            </p>
           )}
           {!isConnected && (
             <button

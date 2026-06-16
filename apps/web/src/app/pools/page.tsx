@@ -17,8 +17,8 @@ import { DefiStatsOverview } from "@/components/defi/defi-stats-overview";
 import { useMyLiquidityPositions } from "@/hooks/liquidity/useMyLiquidityPositions";
 import { useBasePoolLpPositions } from "@/hooks/liquidity/useBasePoolLpPositions";
 import { formatReserve } from "@/lib/defi/format-reserve";
-import { BarChart3, Droplets, Plus, RefreshCw } from "lucide-react";
-import { shortenAddress } from "@/lib/utils";
+import { BarChart3, Droplets, Plus, Radar, RefreshCw } from "lucide-react";
+import { cn, shortenAddress } from "@/lib/utils";
 
 type PoolsResponse = {
   pools: PoolRecord[];
@@ -38,18 +38,19 @@ export default function PoolsPage() {
   const { positions: basePools, loading: baseLoading } = useBasePoolLpPositions(address);
   const [data, setData] = useState<PoolsResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [discovering, setDiscovering] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [poolAddress, setPoolAddress] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
-  const load = useCallback(async (discover = false) => {
+  const load = useCallback(async (opts?: { silent?: boolean }) => {
     setError(null);
-    setLoading(true);
+    if (opts?.silent) setRefreshing(true);
+    else setLoading(true);
     try {
-      const url = discover ? apiUrl("/api/pools?discover=true") : apiUrl("/api/pools");
-      const res = await fetch(url);
+      const res = await fetch(apiUrl("/api/pools"));
       if (!res.ok) throw new Error("Failed to load pools");
       const json = (await res.json()) as PoolsResponse;
       setData(json);
@@ -58,11 +59,12 @@ export default function PoolsPage() {
       setData(null);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }, []);
 
   useEffect(() => {
-    void load(true);
+    void load();
   }, [load]);
 
   async function discoverPools() {
@@ -102,7 +104,7 @@ export default function PoolsPage() {
       if (!res.ok) throw new Error(json.error ?? "Could not add pool");
       setPoolAddress("");
       setMessage(`Pool ${shortenAddress(addr)} indexed.`);
-      await load(false);
+      await load({ silent: true });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not add pool");
     } finally {
@@ -139,7 +141,7 @@ export default function PoolsPage() {
         </div>
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" size="sm" disabled={discovering || loading} onClick={() => void discoverPools()}>
-            <RefreshCw className={`mr-2 h-4 w-4 ${discovering ? "animate-spin" : ""}`} />
+            <Radar className={cn("mr-2 h-4 w-4", discovering && "animate-pulse")} />
             {discovering ? "Discovering…" : "Discover pools"}
           </Button>
           <Button asChild size="sm">
@@ -237,14 +239,27 @@ export default function PoolsPage() {
       </Card>
 
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Droplets className="h-5 w-5" /> All pools
-          </CardTitle>
-          <CardDescription>
-            {analytics?.note ??
-              "Pools with on-chain liquidity. Add liquidity on a token page to create new pairs."}
-          </CardDescription>
+        <CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <Droplets className="h-5 w-5" /> All pools
+            </CardTitle>
+            <CardDescription>
+              {analytics?.note ??
+                "Pools with on-chain liquidity. Add liquidity on a token page to create new pairs."}
+            </CardDescription>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            className="h-8 w-8 shrink-0"
+            disabled={loading || refreshing}
+            onClick={() => void load({ silent: true })}
+            aria-label="Refresh pools"
+          >
+            <RefreshCw className={cn("h-4 w-4", (loading || refreshing) && "animate-spin")} />
+          </Button>
         </CardHeader>
         <CardContent>
           {loading ? (
@@ -254,6 +269,7 @@ export default function PoolsPage() {
               <p>No pools indexed yet.</p>
               <div className="flex flex-wrap gap-2">
                 <Button size="sm" disabled={discovering} onClick={() => void discoverPools()}>
+                  <Radar className="mr-2 h-4 w-4" />
                   Discover pools from chain
                 </Button>
                 <Button asChild size="sm" variant="outline">

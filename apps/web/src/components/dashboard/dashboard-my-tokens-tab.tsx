@@ -2,87 +2,49 @@
 
 import Link from "next/link";
 import { useMemo } from "react";
-import { useActiveWallet } from "@/hooks/useActiveWallet";
-import { formatUnits } from "viem";
 import { RefreshCw } from "lucide-react";
 import { TokenLogo } from "@/components/tokens/token-logo";
 import { Button } from "@/components/ui/button";
-import { useWalletLiquidityTokens } from "@/hooks/liquidity/useWalletLiquidityTokens";
 import { useWalletPortfolioBalance } from "@/hooks/dashboard/useWalletPortfolioBalance";
 import { formatMarketPrice } from "@/lib/tokens/market-metrics";
 import { cn } from "@/lib/utils";
 
-type TokenRow = {
-  key: string;
-  contractAddress: string;
-  name: string;
-  symbol: string;
-  logoUrl?: string | null;
-  balance: bigint;
-  decimals: number;
-  holdingUsd: number;
-  unitPriceUsd: number;
-};
+function formatBalanceAmount(amount: number): string {
+  if (!Number.isFinite(amount) || amount <= 0) return "0";
+  if (amount >= 1_000_000) return `${(amount / 1_000_000).toFixed(2)}M`;
+  if (amount >= 1_000) return amount.toLocaleString(undefined, { maximumFractionDigits: 2 });
+  if (amount >= 1) return amount.toLocaleString(undefined, { maximumFractionDigits: 4 });
+  return amount.toLocaleString(undefined, { maximumFractionDigits: 6 });
+}
 
-function formatBalanceAmount(balance: bigint, decimals: number): string {
-  const raw = formatUnits(balance, decimals);
-  const n = Number(raw);
-  if (!Number.isFinite(n)) return raw;
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(2)}M`;
-  if (n >= 1_000) return n.toLocaleString(undefined, { maximumFractionDigits: 2 });
-  if (n >= 1) return n.toLocaleString(undefined, { maximumFractionDigits: 4 });
-  return n.toLocaleString(undefined, { maximumFractionDigits: 6 });
+function tokenHref(symbol: string, contractAddress?: string | null, isNative?: boolean): string | null {
+  if (isNative || symbol === "OPN") return "/swap";
+  if (contractAddress?.startsWith("0x")) return `/token/${contractAddress}`;
+  return null;
 }
 
 export function DashboardMyTokensTab() {
-  const { walletAddress } = useActiveWallet();
-  const { tokens: walletTokens, loading: walletLoading, refresh, error } = useWalletLiquidityTokens(walletAddress);
-  const { tokenUsdMap, loading: priceLoading } = useWalletPortfolioBalance();
+  const { assets, loading, refresh } = useWalletPortfolioBalance();
 
   const rows = useMemo(() => {
-    const result: TokenRow[] = [];
-
-    for (const token of walletTokens) {
-      if (token.balance <= 0n) continue;
-      const key = token.contractAddress.toLowerCase();
-      const holdingUsd = tokenUsdMap[key] ?? 0;
-      const amount = Number(formatUnits(token.balance, token.decimals));
-      const unitPriceUsd = amount > 0 && holdingUsd > 0 ? holdingUsd / amount : 0;
-
-      result.push({
-        key,
-        contractAddress: token.contractAddress,
-        name: token.name,
-        symbol: token.symbol,
-        logoUrl: token.logoUrl,
-        balance: token.balance,
-        decimals: token.decimals,
-        holdingUsd,
-        unitPriceUsd,
+    return assets
+      .filter((a) => a.amount > 0)
+      .map((asset) => {
+        const unitPriceUsd = asset.amount > 0 && asset.usdValue > 0 ? asset.usdValue / asset.amount : 0;
+        return { ...asset, unitPriceUsd };
+      })
+      .sort((a, b) => {
+        const builtin = (s: string) => ["OPN", "WOPN", "USDT"].includes(s.toUpperCase());
+        const aBuiltin = builtin(a.symbol);
+        const bBuiltin = builtin(b.symbol);
+        if (aBuiltin !== bBuiltin) return aBuiltin ? -1 : 1;
+        if (a.usdValue !== b.usdValue) return b.usdValue - a.usdValue;
+        return a.symbol.localeCompare(b.symbol);
       });
-    }
-
-    return result.sort((a, b) => {
-      if (a.holdingUsd !== b.holdingUsd) return b.holdingUsd - a.holdingUsd;
-      return a.name.localeCompare(b.name);
-    });
-  }, [walletTokens, tokenUsdMap]);
-
-  const loading = walletLoading || priceLoading;
+  }, [assets]);
 
   if (loading) {
     return <p className="py-8 text-center text-sm text-muted-foreground">Loading your tokens…</p>;
-  }
-
-  if (error) {
-    return (
-      <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-center dark:border-red-900 dark:bg-red-950/30">
-        <p className="text-sm text-red-700 dark:text-red-400">{error}</p>
-        <Button className="mt-4" type="button" size="sm" onClick={() => void refresh()}>
-          Retry
-        </Button>
-      </div>
-    );
   }
 
   return (
@@ -93,11 +55,11 @@ export function DashboardMyTokensTab() {
           variant="outline"
           size="icon"
           className="h-8 w-8 shrink-0"
-          disabled={walletLoading}
+          disabled={loading}
           onClick={() => void refresh()}
           aria-label="Refresh tokens"
         >
-          <RefreshCw className={cn("h-4 w-4", walletLoading && "animate-spin")} />
+          <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
         </Button>
       </div>
 
@@ -117,27 +79,55 @@ export function DashboardMyTokensTab() {
         </div>
       ) : (
         <div className="divide-y divide-border overflow-hidden rounded-xl border border-border">
-          {rows.map((row) => (
-            <Link
-              key={row.key}
-              href={`/token/${row.contractAddress}`}
-              className="flex items-start gap-3 px-3 py-3 transition-colors hover:bg-muted/30"
-            >
-              <TokenLogo src={row.logoUrl} symbol={row.symbol} name={row.name} layout="fixed" size={40} />
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-base font-bold uppercase tracking-wide">{row.symbol}</p>
-                <p className="mt-0.5 text-sm tabular-nums text-muted-foreground">
-                  {formatBalanceAmount(row.balance, row.decimals)}
-                </p>
-                <p className="mt-1 font-semibold tabular-nums">
-                  {row.holdingUsd > 0 ? formatMarketPrice(row.holdingUsd) : "—"}
-                </p>
-                <p className="text-xs tabular-nums text-muted-foreground">
-                  {row.unitPriceUsd > 0 ? formatMarketPrice(row.unitPriceUsd) : "—"}
-                </p>
+          {rows.map((row) => {
+            const href = tokenHref(row.symbol, row.contractAddress, row.isNative);
+            const content = (
+              <>
+                <TokenLogo
+                  src={row.logoUrl}
+                  symbol={row.symbol}
+                  name={row.name}
+                  layout="fixed"
+                  size={40}
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-base font-bold uppercase tracking-wide">{row.symbol}</p>
+                  <p className="mt-0.5 text-sm tabular-nums text-muted-foreground">
+                    {formatBalanceAmount(row.amount)}
+                  </p>
+                </div>
+                <div className="shrink-0 text-right">
+                  <p className="font-semibold tabular-nums">
+                    {row.usdValue > 0 ? formatMarketPrice(row.usdValue) : "—"}
+                  </p>
+                  <p className="mt-0.5 text-xs tabular-nums text-muted-foreground">
+                    {row.unitPriceUsd > 0 ? formatMarketPrice(row.unitPriceUsd) : "—"}
+                  </p>
+                </div>
+              </>
+            );
+
+            if (href) {
+              return (
+                <Link
+                  key={`${row.symbol}-${row.contractAddress ?? "native"}`}
+                  href={href}
+                  className="flex items-center gap-3 px-3 py-3 transition-colors hover:bg-muted/30"
+                >
+                  {content}
+                </Link>
+              );
+            }
+
+            return (
+              <div
+                key={`${row.symbol}-${row.contractAddress ?? "native"}`}
+                className="flex items-center gap-3 px-3 py-3"
+              >
+                {content}
               </div>
-            </Link>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
