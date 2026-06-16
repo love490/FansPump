@@ -3,8 +3,8 @@
 import { apiUrl } from "@/lib/api";
 
 import { useEffect, useRef, useState } from "react";
-import { useAccount } from "wagmi";
 import Link from "next/link";
+import { useActiveWallet } from "@/hooks/useActiveWallet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,7 +19,8 @@ type ProfileEditorProps = {
 };
 
 export function ProfileEditor({ showSettingsLink = true }: ProfileEditorProps) {
-  const { address, isConnected } = useAccount();
+  const { walletAddress, hasWallet } = useActiveWallet();
+  const address = walletAddress;
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const [username, setUsername] = useState("");
   const [savedUsername, setSavedUsername] = useState<string | null>(null);
@@ -127,10 +128,10 @@ export function ProfileEditor({ showSettingsLink = true }: ProfileEditorProps) {
     }
   }
 
-  if (!isConnected || !address) {
+  if (!hasWallet || !address) {
     return (
       <p className="text-sm text-muted-foreground">
-        Connect your wallet to edit your profile.
+        Connect or link your wallet to edit your profile.
       </p>
     );
   }

@@ -12,6 +12,7 @@ import { ExplorePromoCards } from "@/components/explore/explore-promo-cards";
 import type { TokenCardData } from "@/components/tokens/token-card";
 import { fetchDiscoverTokens, tokenQueryKeys } from "@/lib/tokens-api";
 import { buildHomePreviewSections } from "@/lib/tokens/home-sections";
+import { useAuth } from "@/components/auth/auth-provider";
 import {
   DEFAULT_HOME_MARKET_TAB,
   getHomeMarketTab,
@@ -33,6 +34,9 @@ async function fetchWatchlistTokens(wallet: string): Promise<TokenCardData[]> {
 export function HomeTokenSections() {
   const chainId = getActiveChainId();
   const { address, isConnected } = useAccount();
+  const { account } = useAuth();
+  const wallet = (address ?? account?.walletAddress ?? "").toLowerCase();
+  const hasWallet = Boolean(wallet);
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<HomeMarketTabId>(DEFAULT_HOME_MARKET_TAB);
 
@@ -72,9 +76,9 @@ export function HomeTokenSections() {
   });
 
   const favoritesQuery = useQuery({
-    queryKey: ["watchlist", address?.toLowerCase() ?? "", chainId],
-    queryFn: () => fetchWatchlistTokens(address!),
-    enabled: Boolean(address),
+    queryKey: ["watchlist", wallet, chainId],
+    queryFn: () => fetchWatchlistTokens(wallet),
+    enabled: hasWallet,
     staleTime: 15_000,
   });
 
@@ -140,26 +144,26 @@ export function HomeTokenSections() {
   const emptyMessage = useMemo(() => {
     if (isError) return loadError;
     if (activeTab === "favorite") {
-      if (!isConnected) return "Connect your wallet to see your favorite tokens.";
+      if (!hasWallet) return "Connect a wallet to star and view favorites.";
       return "No favorites yet — star a token in the table below.";
     }
     return "No tokens to display yet.";
-  }, [isError, activeTab, isConnected]);
+  }, [isError, activeTab, hasWallet]);
 
   const toggleFavorite = useCallback(
     async (tokenId: string) => {
-      if (!address) return;
+      if (!wallet) return;
       const isFavorite = favoriteIds.has(tokenId);
       await fetch(apiUrl("/api/watchlist"), {
         method: isFavorite ? "DELETE" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tokenId, walletAddress: address }),
+        body: JSON.stringify({ tokenId, walletAddress: wallet }),
       });
       await queryClient.invalidateQueries({
-        queryKey: ["watchlist", address.toLowerCase(), chainId],
+        queryKey: ["watchlist", wallet, chainId],
       });
     },
-    [address, chainId, favoriteIds, queryClient]
+    [wallet, chainId, favoriteIds, queryClient]
   );
 
   function retryAll() {
@@ -177,6 +181,7 @@ export function HomeTokenSections() {
         isLoading={sectionLoading}
         includeBaseTokens={tabMeta.includeBaseTokens}
         favoriteIds={favoriteIds}
+        canToggleFavorite={hasWallet}
         onToggleFavorite={toggleFavorite}
         emptyMessage={emptyMessage}
         tabs={HOME_MARKET_TABS.map((t) => ({ id: t.id, label: t.label }))}

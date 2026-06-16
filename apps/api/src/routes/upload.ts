@@ -84,7 +84,7 @@ router.post(
 
       if (!r2 || !bucket || !publicUrl) {
         console.warn("[upload] R2 not configured, skipping image upload");
-        res.json({ url: null, path: null });
+        res.status(503).json({ error: "Image storage is not configured yet.", url: null, path: null });
         return;
       }
 

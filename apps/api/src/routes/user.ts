@@ -145,11 +145,18 @@ router.get(
     }
 
     try {
-      await consolidateStakingPositions(wallet);
+      try {
+        await consolidateStakingPositions(wallet);
+      } catch (consolidateError) {
+        console.warn("[GET /api/user/dashboard] consolidateStakingPositions failed:", consolidateError);
+      }
+
+      const walletMatch = { equals: wallet, mode: "insensitive" as const };
 
       const [
         tokensCreatedRows,
         liquidityLocks,
+        lpBurnRows,
         bountiesCreatedRows,
         joinedQuests,
         completedParticipations,
@@ -157,25 +164,31 @@ router.get(
         launchpoolStakeRows,
       ] = await Promise.all([
         prisma.tokenProject.findMany({
-          where: { creatorAddress: wallet },
+          where: { creatorAddress: walletMatch },
           select: { id: true, symbol: true, name: true, contractAddress: true, createdAt: true },
           orderBy: { createdAt: "desc" },
           take: 50,
         }),
         prisma.liquidityLock.findMany({
-          where: { creatorWallet: wallet },
+          where: { creatorWallet: walletMatch },
           include: { token: { select: { symbol: true } } },
           orderBy: { createdAt: "desc" },
           take: 50,
         }),
+        prisma.lpBurn.findMany({
+          where: { creatorWallet: walletMatch },
+          include: { token: { select: { symbol: true, contractAddress: true } } },
+          orderBy: { burnedAt: "desc" },
+          take: 50,
+        }),
         prisma.bounty.findMany({
-          where: { creatorWallet: wallet },
+          where: { creatorWallet: walletMatch },
           select: { id: true, title: true, createdAt: true },
           orderBy: { createdAt: "desc" },
           take: 50,
         }),
         prisma.bountyParticipation.findMany({
-          where: { walletAddress: wallet },
+          where: { walletAddress: walletMatch },
           include: {
             bounty: {
               select: {
@@ -195,7 +208,7 @@ router.get(
         }),
         prisma.bountyParticipation.findMany({
           where: {
-            walletAddress: wallet,
+            walletAddress: walletMatch,
             bounty: { status: "COMPLETED" },
           },
           include: {
@@ -215,11 +228,11 @@ router.get(
           take: 50,
         }),
         prisma.stakingPosition.findMany({
-          where: { wallet, isActive: true },
+          where: { wallet: walletMatch, isActive: true },
           orderBy: { stakedAt: "desc" },
         }),
         prisma.launchpoolStake.findMany({
-          where: { walletAddress: wallet, isActive: true },
+          where: { walletAddress: walletMatch, isActive: true },
           include: { launchpool: { select: { id: true, title: true } } },
           orderBy: { stakedAt: "desc" },
         }),
@@ -309,6 +322,19 @@ router.get(
         });
       }
 
+      for (const burn of lpBurnRows) {
+        activities.push({
+          id: `burn-${burn.id}`,
+          kind: "liquidity",
+          title: `LP burned · ${burn.token.symbol}`,
+          subtitle: "Liquidity permanently removed",
+          amount: formatActivityAmount(burn.amount, 18, "LP"),
+          platform: "FansPump",
+          occurredAt: burn.burnedAt.toISOString(),
+          href: `/liquidity/${burn.tokenAddress}`,
+        });
+      }
+
       for (const token of tokensCreatedRows) {
         activities.push({
           id: `token-${token.id}`,
@@ -366,6 +392,7 @@ router.get(
         stats: {
           tokensCreated: tokensCreatedRows.length,
           liquidityLocks: liquidityLocks.length,
+          liquidityBurns: lpBurnRows.length,
           liquidityLockedAmount: lockAmountWei.toString(),
           questsCreated: bountiesCreatedRows.length,
           questsJoined: joinedQuests.length,

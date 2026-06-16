@@ -98,10 +98,10 @@ function TrustFeatureCard({ feature }: { feature: TrustFeature }) {
 export function LandingTrustPreview() {
   return (
     <section id="trust" className="space-y-6">
-      <div className="relative overflow-hidden rounded-2xl border border-primary/20 bg-gradient-to-r from-primary/10 via-violet-500/10 to-cyan-500/10 p-5 sm:p-6">
+      <div className="relative overflow-hidden rounded-2xl border border-primary/20 bg-gradient-to-r from-primary/10 via-violet-500/10 to-cyan-500/10 p-5 text-center sm:p-6">
         <div className="pointer-events-none absolute -right-6 -top-6 h-24 w-24 rounded-full bg-primary/20 blur-2xl" />
         <h2 className="relative text-xl font-bold sm:text-2xl">Why Trust FansPump?</h2>
-        <p className="relative mt-2 max-w-2xl text-muted-foreground">
+        <p className="relative mx-auto mt-2 max-w-2xl text-muted-foreground">
           We help users identify safer and higher-quality token projects.
         </p>
       </div>

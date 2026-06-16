@@ -8,6 +8,8 @@ import { ChevronDown, LogOut, User, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SignInModal } from "@/components/auth/sign-in-modal";
 import { useAuth } from "@/components/auth/auth-provider";
+import { useUserProfile } from "@/hooks/useUserProfile";
+import { formatCreatorDisplay } from "@/lib/username";
 import { cn, shortenAddress } from "@/lib/utils";
 
 type SignInButtonProps = {
@@ -27,6 +29,7 @@ export function SignInButton({
   const rootRef = useRef<HTMLDivElement>(null);
   const { account, isSignedIn, isLoading, signOut } = useAuth();
   const { address, isConnected } = useAccount();
+  const { profile } = useUserProfile(address);
   const { disconnect } = useDisconnect();
   const { openConnectModal } = useConnectModal();
 
@@ -41,16 +44,17 @@ export function SignInButton({
     return () => document.removeEventListener("mousedown", onPointerDown);
   }, [menuOpen]);
 
-  const label =
-    isSignedIn && account?.displayName
-      ? account.displayName
-      : isSignedIn && account?.email
-        ? account.email.split("@")[0]
-        : isConnected && address
-          ? shortenAddress(address, 4)
-          : "Sign in";
+  const walletLabel =
+    isConnected && address ? formatCreatorDisplay(profile?.username, address, shortenAddress) : null;
 
-  const avatarUrl = account?.avatarUrl;
+  const label =
+    profile?.username?.trim() ||
+    (isSignedIn && account?.displayName) ||
+    (isSignedIn && account?.email?.split("@")[0]) ||
+    walletLabel ||
+    "Sign in";
+
+  const avatarUrl = account?.avatarUrl ?? profile?.profileImageUrl ?? null;
 
   if (isLoading) {
     return (
@@ -98,11 +102,6 @@ export function SignInButton({
           <User className="h-4 w-4 shrink-0 text-primary" />
         )}
         <span className="max-w-[7rem] truncate text-sm">{label}</span>
-        {isConnected && address && (
-          <span className="hidden font-mono text-xs text-muted-foreground sm:inline">
-            · {shortenAddress(address, 3)}
-          </span>
-        )}
         <ChevronDown className={cn("h-4 w-4 shrink-0 opacity-60", menuOpen && "rotate-180")} />
       </Button>
 

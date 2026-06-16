@@ -2,6 +2,7 @@ import cors from "cors";
 
 const DEFAULT_ORIGINS = [
   "https://fanspump.xyz",
+  "https://www.fanspump.xyz",
   "https://admin.fanspump.xyz",
   "http://localhost:3000",
 ];

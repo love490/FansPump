@@ -6,7 +6,8 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import type { Address } from "viem";
 import { formatUnits } from "viem";
-import { useAccount, usePublicClient } from "wagmi";
+import { useActiveWallet } from "@/hooks/useActiveWallet";
+import { usePublicClient } from "wagmi";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useMyLiquidityPositions } from "@/hooks/liquidity/useMyLiquidityPositions";
@@ -50,10 +51,10 @@ function launchpoolStakeUsd(amountWei: string, symbol: string, opnRate: number):
 }
 
 export function DashboardDefiTab() {
-  const { address } = useAccount();
+  const { walletAddress } = useActiveWallet();
   const client = usePublicClient();
-  const { positions: lpPositions, loading: lpLoading } = useMyLiquidityPositions(address);
-  const { positions: basePools, loading: baseLoading } = useBasePoolLpPositions(address);
+  const { positions: lpPositions, loading: lpLoading } = useMyLiquidityPositions(walletAddress);
+  const { positions: basePools, loading: baseLoading } = useBasePoolLpPositions(walletAddress);
   const { opnUsdRate: portfolioRate } = useWalletPortfolioBalance();
   const [stakes, setStakes] = useState<StakeRow[]>([]);
   const [launchpoolStakes, setLaunchpoolStakes] = useState<LaunchpoolStakeRow[]>([]);
@@ -62,13 +63,13 @@ export function DashboardDefiTab() {
   const [valuing, setValuing] = useState(false);
 
   useEffect(() => {
-    if (!address) {
+    if (!walletAddress) {
       setStakes([]);
       setLaunchpoolStakes([]);
       return;
     }
     setLoadingStakes(true);
-    fetch(apiUrl(`/api/user/dashboard?wallet=${address.toLowerCase()}`))
+    fetch(apiUrl(`/api/user/dashboard?wallet=${walletAddress.toLowerCase()}`))
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
         setStakes(d?.stakingPositions ?? []);
@@ -79,7 +80,7 @@ export function DashboardDefiTab() {
         setLaunchpoolStakes([]);
       })
       .finally(() => setLoadingStakes(false));
-  }, [address]);
+  }, [walletAddress]);
 
   const lpRows = useMemo(() => {
     const rows = [
@@ -152,7 +153,7 @@ export function DashboardDefiTab() {
     return () => {
       cancelled = true;
     };
-  }, [address, client, stakes, lpRows, launchpoolStakes, portfolioRate]);
+  }, [walletAddress, client, stakes, lpRows, launchpoolStakes, portfolioRate]);
 
   const stakingActivityRows = useMemo((): StakingActivityRow[] => {
     const poolShare: StakingActivityRow[] = stakes.map((stake) => ({

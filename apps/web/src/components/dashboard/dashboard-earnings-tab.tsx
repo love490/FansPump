@@ -4,7 +4,8 @@ import { apiUrl } from "@/lib/api";
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useAccount, useSignMessage } from "wagmi";
+import { useSignMessage } from "wagmi";
+import { useActiveWallet } from "@/hooks/useActiveWallet";
 import { formatUnits } from "viem";
 import { Gift } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -69,11 +70,11 @@ function EarningsSection({
 const CLAIM_PREFIX = "FansPump Claim Rewards";
 
 export function DashboardEarningsTab() {
-  const { address } = useAccount();
+  const { walletAddress } = useActiveWallet();
   const { signMessageAsync } = useSignMessage();
   const { opnUsdRate } = useWalletPortfolioBalance();
-  const { positions: lpPositions, loading: lpLoading } = useMyLiquidityPositions(address);
-  const { positions: basePools, loading: baseLoading } = useBasePoolLpPositions(address);
+  const { positions: lpPositions, loading: lpLoading } = useMyLiquidityPositions(walletAddress);
+  const { positions: basePools, loading: baseLoading } = useBasePoolLpPositions(walletAddress);
   const [data, setData] = useState<DashboardApi | null>(null);
   const [loading, setLoading] = useState(false);
   const [claiming, setClaiming] = useState(false);
@@ -81,17 +82,17 @@ export function DashboardEarningsTab() {
   const [claimError, setClaimError] = useState<string | null>(null);
 
   const load = useCallback(() => {
-    if (!address) {
+    if (!walletAddress) {
       setData(null);
       return;
     }
     setLoading(true);
-    fetch(apiUrl(`/api/user/dashboard?wallet=${address.toLowerCase()}`))
+    fetch(apiUrl(`/api/user/dashboard?wallet=${walletAddress.toLowerCase()}`))
       .then((r) => (r.ok ? r.json() : null))
       .then(setData)
       .catch(() => setData(null))
       .finally(() => setLoading(false));
-  }, [address]);
+  }, [walletAddress]);
 
   useEffect(() => {
     load();
@@ -137,18 +138,18 @@ export function DashboardEarningsTab() {
   const canClaim = totalRevenueOpn > 0 || launchpoolRewards.length > 0;
 
   async function claimRewards() {
-    if (!address || !canClaim) return;
+    if (!walletAddress || !canClaim) return;
     setClaiming(true);
     setClaimError(null);
     setClaimMessage(null);
     try {
-      const message = `${CLAIM_PREFIX}\nWallet: ${address.toLowerCase()}\nAmount: ${totalRevenueOpn} OPN\nTime: ${Date.now()}`;
+      const message = `${CLAIM_PREFIX}\nWallet: ${walletAddress.toLowerCase()}\nAmount: ${totalRevenueOpn} OPN\nTime: ${Date.now()}`;
       const signature = await signMessageAsync({ message });
       const res = await fetch(apiUrl("/api/user/claim-rewards"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          walletAddress: address,
+          walletAddress,
           message,
           signature,
         }),

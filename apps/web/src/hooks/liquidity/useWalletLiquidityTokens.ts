@@ -52,22 +52,28 @@ export function useWalletLiquidityTokens(walletAddress: string | undefined) {
       const chainId = getActiveChainId();
       const creator = walletAddress.toLowerCase();
 
-      const [created, recent, trending] = await Promise.all([
-        fetchTokenList(`/api/tokens?creator=${encodeURIComponent(creator)}&limit=100&chainId=${chainId}`),
-        fetchTokenList(`/api/tokens?section=new&limit=100&chainId=${chainId}`),
-        fetchTokenList(`/api/tokens?section=trending&limit=50&chainId=${chainId}`),
+      const [created, allTokens, registry, recent, trending] = await Promise.all([
+        fetchTokenList(`/api/tokens?creator=${encodeURIComponent(creator)}&limit=200&chainId=${chainId}`),
+        fetchTokenList(`/api/tokens?section=all&limit=500&chainId=${chainId}`),
+        fetchTokenList(`/api/tokens?section=registry&chainId=${chainId}`),
+        fetchTokenList(`/api/tokens?section=new&limit=150&chainId=${chainId}`),
+        fetchTokenList(`/api/tokens?section=trending&limit=150&chainId=${chainId}`),
       ]);
 
       const creatorSet = new Set(created.map((t) => t.contractAddress.toLowerCase()));
       const merged = new Map<string, ApiToken & { isCreator: boolean }>();
 
-      for (const t of [...created, ...recent, ...trending]) {
+      for (const t of [...created, ...allTokens, ...registry, ...recent, ...trending]) {
         const addr = t.contractAddress.toLowerCase();
         if (!addr.startsWith("0x")) continue;
+        const existing = merged.get(addr);
         merged.set(addr, {
           ...t,
           contractAddress: addr,
-          isCreator: creatorSet.has(addr),
+          name: t.name || existing?.name || "Unknown",
+          symbol: t.symbol || existing?.symbol || "???",
+          logoUrl: t.logoUrl ?? existing?.logoUrl,
+          isCreator: creatorSet.has(addr) || existing?.isCreator === true,
         });
       }
 

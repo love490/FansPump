@@ -41,3 +41,55 @@ export function launchpoolHeadline(
 
 export const LAUNCHPOOL_STAKE_PREFIX = "FansPump Launchpool Stake";
 export const LAUNCHPOOL_UNSTAKE_PREFIX = "FansPump Launchpool Unstake";
+
+type LaunchpoolRecord = {
+  id: string;
+  title: string;
+  description: string;
+  detailInfo: string;
+  status: LaunchpoolStatus;
+  rewardTokenSymbol: string;
+  rewardTokenAddress: string | null;
+  totalRewardUsd: number;
+  totalRewardAmount: string;
+  startAt: Date;
+  endAt: Date;
+  durationLabel: string | null;
+  isPublished: boolean;
+  rewardsDistributed: boolean;
+  stakeAssets: LaunchpoolStakeAssetInput[];
+};
+
+type LaunchpoolStats = {
+  totalStakedAmount: string;
+  participantCount: number;
+};
+
+export function serializeLaunchpool(
+  pool: LaunchpoolRecord,
+  stats?: LaunchpoolStats
+): SerializedLaunchpool {
+  return {
+    id: pool.id,
+    title: pool.title,
+    description: pool.description,
+    detailInfo: pool.detailInfo,
+    status: pool.status,
+    rewardTokenSymbol: pool.rewardTokenSymbol,
+    rewardTokenAddress: pool.rewardTokenAddress,
+    totalRewardUsd: pool.totalRewardUsd,
+    totalRewardAmount: pool.totalRewardAmount,
+    startAt: pool.startAt.toISOString(),
+    endAt: pool.endAt.toISOString(),
+    durationLabel: pool.durationLabel,
+    isPublished: pool.isPublished,
+    rewardsDistributed: pool.rewardsDistributed,
+    stakeAssets: pool.stakeAssets.map((asset) => ({
+      assetType: asset.assetType,
+      assetAddress: asset.assetAddress ?? null,
+      assetSymbol: asset.assetSymbol,
+    })),
+    totalStakedAmount: stats?.totalStakedAmount ?? "0",
+    participantCount: stats?.participantCount ?? 0,
+  };
+}

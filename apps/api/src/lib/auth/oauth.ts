@@ -1,12 +1,13 @@
 import { randomBytes, createHash } from "crypto";
 
-export type OAuthProvider = "google" | "github" | "twitter" | "apple";
+export type OAuthProvider = "google" | "github" | "twitter" | "apple" | "discord";
 
 const PROVIDER_LABELS: Record<OAuthProvider, string> = {
   google: "Google",
   github: "GitHub",
   twitter: "X",
   apple: "Apple",
+  discord: "Discord",
 };
 
 export function oauthProviderLabel(provider: OAuthProvider): string {
@@ -14,7 +15,13 @@ export function oauthProviderLabel(provider: OAuthProvider): string {
 }
 
 export function isOAuthProvider(value: string): value is OAuthProvider {
-  return value === "google" || value === "github" || value === "twitter" || value === "apple";
+  return (
+    value === "google" ||
+    value === "github" ||
+    value === "twitter" ||
+    value === "apple" ||
+    value === "discord"
+  );
 }
 
 function appBaseUrl(): string {
@@ -80,6 +87,11 @@ function providerConfig(provider: OAuthProvider): ProviderConfig {
         clientId: process.env.APPLE_CLIENT_ID,
         clientSecret: process.env.APPLE_CLIENT_SECRET,
       };
+    case "discord":
+      return {
+        clientId: process.env.DISCORD_CLIENT_ID,
+        clientSecret: process.env.DISCORD_CLIENT_SECRET,
+      };
   }
 }
 
@@ -128,6 +140,12 @@ export function buildOAuthAuthorizeUrl(
         `&redirect_uri=${redirectUri}&response_type=code&scope=${encodeURIComponent("name email")}` +
         `&response_mode=form_post&state=${encodedState}`
       );
+    case "discord":
+      return (
+        `https://discord.com/api/oauth2/authorize?client_id=${clientId}` +
+        `&redirect_uri=${redirectUri}&response_type=code&scope=${encodeURIComponent("identify email")}` +
+        `&state=${encodedState}`
+      );
   }
 }
 
@@ -157,6 +175,8 @@ export async function exchangeOAuthCode(
       return exchangeTwitter(code, clientId, clientSecret, pkceVerifier);
     case "apple":
       return exchangeApple(code, clientId, clientSecret);
+    case "discord":
+      return exchangeDiscord(code, clientId, clientSecret);
   }
 }
 
@@ -304,5 +324,50 @@ async function exchangeApple(code: string, clientId: string, clientSecret: strin
     email: payload.email ?? null,
     displayName: null,
     avatarUrl: null,
+  };
+}
+
+async function exchangeDiscord(
+  code: string,
+  clientId: string,
+  clientSecret: string
+): Promise<OAuthProfile> {
+  const tokenRes = await fetch("https://discord.com/api/oauth2/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      code,
+      client_id: clientId,
+      client_secret: clientSecret,
+      redirect_uri: oauthCallbackUrl("discord"),
+      grant_type: "authorization_code",
+    }),
+  });
+  const tokenJson = (await tokenRes.json()) as { access_token?: string; error?: string };
+  if (!tokenRes.ok || !tokenJson.access_token) {
+    throw new Error(tokenJson.error ?? "Discord token exchange failed");
+  }
+
+  const profileRes = await fetch("https://discord.com/api/users/@me", {
+    headers: { Authorization: `Bearer ${tokenJson.access_token}` },
+  });
+  const profile = (await profileRes.json()) as {
+    id?: string;
+    username?: string;
+    global_name?: string | null;
+    avatar?: string | null;
+    email?: string | null;
+  };
+
+  const avatarUrl =
+    profile.id && profile.avatar
+      ? `https://cdn.discordapp.com/avatars/${profile.id}/${profile.avatar}.png`
+      : null;
+
+  return {
+    providerUserId: profile.id ?? "",
+    email: profile.email ?? null,
+    displayName: profile.global_name ?? profile.username ?? null,
+    avatarUrl,
   };
 }

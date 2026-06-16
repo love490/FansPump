@@ -1,11 +1,11 @@
 "use client";
 
-import { useAccount } from "wagmi";
+import { useActiveWallet } from "@/hooks/useActiveWallet";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ProfileEditor } from "@/components/profile/profile-editor";
 
 export default function ProfilePage() {
-  const { isConnected } = useAccount();
+  const { hasWallet } = useActiveWallet();
 
   return (
     <div className="mx-auto max-w-xl space-y-6 py-2 sm:py-4">
@@ -20,9 +20,9 @@ export default function ProfilePage() {
         <CardHeader>
           <CardTitle className="text-base">Your profile</CardTitle>
           <CardDescription>
-            {isConnected
+            {hasWallet
               ? "This name and photo appear on tokens you create and across the platform."
-              : "Connect your wallet to edit your profile."}
+              : "Connect or link your wallet to edit your profile."}
           </CardDescription>
         </CardHeader>
         <CardContent>

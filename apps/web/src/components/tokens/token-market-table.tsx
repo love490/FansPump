@@ -32,6 +32,7 @@ type TokenMarketTableProps = {
   isLoading?: boolean;
   includeBaseTokens?: boolean;
   favoriteIds?: Set<string>;
+  canToggleFavorite?: boolean;
   onToggleFavorite?: (tokenId: string) => void;
   emptyMessage?: string;
   pageSize?: number;
@@ -87,6 +88,7 @@ export function TokenMarketTable({
   isLoading,
   includeBaseTokens = true,
   favoriteIds,
+  canToggleFavorite,
   onToggleFavorite,
   emptyMessage = "No tokens to display yet.",
   pageSize = DEFAULT_PAGE_SIZE,
@@ -95,6 +97,7 @@ export function TokenMarketTable({
   onTabChange,
 }: TokenMarketTableProps) {
   const { isConnected } = useAccount();
+  const allowFavorites = canToggleFavorite ?? isConnected;
   const [sortKey, setSortKey] = useState<MarketSortKey>("rank");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [page, setPage] = useState(1);
@@ -208,7 +211,7 @@ export function TokenMarketTable({
                     key={row.id}
                     row={row}
                     isFavorite={favoriteIds?.has(row.id) ?? false}
-                    canToggleFavorite={Boolean(isConnected && onToggleFavorite)}
+                    canToggleFavorite={Boolean(allowFavorites && onToggleFavorite)}
                     onToggleFavorite={onToggleFavorite}
                   />
                 ))

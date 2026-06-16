@@ -106,6 +106,6 @@ export function useAuth() {
   return ctx;
 }
 
-export function oauthSignInUrl(provider: "google" | "github" | "twitter" | "apple") {
+export function oauthSignInUrl(provider: "google" | "github" | "twitter" | "apple" | "discord") {
   return apiUrl(`/api/auth/oauth/${provider}`);
 }

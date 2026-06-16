@@ -6,6 +6,8 @@ import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { ChevronDown, LogOut, User, Wallet } from "lucide-react";
 import { SignInModal } from "@/components/auth/sign-in-modal";
 import { useAuth } from "@/components/auth/auth-provider";
+import { useUserProfile } from "@/hooks/useUserProfile";
+import { formatCreatorDisplay } from "@/lib/username";
 import { cn, shortenAddress } from "@/lib/utils";
 
 export function SidebarWallet({ collapsed }: { collapsed?: boolean }) {
@@ -13,6 +15,7 @@ export function SidebarWallet({ collapsed }: { collapsed?: boolean }) {
   const { disconnect } = useDisconnect();
   const { openConnectModal } = useConnectModal();
   const { account, isSignedIn, signOut } = useAuth();
+  const { profile } = useUserProfile(address);
   const [open, setOpen] = useState(false);
   const [signInOpen, setSignInOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -53,9 +56,10 @@ export function SidebarWallet({ collapsed }: { collapsed?: boolean }) {
   }
 
   const displayLabel =
-    isConnected && address
-      ? shortenAddress(address, 4)
-      : account?.email?.split("@")[0] ?? "Signed in";
+    profile?.username?.trim() ||
+    account?.displayName ||
+    account?.email?.split("@")[0] ||
+    (isConnected && address ? formatCreatorDisplay(profile?.username, address, shortenAddress) : "Signed in");
 
   return (
     <div ref={rootRef} className="relative">
@@ -73,7 +77,7 @@ export function SidebarWallet({ collapsed }: { collapsed?: boolean }) {
         <Wallet className="h-4 w-4 shrink-0 text-primary" />
         {!collapsed && (
           <>
-            <span className="min-w-0 flex-1 truncate text-left font-mono text-xs">{displayLabel}</span>
+            <span className="min-w-0 flex-1 truncate text-left text-xs">{displayLabel}</span>
             <ChevronDown
               className={cn("h-4 w-4 shrink-0 text-muted-foreground transition-transform", open && "rotate-180")}
             />

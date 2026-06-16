@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Address, PublicClient } from "viem";
 import { formatUnits } from "viem";
-import { useAccount, useBalance, usePublicClient } from "wagmi";
+import { useBalance, usePublicClient } from "wagmi";
+import { useActiveWallet } from "@/hooks/useActiveWallet";
 import { erc20Abi } from "@/lib/swap/abis";
 import { getRouterAddress } from "@/lib/swap/routerAdapter";
 import { getBuiltinPayTokens, type PayToken } from "@/lib/swap/payment-tokens";
@@ -35,10 +36,10 @@ async function readPayTokenBalance(
 }
 
 export function useWalletPortfolioBalance() {
-  const { address } = useAccount();
+  const { walletAddress } = useActiveWallet();
   const client = usePublicClient();
-  const { data: nativeBalance, isLoading: nativeLoading } = useBalance({ address });
-  const { tokens: walletTokens, loading: walletTokensLoading } = useWalletLiquidityTokens(address);
+  const { data: nativeBalance, isLoading: nativeLoading } = useBalance({ address: walletAddress });
+  const { tokens: walletTokens, loading: walletTokensLoading } = useWalletLiquidityTokens(walletAddress);
 
   const [payBalances, setPayBalances] = useState<Record<string, bigint>>({});
   const [payLoading, setPayLoading] = useState(false);
@@ -50,13 +51,13 @@ export function useWalletPortfolioBalance() {
   const payTokens = useMemo(() => getBuiltinPayTokens().filter((t) => !t.isNative && t.address), []);
 
   const refreshPayBalances = useCallback(async () => {
-    if (!address || !client) {
+    if (!walletAddress || !client) {
       setPayBalances({});
       return;
     }
     setPayLoading(true);
     try {
-      const wallet = address as Address;
+      const wallet = walletAddress as Address;
       const entries = await Promise.all(
         payTokens.map(async (token) => {
           const balance = await readPayTokenBalance(client, wallet, token);
@@ -67,7 +68,7 @@ export function useWalletPortfolioBalance() {
     } finally {
       setPayLoading(false);
     }
-  }, [address, client, payTokens]);
+  }, [walletAddress, client, payTokens]);
 
   useEffect(() => {
     void refreshPayBalances();
@@ -82,7 +83,7 @@ export function useWalletPortfolioBalance() {
   }, [client]);
 
   useEffect(() => {
-    if (!client || !address || walletTokens.length === 0) {
+    if (!client || !walletAddress || walletTokens.length === 0) {
       setTokenUsdMap({});
       return;
     }
@@ -124,7 +125,7 @@ export function useWalletPortfolioBalance() {
     return () => {
       cancelled = true;
     };
-  }, [address, client, walletTokens]);
+  }, [walletAddress, client, walletTokens]);
 
   const assets = useMemo((): PortfolioAsset[] => {
     const rows: PortfolioAsset[] = [];

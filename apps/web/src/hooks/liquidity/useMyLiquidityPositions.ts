@@ -34,7 +34,7 @@ type TokenCandidate = { contractAddress: string; symbol: string };
 async function fetchCreatorTokens(wallet: string): Promise<TokenCandidate[]> {
   const chainId = getActiveChainId();
   const res = await fetch(
-    `/api/tokens?creator=${encodeURIComponent(wallet)}&limit=100&chainId=${chainId}`
+    apiUrl(`/api/tokens?creator=${encodeURIComponent(wallet)}&limit=100&chainId=${chainId}`)
   );
   if (!res.ok) return [];
   const data = (await res.json()) as { tokens?: TokenCandidate[] };

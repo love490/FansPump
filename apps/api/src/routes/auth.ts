@@ -276,7 +276,7 @@ router.post(
 router.get(
   "/providers",
   asyncHandler(async (_req, res) => {
-    const providers: OAuthProvider[] = ["google", "github", "twitter", "apple"];
+    const providers: OAuthProvider[] = ["google", "github", "twitter", "apple", "discord"];
     res.json({
       oauth: Object.fromEntries(
         providers.map((p) => [p, isOAuthConfigured(p)])

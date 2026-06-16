@@ -4,7 +4,6 @@ import { apiUrl } from "@/lib/api";
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { useAccount } from "wagmi";
 import { formatUnits } from "viem";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -14,6 +13,8 @@ import {
 } from "@/lib/dashboard/activities";
 import { useMyLiquidityPositions } from "@/hooks/liquidity/useMyLiquidityPositions";
 import { useBasePoolLpPositions } from "@/hooks/liquidity/useBasePoolLpPositions";
+import { useActiveWallet } from "@/hooks/useActiveWallet";
+import { loadStoredLiquidityPositions } from "@/lib/liquidity/my-liquidity-storage";
 import { cn } from "@/lib/utils";
 
 function platformBadgeClass(platform: UserActivity["platform"]) {
@@ -23,24 +24,49 @@ function platformBadgeClass(platform: UserActivity["platform"]) {
 }
 
 export function DashboardActivitiesTab() {
-  const { address } = useAccount();
-  const { positions: lpPositions, loading: lpLoading } = useMyLiquidityPositions(address);
-  const { positions: basePools, loading: basePoolLoading } = useBasePoolLpPositions(address);
+  const { walletAddress } = useActiveWallet();
+  const { positions: lpPositions, loading: lpLoading } = useMyLiquidityPositions(walletAddress);
+  const { positions: basePools, loading: basePoolLoading } = useBasePoolLpPositions(walletAddress);
   const [activities, setActivities] = useState<UserActivity[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!address) {
+    if (!walletAddress) {
       setActivities([]);
+      setLoadError(null);
       return;
     }
     setLoading(true);
-    fetch(apiUrl(`/api/user/dashboard?wallet=${address.toLowerCase()}`))
-      .then((r) => (r.ok ? r.json() : null))
+    setLoadError(null);
+    fetch(apiUrl(`/api/user/dashboard?wallet=${walletAddress.toLowerCase()}`))
+      .then(async (r) => {
+        if (!r.ok) {
+          const body = (await r.json().catch(() => ({}))) as { error?: string };
+          throw new Error(body.error ?? `Failed to load activity (${r.status})`);
+        }
+        return r.json();
+      })
       .then((d) => setActivities(d?.activities ?? []))
-      .catch(() => setActivities([]))
+      .catch((e) => {
+        setActivities([]);
+        setLoadError(e instanceof Error ? e.message : "Failed to load activity");
+      })
       .finally(() => setLoading(false));
-  }, [address]);
+  }, [walletAddress]);
+
+  const storedLiquidityActivities = useMemo((): UserActivity[] => {
+    if (!walletAddress) return [];
+    return loadStoredLiquidityPositions(walletAddress).map((entry) => ({
+      id: `liquidity-add-${entry.tokenAddress}-${entry.pairId}`,
+      kind: "liquidity" as const,
+      title: `Liquidity added · ${entry.tokenSymbol} / ${entry.pairSymbol}`,
+      subtitle: entry.txHash ? `Tx ${entry.txHash.slice(0, 10)}…` : "Recorded on this device",
+      platform: "FansPump" as const,
+      occurredAt: entry.addedAt,
+      href: `/liquidity/${entry.tokenAddress}`,
+    }));
+  }, [walletAddress]);
 
   const onChainLiquidityActivities = useMemo((): UserActivity[] => {
     const items: UserActivity[] = [];
@@ -78,14 +104,18 @@ export function DashboardActivitiesTab() {
   }, [lpPositions, basePools]);
 
   const allActivities = useMemo(() => {
-    const merged = sortActivities([...activities, ...onChainLiquidityActivities]);
+    const merged = sortActivities([
+      ...activities,
+      ...storedLiquidityActivities,
+      ...onChainLiquidityActivities,
+    ]);
     const seen = new Set<string>();
     return merged.filter((item) => {
       if (seen.has(item.id)) return false;
       seen.add(item.id);
       return true;
     });
-  }, [activities, onChainLiquidityActivities]);
+  }, [activities, storedLiquidityActivities, onChainLiquidityActivities]);
 
   const isLoading = loading || lpLoading || basePoolLoading;
 
@@ -93,10 +123,18 @@ export function DashboardActivitiesTab() {
     return <p className="py-8 text-center text-sm text-muted-foreground">Loading activities…</p>;
   }
 
+  if (loadError) {
+    return (
+      <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-center dark:border-red-900 dark:bg-red-950/30">
+        <p className="text-sm text-red-700 dark:text-red-400">{loadError}</p>
+      </div>
+    );
+  }
+
   if (allActivities.length === 0) {
     return (
       <div className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">
-        No activity yet. Trades, stakes, liquidity, and quests will appear here.
+        No activity yet. Trades, stakes, liquidity, token creation, and quests will appear here.
       </div>
     );
   }
@@ -104,7 +142,7 @@ export function DashboardActivitiesTab() {
   return (
     <div className="space-y-2">
       <p className="text-sm text-muted-foreground">
-        Transactions, trades, stakes, and quests on FansPump and OPN Network.
+        Tokens created, liquidity locks, burns, stakes, and quests on FansPump and OPN Network.
       </p>
       {allActivities.map((item) => (
         <ActivityRow key={item.id} item={item} />

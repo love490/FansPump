@@ -34,7 +34,7 @@ export function FansPumpLogo({
         alt="FansPump"
         width={iconSize}
         height={iconSize}
-        className="shrink-0"
+        className="shrink-0 bg-transparent object-contain"
         priority
       />
       {showText && (

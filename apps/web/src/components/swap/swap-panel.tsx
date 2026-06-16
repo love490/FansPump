@@ -347,7 +347,7 @@ export function SwapPanel({ initialToken = "", initialMode = "buy" }: SwapPanelP
                   <Settings2 className="h-4 w-4" />
                 </button>
                 {settingsOpen && (
-                  <div className="absolute right-0 top-full z-50 mt-2 w-52 rounded-lg border bg-popover p-3 shadow-lg">
+                  <div className="absolute bottom-full right-0 z-50 mb-2 w-[min(13rem,calc(100vw-2rem))] rounded-lg border bg-popover p-3 shadow-lg sm:bottom-auto sm:top-full sm:mb-0 sm:mt-2 sm:w-52">
                     <p className="mb-2 text-xs font-medium text-muted-foreground">Slippage tolerance</p>
                     <div className="flex flex-wrap gap-1.5">
                       {SLIPPAGE_OPTIONS.map((s) => (
