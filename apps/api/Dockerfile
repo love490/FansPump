@@ -1,4 +1,5 @@
 # syntax=docker/dockerfile:1
+# Build from monorepo root: docker build -f apps/api/Dockerfile .
 
 FROM node:20-alpine AS base
 RUN corepack enable && corepack prepare pnpm@9.15.0 --activate
