@@ -65,6 +65,7 @@ export function TokenPreviewCard({
   const displayBadges = (token.badges ?? []).filter((b) => b.id !== "liquidity_locked");
   const hasBadges =
     displayBadges.length > 0 || (token.trustScore != null && token.trustScore > 0);
+  const hasMetaRow = Boolean(token.creatorAddress) || Boolean(age);
 
   return (
     <motion.div
@@ -117,7 +118,12 @@ export function TokenPreviewCard({
               </div>
             </div>
 
-            <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-1 gap-y-0.5 text-[10px] text-muted-foreground">
+            <div
+              className={cn(
+                "mt-0.5 flex min-h-[1rem] min-w-0 flex-wrap items-center gap-x-1 gap-y-0.5 text-[10px] text-muted-foreground",
+                !hasMetaRow && "invisible"
+              )}
+            >
               {token.creatorAddress && (
                 <CreatorProfileLink
                   walletAddress={token.creatorAddress}

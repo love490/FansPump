@@ -39,6 +39,23 @@ export const tokenCardMobileScrollClass = cn(
   "min-[1440px]:grid-cols-6 min-[1440px]:gap-3"
 );
 
+/** Home carousels: less dense than Discover grid, consistent across sections. */
+export const tokenCardCarouselGridClass = cn(
+  "grid w-full min-w-0 items-stretch gap-3",
+  "sm:grid-cols-2",
+  "lg:grid-cols-4 lg:gap-4",
+  "min-[1440px]:grid-cols-5 min-[1440px]:gap-5"
+);
+
+export const tokenCardCarouselScrollClass = cn(
+  "flex w-full min-w-0 items-stretch gap-3 overflow-x-auto pb-2",
+  "snap-x snap-mandatory scroll-smooth",
+  "-mx-4 px-4",
+  "md:mx-0 md:grid md:grid-cols-2 md:gap-4 md:overflow-visible md:pb-0 md:px-0 md:snap-none",
+  "lg:grid-cols-4",
+  "min-[1440px]:grid-cols-5 min-[1440px]:gap-5"
+);
+
 export function tokenCardSkeletonClass() {
   return cn(tokenCardShellClass, "animate-pulse border-transparent bg-muted/60 shadow-none");
 }

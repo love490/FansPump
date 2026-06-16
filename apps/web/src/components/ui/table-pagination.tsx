@@ -27,8 +27,13 @@ export function TablePagination({
 
   return (
     <div className="flex flex-col gap-3 border-t border-border px-3 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-4">
-      <p className="text-sm text-muted-foreground">
-        Showing {startIndex}–{endIndex} out of {totalCount.toLocaleString()}
+      <p className="text-xs text-muted-foreground sm:text-sm">
+        <span className="sm:hidden">
+          {startIndex}–{endIndex} / {totalCount.toLocaleString()}
+        </span>
+        <span className="hidden sm:inline">
+          Showing {startIndex}–{endIndex} out of {totalCount.toLocaleString()}
+        </span>
       </p>
       {totalPages > 1 && (
         <div className="flex flex-wrap items-center gap-1">

@@ -7,9 +7,9 @@ import { Button } from "@/components/ui/button";
 import { TokenPreviewCard } from "@/components/tokens/token-preview-card";
 import type { TokenCardData } from "@/components/tokens/token-card";
 import {
-  tokenCardGridClass,
+  tokenCardCarouselGridClass,
+  tokenCardCarouselScrollClass,
   tokenCardMobilePeekClass,
-  tokenCardMobileScrollClass,
   tokenCardSkeletonClass,
 } from "@/components/tokens/token-card-styles";
 import { cn } from "@/lib/utils";
@@ -193,7 +193,7 @@ export function TokenGridCarousel({
       </div>
 
       {isLoading ? (
-        <div className={cn(isMobile ? tokenCardMobileScrollClass : tokenCardGridClass)}>
+        <div className={cn(isMobile ? tokenCardCarouselScrollClass : tokenCardCarouselGridClass)}>
           {[...Array(skeletonCount)].map((_, i) => (
             <div key={i} className={tokenCardSkeletonClass()} />
           ))}
@@ -206,7 +206,7 @@ export function TokenGridCarousel({
         <div
           ref={scrollRef}
           className={cn(
-            isMobile ? tokenCardMobileScrollClass : tokenCardGridClass,
+            isMobile ? tokenCardCarouselScrollClass : tokenCardCarouselGridClass,
             !isMobile && "items-stretch"
           )}
           style={!isMobile ? responsiveGridStyle(colCount) : undefined}

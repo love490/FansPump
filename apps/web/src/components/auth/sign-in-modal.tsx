@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { Mail, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -171,84 +170,84 @@ export function SignInModal({
         <DialogHeader>
           <DialogTitle>Sign in</DialogTitle>
           <DialogDescription>
-            Sign in with email or social accounts. Connect a wallet to swap, create tokens, and use on-chain features.
+            Sign in with email or a social account. Connect a wallet for swaps, token creation, and on-chain features.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid grid-cols-2 gap-2">
-          {SOCIAL_PROVIDERS.map((provider) => (
-            <button
-              key={provider.id}
-              type="button"
-              onClick={() => void handleOAuth(provider.id)}
-              className={cn(
-                "flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
-                provider.className
-              )}
-            >
-              {provider.icon}
-              {provider.label}
-            </button>
-          ))}
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-2">
+            {SOCIAL_PROVIDERS.map((provider) => (
+              <button
+                key={provider.id}
+                type="button"
+                onClick={() => void handleOAuth(provider.id)}
+                className={cn(
+                  "flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+                  provider.className
+                )}
+              >
+                {provider.icon}
+                {provider.label}
+              </button>
+            ))}
+          </div>
+
+          {step === "email" ? (
+            <form onSubmit={sendEmailCode} className="space-y-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="signin-email">Email</Label>
+                <Input
+                  id="signin-email"
+                  type="email"
+                  placeholder="you@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  autoComplete="email"
+                />
+              </div>
+              <Button type="submit" className="w-full gap-2" disabled={loading}>
+                <Mail className="h-4 w-4" />
+                {loading ? "Sending…" : "Continue with email"}
+              </Button>
+            </form>
+          ) : (
+            <form onSubmit={verifyEmailCode} className="space-y-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="signin-code">Verification code</Label>
+                <Input
+                  id="signin-code"
+                  inputMode="numeric"
+                  pattern="\d{6}"
+                  maxLength={6}
+                  placeholder="6-digit code"
+                  value={code}
+                  onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                  required
+                />
+                {devCode && (
+                  <p className="text-xs text-amber-600">Dev code: {devCode}</p>
+                )}
+              </div>
+              <Button type="submit" className="w-full" disabled={loading || code.length !== 6}>
+                {loading ? "Verifying…" : "Verify & sign in"}
+              </Button>
+              <button
+                type="button"
+                className="w-full text-xs text-muted-foreground hover:text-foreground"
+                onClick={() => {
+                  setStep("email");
+                  setCode("");
+                  setError(null);
+                }}
+              >
+                Use a different email
+              </button>
+            </form>
+          )}
         </div>
 
-        <Divider label="or continue with email" />
-
-        {step === "email" ? (
-          <form onSubmit={sendEmailCode} className="space-y-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="signin-email">Email</Label>
-              <Input
-                id="signin-email"
-                type="email"
-                placeholder="you@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                autoComplete="email"
-              />
-            </div>
-            <Button type="submit" className="w-full gap-2" disabled={loading}>
-              <Mail className="h-4 w-4" />
-              {loading ? "Sending…" : "Continue with email"}
-            </Button>
-          </form>
-        ) : (
-          <form onSubmit={verifyEmailCode} className="space-y-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="signin-code">Verification code</Label>
-              <Input
-                id="signin-code"
-                inputMode="numeric"
-                pattern="\d{6}"
-                maxLength={6}
-                placeholder="6-digit code"
-                value={code}
-                onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                required
-              />
-              {devCode && (
-                <p className="text-xs text-amber-600">Dev code: {devCode}</p>
-              )}
-            </div>
-            <Button type="submit" className="w-full" disabled={loading || code.length !== 6}>
-              {loading ? "Verifying…" : "Verify & sign in"}
-            </Button>
-            <button
-              type="button"
-              className="w-full text-xs text-muted-foreground hover:text-foreground"
-              onClick={() => {
-                setStep("email");
-                setCode("");
-                setError(null);
-              }}
-            >
-              Use a different email
-            </button>
-          </form>
-        )}
-
-        <Divider label="or" />
+        <Divider label="or continue with wallet" />
 
         <Button variant="outline" className="w-full gap-2" onClick={handleConnectWallet}>
           <Wallet className="h-4 w-4" />
