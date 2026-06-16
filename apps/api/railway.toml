@@ -1,0 +1,9 @@
+[build]
+builder = "nixpacks"
+buildCommand = "cd ../.. && pnpm install --no-frozen-lockfile && pnpm db:generate && pnpm --filter @iopn/api build"
+
+[deploy]
+startCommand = "cd ../.. && pnpm --filter @iopn/api start"
+healthcheckPath = "/health"
+healthcheckTimeout = 30
+restartPolicyType = "on_failure"
