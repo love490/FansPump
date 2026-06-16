@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
-import { LiquidityAuthError, requireLiquidityActionAuth } from "@/lib/liquidity-auth";
+import { LiquidityAuthError, requireLiquidityActionAuth } from "../lib/liquidity-auth";
 import prisma from "../lib/prisma";
 import { asyncHandler, getRouteParam } from "../lib/http-helpers";
 import { publicRateLimit } from "../middleware/rateLimit";
@@ -185,3 +185,4 @@ router.get(
 );
 
 export default router;
+

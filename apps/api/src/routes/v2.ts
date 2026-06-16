@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { getPublicV2FeatureFlags } from "@/lib/v2/feature-flags";
+import { getPublicV2FeatureFlags } from "../lib/v2/feature-flags";
 import { publicRateLimit } from "../middleware/rateLimit";
 
 const router = Router();
@@ -11,3 +11,4 @@ router.get("/feature-flags", (_req, res) => {
 });
 
 export default router;
+

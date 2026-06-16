@@ -2,8 +2,8 @@ import { Router } from "express";
 import multer from "multer";
 import { randomUUID } from "crypto";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
-import { IMAGE_UPLOAD_MAX_BYTES } from "@/lib/token-images/constants";
-import { processBannerUpload, processLogoUpload } from "@/lib/token-images/process";
+import { IMAGE_UPLOAD_MAX_BYTES } from "../lib/token-images/constants";
+import { processBannerUpload, processLogoUpload } from "../lib/token-images/process";
 import { asyncHandler } from "../lib/http-helpers";
 import { uploadRateLimit } from "../middleware/rateLimit";
 
@@ -133,3 +133,4 @@ router.post(
 );
 
 export default router;
+

@@ -6,7 +6,7 @@ import {
   listLiquidityPools,
   serializePool,
   syncPoolFromChain,
-} from "@/lib/pools/index";
+} from "../lib/pools/index";
 import prisma from "../lib/prisma";
 import { asyncHandler, getRouteParam } from "../lib/http-helpers";
 import { publicRateLimit } from "../middleware/rateLimit";
@@ -145,3 +145,4 @@ router.get(
 );
 
 export default router;
+

@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { getActiveChainId } from "@/lib/chain-config/opn";
+import { getActiveChainId } from "../lib/chain-config/opn";
 import prisma from "../lib/prisma";
 import { asyncHandler, setCacheControl } from "../lib/http-helpers";
 import { publicRateLimit } from "../middleware/rateLimit";
@@ -50,3 +50,4 @@ router.get(
 );
 
 export default router;
+

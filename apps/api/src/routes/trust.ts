@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { isAddress } from "viem";
-import { getV2FeatureFlags } from "@/lib/v2/feature-flags";
+import { getV2FeatureFlags } from "../lib/v2/feature-flags";
 import { getTrustPayload, refreshAllTrustScores } from "../lib/trust/service";
 import prisma from "../lib/prisma";
 import { asyncHandler, getRouteParam } from "../lib/http-helpers";
@@ -106,3 +106,4 @@ router.get(
 
 export { refreshAllTrustScores };
 export default router;
+

@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { getActiveChainId } from "@/lib/chain-config/opn";
+import { getActiveChainId } from "../lib/chain-config/opn";
 import { recordDailyMetricsSnapshot, refreshAllTrustScores } from "../lib/trust/service";
 import { asyncHandler, requireAnalyticsSyncSecret } from "../lib/http-helpers";
 
@@ -29,3 +29,4 @@ router.post(
 );
 
 export default router;
+

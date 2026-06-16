@@ -1,9 +1,9 @@
 import { Router } from "express";
 import { isAddress } from "viem";
 import { z } from "zod";
-import { getV2FeatureFlags } from "@/lib/v2/feature-flags";
-import { requireCreatorActionAuth, CreatorAuthError } from "@/lib/creator-auth";
-import { ensureCreatorProfile, awardReputation } from "@/lib/v2/reputation";
+import { getV2FeatureFlags } from "../lib/v2/feature-flags";
+import { requireCreatorActionAuth, CreatorAuthError } from "../lib/creator-auth";
+import { ensureCreatorProfile, awardReputation } from "../lib/v2/reputation";
 import prisma from "../lib/prisma";
 import { asyncHandler, getRouteParam, queryToSearchParams } from "../lib/http-helpers";
 import { publicRateLimit } from "../middleware/rateLimit";
@@ -222,3 +222,4 @@ router.post(
 );
 
 export default router;
+
