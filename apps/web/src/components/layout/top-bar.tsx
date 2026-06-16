@@ -1,6 +1,6 @@
 "use client";
 
-import { ConnectButton } from "@rainbow-me/rainbowkit";
+import { SignInButton } from "@/components/auth/sign-in-button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { TokenSearch } from "@/components/layout/token-search";
 import { BackNavButton } from "@/components/layout/back-nav-button";
@@ -12,7 +12,7 @@ export function TopBar() {
       <div className="flex min-w-0 flex-1 items-center justify-end gap-1.5 sm:gap-2">
         <TokenSearch />
         <ThemeToggle />
-        <ConnectButton showBalance chainStatus="icon" accountStatus="address" />
+        <SignInButton showBalance chainStatus="icon" accountStatus="address" />
       </div>
     </header>
   );

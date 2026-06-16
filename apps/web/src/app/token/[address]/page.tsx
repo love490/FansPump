@@ -7,8 +7,7 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { useAccount } from "wagmi";
 import { TokenFeatureBadges } from "@/components/token/token-feature-badges";
-import { TokenTrustPanel } from "@/components/token/token-trust-panel";
-import { TokenTrustScorePanel, TokenHealthPanel } from "@/components/v2/token-trust-score-panel";
+import { TrustScorePanel, TokenHealthPanel } from "@/components/trust/TrustScorePanel";
 import { AnnouncementsSection } from "@/components/token/announcements-section";
 import { TokenAnalyticsSection } from "@/components/token/token-analytics-section";
 import { TokenBanner } from "@/components/tokens/token-banner";
@@ -204,18 +203,8 @@ export default function TokenPage() {
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
-        <TokenTrustScorePanel tokenAddress={address} />
+        <TrustScorePanel tokenAddress={address} />
         <TokenHealthPanel tokenAddress={address} />
-      </div>
-
-      <div className="mt-6">
-        <TokenTrustPanel
-          tokenAddress={address}
-          featureFlags={featureFlags}
-          creatorVerified={!!token.creatorVerified}
-          liquidityLocked={token.liquidityLocked}
-          ownershipRenouncedDb={token.ownershipRenounced}
-        />
       </div>
 
       <div className="mt-8">

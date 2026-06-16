@@ -858,39 +858,6 @@ export function StakingConfigSection() {
   );
 }
 
-export function TrustPanelConfigSection() {
-  const [config, setConfig] = useState<Record<string, boolean> | null>(null);
-  const [saving, setSaving] = useState(false);
-  useEffect(() => {
-    adminFetch("/api/admin/settings/trust-panel").then((r) => r.json()).then((d) => setConfig(d.config));
-  }, []);
-  if (!config) return null;
-  return (
-    <div className="space-y-4">
-      <h2 className="text-2xl font-bold">Trust Panel Configuration</h2>
-      <Card>
-        <CardContent className="grid gap-3 pt-6 sm:grid-cols-2">
-          {Object.entries(config).map(([key, val]) => (
-            <label key={key} className="flex items-center gap-2 text-sm capitalize">
-              <input
-                type="checkbox"
-                checked={val}
-                onChange={(e) => setConfig({ ...config, [key]: e.target.checked })}
-              />
-              {key.replace(/([A-Z])/g, " $1").replace(/^show /, "")}
-            </label>
-          ))}
-        </CardContent>
-      </Card>
-      <SaveButton saving={saving} onClick={async () => {
-        setSaving(true);
-        await adminFetch("/api/admin/settings/trust-panel", { method: "PATCH", body: JSON.stringify({ config }) });
-        setSaving(false);
-      }} />
-    </div>
-  );
-}
-
 export function V2PlatformSection() {
   const [tab, setTab] = useState<"flags" | "creators" | "quests" | "analytics">("flags");
   const [flags, setFlags] = useState<{ envDefaults: Record<string, boolean>; overrides: Record<string, boolean>; effective: Record<string, boolean> } | null>(null);
@@ -1024,7 +991,6 @@ export function AdminSectionRouter({ section }: { section: string }) {
     announcements: { perm: "announcements", Component: AnnouncementsModerationSection },
     staking: { perm: "staking", Component: StakingConfigSection },
     launchpool: { perm: "launchpool", Component: LaunchpoolAdminSection },
-    "trust-panel": { perm: "trust_panel", Component: TrustPanelConfigSection },
     "v2-platform": { perm: "v2_platform", Component: V2PlatformSection },
     discovery: { perm: "discovery", Component: DiscoverySection },
     analytics: { perm: "analytics", Component: AnalyticsSection },

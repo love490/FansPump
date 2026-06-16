@@ -30,7 +30,7 @@ import platformRouter from "./routes/platform";
 import creatorRouter from "./routes/creator";
 import cronRouter from "./routes/cron";
 import statsRouter from "./routes/stats";
-import trustPanelConfigRouter from "./routes/trust-panel-config";
+import authRouter from "./routes/auth";
 import v2Router from "./routes/v2";
 
 const app = express();
@@ -71,7 +71,7 @@ app.get("/health", async (_req, res) => {
 app.use(publicRateLimit);
 
 app.use("/api/stats", statsRouter);
-app.use("/api/trust-panel-config", trustPanelConfigRouter);
+app.use("/api/auth", authRouter);
 app.use("/api/v2", v2Router);
 app.use("/api/tokens", tokensRouter);
 app.use("/api/pools", poolsRouter);

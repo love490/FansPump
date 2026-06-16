@@ -139,41 +139,6 @@ const securitySchema = z.object({
   }),
 });
 
-const TRUST_PANEL_KEY = "trust_panel_config";
-
-type TrustPanelConfig = {
-  showVerifiedCreator: boolean;
-  showOwnershipRenounced: boolean;
-  showLiquidityLocked: boolean;
-  showMintable: boolean;
-  showBurnable: boolean;
-  showBlacklist: boolean;
-  showPausable: boolean;
-  showAntiBot: boolean;
-};
-
-const DEFAULT_TRUST_PANEL: TrustPanelConfig = {
-  showVerifiedCreator: true,
-  showOwnershipRenounced: true,
-  showLiquidityLocked: true,
-  showMintable: true,
-  showBurnable: true,
-  showBlacklist: true,
-  showPausable: true,
-  showAntiBot: true,
-};
-
-const trustPanelConfigSchema = z.object({
-  showVerifiedCreator: z.boolean(),
-  showOwnershipRenounced: z.boolean(),
-  showLiquidityLocked: z.boolean(),
-  showMintable: z.boolean(),
-  showBurnable: z.boolean(),
-  showBlacklist: z.boolean(),
-  showPausable: z.boolean(),
-  showAntiBot: z.boolean(),
-});
-
 type V2FeatureFlagOverrides = {
   trustScore?: boolean;
   creatorProfiles?: boolean;
@@ -448,33 +413,6 @@ router.patch(
       res.json({ ok: true, security });
     } catch (e) {
       handleAdminError(res, e, "Update failed");
-    }
-  })
-);
-
-router.get(
-  "/trust-panel",
-  asyncHandler(async (req, res) => {
-    try {
-      await requirePermission(req, "trust_panel", "GET");
-      const config = await getPlatformSetting(TRUST_PANEL_KEY, DEFAULT_TRUST_PANEL);
-      res.json({ config });
-    } catch (e) {
-      handleAdminError(res, e, "Failed to load trust panel config");
-    }
-  })
-);
-
-router.patch(
-  "/trust-panel",
-  asyncHandler(async (req, res) => {
-    try {
-      const { parsedBody } = await requirePermission(req, "trust_panel", "PATCH");
-      const config = trustPanelConfigSchema.parse(parsedBody.config);
-      await setPlatformSetting(TRUST_PANEL_KEY, config);
-      res.json({ config });
-    } catch (e) {
-      handleAdminError(res, e, "Failed to save trust panel config");
     }
   })
 );

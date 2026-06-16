@@ -5,7 +5,7 @@ import { getActiveChainId, opnChain, opnChainConfig } from "@/lib/chain-config/o
 import { getGlobalAnalytics } from "@/lib/analytics/queries";
 import { refreshAllTokenHolderCounts } from "@/lib/analytics/holder-count";
 import { refreshRolling24hMetrics, syncAnalyticsFromChain } from "@/lib/analytics/indexer";
-import { recordDailyMetricsSnapshot, refreshAllTrustScores } from "@/lib/v2/metrics-snapshot";
+import { recordDailyMetricsSnapshot, refreshAllTrustScores } from "../lib/trust/service";
 import { getV2FeatureFlags } from "@/lib/v2/feature-flags";
 import prisma from "../lib/prisma";
 import { asyncHandler, requireAnalyticsSyncSecret, setCacheControl } from "../lib/http-helpers";

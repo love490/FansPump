@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { isAddress } from "viem";
 import { getV2FeatureFlags } from "@/lib/v2/feature-flags";
-import { buildTokenTrustPayload } from "@/lib/v2/trust-service";
+import { getTrustPayload, refreshAllTrustScores } from "../lib/trust/service";
 import prisma from "../lib/prisma";
 import { asyncHandler, getRouteParam } from "../lib/http-helpers";
 import { publicRateLimit } from "../middleware/rateLimit";
@@ -9,6 +9,46 @@ import { publicRateLimit } from "../middleware/rateLimit";
 const router = Router();
 
 router.use(publicRateLimit);
+
+router.post(
+  "/refresh",
+  asyncHandler(async (req, res) => {
+    const flags = getV2FeatureFlags();
+    if (!flags.trustScore) {
+      res.json({ enabled: false, refreshed: 0 });
+      return;
+    }
+
+    const secret = process.env.ANALYTICS_SYNC_SECRET ?? process.env.CRON_SECRET;
+    const auth = req.headers.authorization?.replace(/^Bearer\s+/i, "");
+    if (secret && auth !== secret) {
+      res.status(401).json({ error: "Unauthorized" });
+      return;
+    }
+
+    const chainId = Number(process.env.NEXT_PUBLIC_CHAIN_ID ?? 984);
+    const stale = await prisma.tokenProject.findMany({
+      where: {
+        chainId,
+        isHidden: false,
+        OR: [
+          { trustScoreUpdatedAt: null },
+          { trustScoreUpdatedAt: { lt: new Date(Date.now() - 30 * 60 * 1000) } },
+        ],
+      },
+      take: 50,
+      select: { contractAddress: true },
+    });
+
+    let refreshed = 0;
+    for (const t of stale) {
+      await getTrustPayload(t.contractAddress, { forceRefresh: true });
+      refreshed++;
+    }
+
+    res.json({ enabled: true, refreshed });
+  })
+);
 
 router.get(
   "/:address",
@@ -25,55 +65,44 @@ router.get(
       return;
     }
 
-    try {
-      const token = await prisma.tokenProject.findUnique({
-        where: { contractAddress: address },
-        select: {
-          id: true,
-          featureFlags: true,
-          ownershipRenounced: true,
-          verificationStatus: true,
-          isScam: true,
-          creatorAddress: true,
-          trustScore: true,
-          trustScoreUpdatedAt: true,
-          holderCount: true,
-          volume24h: true,
-          poolStrength: true,
-          liquidityLocks: { select: { id: true }, take: 1 },
-          lpBurns: { select: { id: true }, take: 1 },
-          creator: { select: { verification: { select: { id: true } } } },
-        },
-      });
-
-      if (!token) {
-        res.status(404).json({ error: "Token not found" });
-        return;
-      }
-
-      const trust = await buildTokenTrustPayload(token);
-
-      res.json({
-        enabled: true,
-        tokenId: token.id,
-        cachedScore: token.trustScore,
-        cachedAt: token.trustScoreUpdatedAt?.toISOString() ?? null,
-        trust,
-        health: {
-          holders: token.holderCount,
-          liquidity: token.poolStrength,
-          volume24h: token.volume24h,
-          ownershipRenounced: token.ownershipRenounced,
-          liquidityLocked: (token.liquidityLocks?.length ?? 0) > 0,
-          liquidityBurned: (token.lpBurns?.length ?? 0) > 0,
-          contractVerified: token.verificationStatus === "APPROVED",
-        },
-      });
-    } catch (e) {
-      console.error("[GET /api/trust/:address]", e);
-      res.status(500).json({ error: "Failed to load trust score" });
+    const payload = await getTrustPayload(address);
+    if (!payload) {
+      res.status(404).json({ error: "Token not found" });
+      return;
     }
+
+    const token = await prisma.tokenProject.findUnique({
+      where: { contractAddress: address },
+      select: {
+        id: true,
+        holderCount: true,
+        poolStrength: true,
+        volume24h: true,
+        ownershipRenounced: true,
+        verificationStatus: true,
+        liquidityLocks: { select: { id: true }, take: 1 },
+        lpBurns: { select: { id: true }, take: 1 },
+      },
+    });
+
+    res.json({
+      enabled: true,
+      tokenId: token?.id,
+      ...payload,
+      health: token
+        ? {
+            holders: token.holderCount,
+            liquidity: token.poolStrength,
+            volume24h: token.volume24h,
+            ownershipRenounced: token.ownershipRenounced,
+            liquidityLocked: (token.liquidityLocks?.length ?? 0) > 0,
+            liquidityBurned: (token.lpBurns?.length ?? 0) > 0,
+            contractVerified: token.verificationStatus === "APPROVED",
+          }
+        : undefined,
+    });
   })
 );
 
+export { refreshAllTrustScores };
 export default router;

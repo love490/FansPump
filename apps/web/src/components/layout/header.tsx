@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ConnectButton } from "@rainbow-me/rainbowkit";
+import { SignInButton } from "@/components/auth/sign-in-button";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -55,7 +55,7 @@ export function Header() {
         <div className="flex items-center gap-1.5 sm:gap-2">
           <MobileNavDrawer />
           <ThemeToggle />
-          <ConnectButton showBalance chainStatus="icon" accountStatus="address" />
+          <SignInButton showBalance chainStatus="icon" accountStatus="address" />
         </div>
       </div>
     </header>

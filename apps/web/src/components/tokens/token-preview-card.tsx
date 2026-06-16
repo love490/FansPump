@@ -84,40 +84,40 @@ export function TokenPreviewCard({
           priority={index < 4}
         />
 
-        <div className="flex min-h-0 flex-1 flex-col gap-1 p-2 sm:gap-1 sm:p-2.5">
+        <div className="flex min-h-0 flex-1 flex-col gap-0.5 p-1.5">
           <div className="min-w-0 flex-1">
-            <div className="min-h-[4rem] sm:min-h-[4.25rem]">
-              <div className="flex flex-wrap items-center gap-1">
-                <h3 className="truncate text-sm font-bold leading-tight text-foreground group-hover/card:text-primary sm:text-base">
+            <div className="min-h-[3rem]">
+              <div className="flex flex-wrap items-center gap-0.5">
+                <h3 className="truncate text-xs font-bold leading-tight text-foreground group-hover/card:text-primary">
                   {token.name}
                 </h3>
                 {token.creatorVerified && (
                   <CheckCircle2
-                    className="h-3 w-3 shrink-0 text-emerald-500"
+                    className="h-2.5 w-2.5 shrink-0 text-emerald-500"
                     aria-label="Verified creator"
                   />
                 )}
                 {token.contractVerified && (
-                  <ContractVerifiedIcon size={16} title="Contract verified" />
+                  <ContractVerifiedIcon size={14} title="Contract verified" />
                 )}
                 {token.isFeatured && (
-                  <Badge variant="default" className="h-4 px-1.5 text-[9px]">
+                  <Badge variant="default" className="h-3.5 px-1 text-[8px]">
                     Featured
                   </Badge>
                 )}
               </div>
-              <p className="mt-0.5 truncate text-xs text-muted-foreground sm:text-sm">${token.symbol}</p>
-              <div className="mt-1 flex items-baseline gap-1.5">
-                <span className="text-base font-bold tabular-nums text-foreground sm:text-lg">
+              <p className="mt-0.5 truncate text-[10px] text-muted-foreground">${token.symbol}</p>
+              <div className="mt-0.5 flex items-baseline gap-1">
+                <span className="text-sm font-bold tabular-nums text-foreground">
                   {marketCap !== "—" ? `$${marketCap}` : "—"}
                 </span>
                 {marketCap !== "—" && (
-                  <span className="text-[11px] font-medium text-muted-foreground sm:text-xs">MC</span>
+                  <span className="text-[10px] font-medium text-muted-foreground">MC</span>
                 )}
               </div>
             </div>
 
-            <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 text-[11px] text-muted-foreground sm:text-xs">
+            <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-1 gap-y-0.5 text-[10px] text-muted-foreground">
               {token.creatorAddress && (
                 <CreatorProfileLink
                   walletAddress={token.creatorAddress}
@@ -138,14 +138,14 @@ export function TokenPreviewCard({
 
             <p
               className={cn(
-                "mt-1 line-clamp-1 min-h-[1.125rem] text-[11px] leading-snug text-muted-foreground sm:min-h-[1.25rem] sm:text-xs",
+                "mt-0.5 line-clamp-1 min-h-[1rem] text-[10px] leading-snug text-muted-foreground",
                 !token.description?.trim() && "invisible"
               )}
             >
               {token.description?.trim() || "No description"}
             </p>
 
-            <div className={cn("mt-1.5 flex min-h-[20px] flex-wrap items-center gap-1", !hasBadges && "invisible")}>
+            <div className={cn("mt-0.5 flex min-h-[16px] flex-wrap items-center gap-0.5", !hasBadges && "invisible")}>
               {token.trustScore != null && token.trustScore > 0 && (
                 <span className="rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-primary">
                   Trust {Math.round(token.trustScore)}

@@ -6,6 +6,7 @@ import { WagmiProvider } from "wagmi";
 import { useTheme } from "next-themes";
 import { wagmiConfig } from "@/lib/wagmi";
 import { ThemeProvider } from "@/components/theme-provider";
+import { AuthProvider } from "@/components/auth/auth-provider";
 import { useState } from "react";
 
 const rkLight = lightTheme({
@@ -34,7 +35,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
     <ThemeProvider>
       <WagmiProvider config={wagmiConfig}>
         <QueryClientProvider client={queryClient}>
-          <RainbowKitThemed>{children}</RainbowKitThemed>
+          <RainbowKitThemed>
+            <AuthProvider>{children}</AuthProvider>
+          </RainbowKitThemed>
         </QueryClientProvider>
       </WagmiProvider>
     </ThemeProvider>

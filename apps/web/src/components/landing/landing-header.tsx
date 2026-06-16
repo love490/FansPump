@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ConnectButton } from "@rainbow-me/rainbowkit";
+import { SignInButton } from "@/components/auth/sign-in-button";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { FansPumpLogo } from "@/components/brand/fans-pump-logo";
@@ -42,7 +42,7 @@ export function LandingHeader() {
         <div className="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2">
           <MobileNavDrawer />
           <ThemeToggle />
-          <ConnectButton showBalance={false} chainStatus="icon" accountStatus="avatar" />
+          <SignInButton showBalance={false} chainStatus="icon" accountStatus="avatar" />
         </div>
       </div>
     </header>

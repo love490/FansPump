@@ -3,14 +3,18 @@
 import { useEffect, useRef, useState } from "react";
 import { useAccount, useDisconnect } from "wagmi";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
-import { ChevronDown, LogOut, Wallet } from "lucide-react";
+import { ChevronDown, LogOut, User, Wallet } from "lucide-react";
+import { SignInModal } from "@/components/auth/sign-in-modal";
+import { useAuth } from "@/components/auth/auth-provider";
 import { cn, shortenAddress } from "@/lib/utils";
 
 export function SidebarWallet({ collapsed }: { collapsed?: boolean }) {
   const { address, isConnected } = useAccount();
   const { disconnect } = useDisconnect();
   const { openConnectModal } = useConnectModal();
+  const { account, isSignedIn, signOut } = useAuth();
   const [open, setOpen] = useState(false);
+  const [signInOpen, setSignInOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -28,22 +32,30 @@ export function SidebarWallet({ collapsed }: { collapsed?: boolean }) {
     return () => document.removeEventListener("mousedown", onPointerDown);
   }, [open]);
 
-  if (!isConnected || !address) {
+  if (!isSignedIn && !isConnected) {
     return (
-      <button
-        type="button"
-        onClick={() => openConnectModal?.()}
-        className={cn(
-          "flex w-full items-center rounded-lg border border-border bg-background py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted",
-          collapsed ? "justify-center px-2" : "gap-2 px-3"
-        )}
-        title={collapsed ? "Connect wallet" : undefined}
-      >
-        <Wallet className="h-4 w-4 shrink-0" />
-        {!collapsed && <span>Connect Wallet</span>}
-      </button>
+      <>
+        <button
+          type="button"
+          onClick={() => setSignInOpen(true)}
+          className={cn(
+            "flex w-full items-center rounded-lg border border-border bg-background py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted",
+            collapsed ? "justify-center px-2" : "gap-2 px-3"
+          )}
+          title={collapsed ? "Sign in" : undefined}
+        >
+          <User className="h-4 w-4 shrink-0" />
+          {!collapsed && <span>Sign in</span>}
+        </button>
+        <SignInModal open={signInOpen} onOpenChange={setSignInOpen} />
+      </>
     );
   }
+
+  const displayLabel =
+    isConnected && address
+      ? shortenAddress(address, 4)
+      : account?.email?.split("@")[0] ?? "Signed in";
 
   return (
     <div ref={rootRef} className="relative">
@@ -54,16 +66,14 @@ export function SidebarWallet({ collapsed }: { collapsed?: boolean }) {
           "flex w-full items-center rounded-lg border border-border bg-muted/50 py-2 text-sm font-medium transition-colors hover:bg-muted",
           collapsed ? "justify-center px-2" : "gap-2 px-3"
         )}
-        title={collapsed ? address : undefined}
+        title={collapsed ? displayLabel : undefined}
         aria-expanded={open}
         aria-haspopup="menu"
       >
         <Wallet className="h-4 w-4 shrink-0 text-primary" />
         {!collapsed && (
           <>
-            <span className="min-w-0 flex-1 truncate text-left font-mono text-xs">
-              {shortenAddress(address, 4)}
-            </span>
+            <span className="min-w-0 flex-1 truncate text-left font-mono text-xs">{displayLabel}</span>
             <ChevronDown
               className={cn("h-4 w-4 shrink-0 text-muted-foreground transition-transform", open && "rotate-180")}
             />
@@ -79,19 +89,54 @@ export function SidebarWallet({ collapsed }: { collapsed?: boolean }) {
             collapsed ? "left-full top-0 ml-2 min-w-[11rem]" : "bottom-full left-0 right-0 mb-2"
           )}
         >
-          <p className="break-all px-3 py-2 font-mono text-xs text-muted-foreground">{address}</p>
-          <button
-            type="button"
-            role="menuitem"
-            className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-destructive hover:bg-destructive/10"
-            onClick={() => {
-              disconnect();
-              setOpen(false);
-            }}
-          >
-            <LogOut className="h-4 w-4" />
-            Disconnect wallet
-          </button>
+          {isSignedIn && account?.email && (
+            <p className="break-all px-3 py-2 text-xs text-muted-foreground">{account.email}</p>
+          )}
+          {isConnected && address && (
+            <p className="break-all px-3 py-1 font-mono text-xs text-muted-foreground">{address}</p>
+          )}
+          {!isConnected && (
+            <button
+              type="button"
+              role="menuitem"
+              className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-muted"
+              onClick={() => {
+                openConnectModal?.();
+                setOpen(false);
+              }}
+            >
+              <Wallet className="h-4 w-4" />
+              Connect wallet
+            </button>
+          )}
+          {isSignedIn && (
+            <button
+              type="button"
+              role="menuitem"
+              className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-destructive hover:bg-destructive/10"
+              onClick={() => {
+                void signOut();
+                setOpen(false);
+              }}
+            >
+              <LogOut className="h-4 w-4" />
+              Sign out
+            </button>
+          )}
+          {isConnected && (
+            <button
+              type="button"
+              role="menuitem"
+              className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-destructive hover:bg-destructive/10"
+              onClick={() => {
+                disconnect();
+                setOpen(false);
+              }}
+            >
+              <LogOut className="h-4 w-4" />
+              Disconnect wallet
+            </button>
+          )}
         </div>
       )}
     </div>

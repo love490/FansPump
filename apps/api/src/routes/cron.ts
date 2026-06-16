@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { getActiveChainId } from "@/lib/chain-config/opn";
-import { recordDailyMetricsSnapshot, refreshAllTrustScores } from "@/lib/v2/metrics-snapshot";
+import { recordDailyMetricsSnapshot, refreshAllTrustScores } from "../lib/trust/service";
 import { asyncHandler, requireAnalyticsSyncSecret } from "../lib/http-helpers";
 
 const router = Router();

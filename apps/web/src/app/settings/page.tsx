@@ -25,7 +25,7 @@ export default function SettingsPage() {
           <CardDescription>
             {isConnected && address
               ? `Connected: ${shortenAddress(address, 6)}`
-              : "Connect wallet to have access to your dashboard."}
+              : "Connect a wallet to use swaps, token creation, and on-chain features."}
           </CardDescription>
         </CardHeader>
       </Card>

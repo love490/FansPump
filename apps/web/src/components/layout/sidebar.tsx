@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { Menu, X, ChevronDown } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { FansPumpTagline } from "@/components/brand/fans-pump-brand";
@@ -192,6 +192,7 @@ function SidebarContent({
   collapsed,
   onToggle,
   compact,
+  excludeNavIds,
 }: {
   pathname: string;
   searchParams: URLSearchParams;
@@ -200,9 +201,14 @@ function SidebarContent({
   onToggle?: () => void;
   /** Hide logo/tagline block (mobile header drawer). */
   compact?: boolean;
+  /** Omit nav items already shown elsewhere (e.g. mobile bottom bar). */
+  excludeNavIds?: Set<string>;
 }) {
   const settingsActive = isSidebarNavActive(settingsLink.id, pathname, searchParams);
   const isExpanded = collapsed !== true;
+  const platformNavLinks = excludeNavIds
+    ? platformLinks.filter((link) => !excludeNavIds.has(link.id))
+    : platformLinks;
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -231,7 +237,7 @@ function SidebarContent({
 
       <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <NavSection
-          links={platformLinks}
+          links={platformNavLinks}
           pathname={pathname}
           searchParams={searchParams}
           onNavigate={onNavigate}
@@ -299,6 +305,7 @@ export function AppNavMenuContent(props: {
   collapsed?: boolean;
   onToggle?: () => void;
   compact?: boolean;
+  excludeNavIds?: Set<string>;
 }) {
   return <SidebarContent {...props} />;
 }
@@ -306,87 +313,24 @@ export function AppNavMenuContent(props: {
 export function Sidebar() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const [mobileOpen, setMobileOpen] = useState(false);
   const { collapsed, toggleSidebar } = useSidebar();
 
-  useEffect(() => {
-    if (!mobileOpen) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setMobileOpen(false);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => {
-      document.body.style.overflow = prev;
-      window.removeEventListener("keydown", onKey);
-    };
-  }, [mobileOpen]);
-
   return (
-    <>
-      <button
-        type="button"
-        className={cn(
-          "fixed left-4 top-4 z-50 rounded-lg border bg-background p-2.5 shadow-sm lg:hidden",
-          mobileOpen && "pointer-events-none opacity-0"
-        )}
-        onClick={() => setMobileOpen(true)}
-        aria-label="Open menu"
-        aria-hidden={mobileOpen}
-        tabIndex={mobileOpen ? -1 : 0}
-      >
-        <Menu className="h-5 w-5" />
-      </button>
-
-      {mobileOpen && (
-        <div className="fixed inset-0 z-[100] lg:hidden" role="dialog" aria-modal="true" aria-label="Navigation menu">
-          <button
-            type="button"
-            className="absolute inset-0 bg-black/50"
-            onClick={() => setMobileOpen(false)}
-            aria-label="Close menu"
-          />
-          <aside className="absolute left-0 top-0 flex h-full w-[min(18rem,85vw)] flex-col border-r bg-background shadow-xl">
-            <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
-              <span className="text-sm font-semibold">Menu</span>
-              <button
-                type="button"
-                className="flex h-11 w-11 items-center justify-center rounded-lg text-foreground hover:bg-muted active:bg-muted"
-                onClick={() => setMobileOpen(false)}
-                aria-label="Close menu"
-              >
-                <X className="h-6 w-6" />
-              </button>
-            </div>
-            <div className="flex min-h-0 flex-1 flex-col p-4">
-              <SidebarContent
-                pathname={pathname}
-                searchParams={searchParams}
-                collapsed={false}
-                onNavigate={() => setMobileOpen(false)}
-              />
-            </div>
-          </aside>
-        </div>
+    <aside
+      className={cn(
+        "hidden shrink-0 border-r border-border bg-card/50 lg:block",
+        "transition-[width] duration-300 ease-in-out motion-reduce:transition-none",
+        collapsed ? "w-[4.5rem] overflow-hidden" : "w-72 overflow-visible"
       )}
-
-      <aside
-        className={cn(
-          "hidden shrink-0 border-r border-border bg-card/50 lg:block",
-          "transition-[width] duration-300 ease-in-out motion-reduce:transition-none",
-          collapsed ? "w-[4.5rem] overflow-hidden" : "w-72 overflow-visible"
-        )}
-      >
-        <div className={cn("sticky top-0 h-screen", collapsed ? "px-2 py-3" : "p-4")}>
-          <SidebarContent
-            pathname={pathname}
-            searchParams={searchParams}
-            collapsed={collapsed}
-            onToggle={toggleSidebar}
-          />
-        </div>
-      </aside>
-    </>
+    >
+      <div className={cn("sticky top-0 h-screen", collapsed ? "px-2 py-3" : "p-4")}>
+        <SidebarContent
+          pathname={pathname}
+          searchParams={searchParams}
+          collapsed={collapsed}
+          onToggle={toggleSidebar}
+        />
+      </div>
+    </aside>
   );
 }

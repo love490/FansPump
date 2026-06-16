@@ -26,7 +26,7 @@ export function TokenCardHero({ logoUrl, symbol, name, priority }: TokenCardHero
           alt={`${name} logo`}
           fill
           className="object-cover"
-          sizes="(max-width: 768px) 40vw, (max-width: 1024px) 25vw, 240px"
+          sizes="(max-width: 768px) 40vw, (max-width: 1280px) 18vw, 160px"
           loading={priority ? undefined : "lazy"}
           priority={priority}
           onError={() => setFailed(true)}
@@ -42,7 +42,7 @@ export function TokenCardHero({ logoUrl, symbol, name, priority }: TokenCardHero
             aria-hidden
           />
           <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-[#1E5BFF]/30 via-background/80 to-background">
-            <span className="text-3xl font-black tracking-tight text-white/90 sm:text-4xl">
+            <span className="text-2xl font-black tracking-tight text-white/90">
               {initials}
             </span>
           </div>

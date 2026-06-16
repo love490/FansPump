@@ -43,7 +43,7 @@ export function deriveTokenBadges(input: TokenBadgeInput): SecurityBadge[] {
   if (input.liquidityLocked || input.liquidityBurned) ids.push("liquidity_locked");
   if (input.ownershipRenounced) ids.push("ownership_renounced");
   if (input.contractVerified) ids.push("contract_verified");
-  if (input.trustScore >= 75 && input.contractVerified) ids.push("trusted_project");
+  if (input.trustScore >= 70 && input.contractVerified) ids.push("trusted_project");
   return ids.map((id) => BADGE_CATALOG[id]);
 }
 
