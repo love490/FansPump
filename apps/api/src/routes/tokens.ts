@@ -1,19 +1,19 @@
 import { Router } from "express";
 import { type Prisma } from "@iopn/database";
 import { isAddress } from "viem";
-import { getActiveChainId } from "../lib/chain-config/opn";
+import { getActiveChainId } from "@/lib/chain-config/opn";
 import {
   getPopularRegistryTokens,
   registryToSwapToken,
   searchRegistryTokens,
-} from "../lib/token-registry";
-import { buildDiscoverWhere, parseDiscoverFilters } from "../lib/discover-filters";
-import { mapTokenListRow, mapTokenListRowSafe, tokenListSelect } from "../lib/analytics/token-list";
+} from "@/lib/token-registry";
+import { buildDiscoverWhere, parseDiscoverFilters } from "@/lib/discover-filters";
+import { mapTokenListRow, mapTokenListRowSafe, tokenListSelect } from "@/lib/analytics/token-list";
 import {
   buildHomePreviewSections,
   sortTokensNewest,
   sortTokensTrending,
-} from "../lib/tokens/home-sections";
+} from "@/lib/tokens/home-sections";
 import prisma from "../lib/prisma";
 import { asyncHandler, getRouteParam, queryToSearchParams, setCacheControl } from "../lib/http-helpers";
 import { notImplemented } from "../lib/route-utils";
@@ -418,5 +418,3 @@ router.post("/", notImplemented);
 router.patch("/:address", notImplemented);
 
 export default router;
-
-

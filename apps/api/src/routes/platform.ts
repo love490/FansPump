@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { platformSettings, DEFAULT_SYSTEM, SETTING_KEYS, getPlatformSetting } from "../lib/admin/platform-settings";
+import { platformSettings, DEFAULT_SYSTEM, SETTING_KEYS, getPlatformSetting } from "@/lib/admin/platform-settings";
 import prisma from "../lib/prisma";
 import { asyncHandler, setCacheControl } from "../lib/http-helpers";
 import { publicRateLimit } from "../middleware/rateLimit";
@@ -55,4 +55,3 @@ router.get(
 );
 
 export default router;
-

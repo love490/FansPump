@@ -1,8 +1,8 @@
 import { Router } from "express";
-import { getActiveChainId } from "../lib/chain-config/opn";
-import { getV2FeatureFlags } from "../lib/v2/feature-flags";
-import { deriveCreatorBadges } from "../lib/v2/badges";
-import { resolveCreatorStatus } from "../lib/v2/reputation";
+import { getActiveChainId } from "@/lib/chain-config/opn";
+import { getV2FeatureFlags } from "@/lib/v2/feature-flags";
+import { deriveCreatorBadges } from "@/lib/v2/badges";
+import { resolveCreatorStatus } from "@/lib/v2/reputation";
 import prisma from "../lib/prisma";
 import { asyncHandler, queryToSearchParams } from "../lib/http-helpers";
 import { publicRateLimit } from "../middleware/rateLimit";
@@ -137,4 +137,3 @@ router.get(
 );
 
 export default router;
-

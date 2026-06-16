@@ -1,13 +1,13 @@
 import { Router } from "express";
 import { z } from "zod";
-import { requireCreatorActionAuth, CreatorAuthError } from "../lib/creator-auth";
+import { requireCreatorActionAuth, CreatorAuthError } from "@/lib/creator-auth";
 import {
   getStakingPlatformConfig,
   serializeStakingPosition,
-} from "../lib/staking/config";
-import { computeWalletStakingTier } from "../lib/staking/tier";
-import { consolidateStakingPositions } from "../lib/staking/consolidate";
-import { stakingPositionGroupWhere } from "../lib/staking/position-key";
+} from "@/lib/staking/config";
+import { computeWalletStakingTier } from "@/lib/staking/tier";
+import { consolidateStakingPositions } from "@/lib/staking/consolidate";
+import { stakingPositionGroupWhere } from "@/lib/staking/position-key";
 import prisma from "../lib/prisma";
 import { asyncHandler, queryToSearchParams, setCacheControl } from "../lib/http-helpers";
 import { publicRateLimit } from "../middleware/rateLimit";
@@ -308,4 +308,3 @@ router.delete(
 );
 
 export default router;
-

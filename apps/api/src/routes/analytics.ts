@@ -1,12 +1,12 @@
 import { Router } from "express";
 import { createPublicClient, http } from "viem";
 import { TOKEN_CATEGORIES } from "@iopn/shared";
-import { getActiveChainId, opnChain, opnChainConfig } from "../lib/chain-config/opn";
-import { getGlobalAnalytics } from "../lib/analytics/queries";
-import { refreshAllTokenHolderCounts } from "../lib/analytics/holder-count";
-import { refreshRolling24hMetrics, syncAnalyticsFromChain } from "../lib/analytics/indexer";
+import { getActiveChainId, opnChain, opnChainConfig } from "@/lib/chain-config/opn";
+import { getGlobalAnalytics } from "@/lib/analytics/queries";
+import { refreshAllTokenHolderCounts } from "@/lib/analytics/holder-count";
+import { refreshRolling24hMetrics, syncAnalyticsFromChain } from "@/lib/analytics/indexer";
 import { recordDailyMetricsSnapshot, refreshAllTrustScores } from "../lib/trust/service";
-import { getV2FeatureFlags } from "../lib/v2/feature-flags";
+import { getV2FeatureFlags } from "@/lib/v2/feature-flags";
 import prisma from "../lib/prisma";
 import { asyncHandler, requireAnalyticsSyncSecret, setCacheControl } from "../lib/http-helpers";
 import { publicRateLimit } from "../middleware/rateLimit";
@@ -131,4 +131,3 @@ router.post(
 );
 
 export default router;
-

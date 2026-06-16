@@ -2,8 +2,8 @@ import { Router } from "express";
 import { type Prisma } from "@iopn/database";
 import { isAddress } from "viem";
 import { z } from "zod";
-import { requireCreatorActionAuth, CreatorAuthError } from "../lib/creator-auth";
-import { ensureCreatorProfile } from "../lib/v2/reputation";
+import { requireCreatorActionAuth, CreatorAuthError } from "@/lib/creator-auth";
+import { ensureCreatorProfile } from "@/lib/v2/reputation";
 import {
   bountyListInclude,
   bountyTabOrderBy,
@@ -11,7 +11,7 @@ import {
   mapBountyRow,
   resolveEffectiveStatus,
   type BountyTab,
-} from "../lib/bounties";
+} from "@/lib/bounties";
 import prisma from "../lib/prisma";
 import { asyncHandler, getRouteParam, queryToSearchParams } from "../lib/http-helpers";
 import { publicRateLimit } from "../middleware/rateLimit";
@@ -242,4 +242,3 @@ router.post(
 );
 
 export default router;
-

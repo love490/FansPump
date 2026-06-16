@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
-import { isRegistryTokenId, registryKeyToTokenCard } from "../lib/watchlist/registry-watchlist";
+import { isRegistryTokenId, registryKeyToTokenCard } from "@/lib/watchlist/registry-watchlist";
 import prisma from "../lib/prisma";
 import { asyncHandler, queryToSearchParams } from "../lib/http-helpers";
 import { publicRateLimit } from "../middleware/rateLimit";
@@ -111,4 +111,3 @@ router.delete(
 );
 
 export default router;
-

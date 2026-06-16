@@ -20,4 +20,3 @@ router.use("/tokens", tokensRouter);
 router.use(coreRouter);
 
 export default router;
-
