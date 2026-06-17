@@ -51,7 +51,7 @@ export const platformLinks: SidebarNavItem[] = [
   { id: "create", href: "/create", label: "Create Token", icon: Rocket },
   { id: "discover", href: "/discover?section=all", label: "Discover", icon: Compass },
   { id: "earn", href: "/earn", label: "Earn", icon: CircleDollarSign },
-  { id: "launchpool", href: "/launchpool", label: "Launchpool", icon: Rocket },
+  { id: "launchpool", href: "/launchpool", label: "Launchpool", icon: Megaphone },
   { id: "dex", href: "/swap", label: "DEX", icon: ArrowLeftRight },
   { id: "how-it-works", href: "/docs/how-it-works", label: "How It Works", icon: HelpCircle },
   { id: "docs", href: "/docs", label: "Docs", icon: BookOpen },
