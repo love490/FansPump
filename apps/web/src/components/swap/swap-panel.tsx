@@ -24,7 +24,6 @@ import { erc20Abi } from "@/lib/swap/abis";
 import {
   DEFAULT_SLIPPAGE,
   SLIPPAGE_OPTIONS,
-  getPaymentTokenConfig,
   type PayToken,
   type SwapMode,
   isPayTokenConfigured,
@@ -39,19 +38,6 @@ import type { SwapTxStatus } from "@/hooks/swap/useSwapExecute";
 interface SwapPanelProps {
   initialToken?: string;
   initialMode?: SwapMode;
-  /** Lock swap to OPN ↔ USDT (Advanced tab). */
-  fixedPair?: "opn-usdt";
-}
-
-function FixedTokenPill({ symbol }: { symbol: string }) {
-  return (
-    <div className="flex shrink-0 items-center gap-2 rounded-full border border-border/60 bg-muted/30 px-3 py-2">
-      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/15 text-[10px] font-bold text-primary">
-        {symbol.slice(0, 2).toUpperCase()}
-      </div>
-      <span className="text-sm font-semibold">{symbol}</span>
-    </div>
-  );
 }
 
 function mapWrapStatus(status: string): SwapTxStatus {
@@ -83,22 +69,16 @@ function SwapAmountInput({
   );
 }
 
-export function SwapPanel({ initialToken = "", initialMode = "buy", fixedPair }: SwapPanelProps) {
+export function SwapPanel({ initialToken = "", initialMode = "buy" }: SwapPanelProps) {
   const { address, isConnected } = useAccount();
   const chainId = useChainId();
   const { openConnectModal } = useConnectModal();
   const wopnAddress = getWopnAddress();
-  const usdtPayToken = getPaymentTokenConfig("USDT");
-  const isOpnUsdtPair = fixedPair === "opn-usdt" && !!usdtPayToken;
 
-  const [tokenAddress, setTokenAddress] = useState(
-    isOpnUsdtPair ? wopnAddress : initialToken
-  );
-  const [tokenSymbol, setTokenSymbol] = useState(isOpnUsdtPair ? "OPN" : "Token");
+  const [tokenAddress, setTokenAddress] = useState(initialToken);
+  const [tokenSymbol, setTokenSymbol] = useState("Token");
   const [mode, setMode] = useState<SwapMode>(initialMode === "sell" ? "sell" : "buy");
-  const [payToken, setPayToken] = useState<PayToken>(
-    isOpnUsdtPair && usdtPayToken ? usdtPayToken : OPN_PAY_TOKEN
-  );
+  const [payToken, setPayToken] = useState<PayToken>(OPN_PAY_TOKEN);
   const [amountIn, setAmountIn] = useState("");
   const [slippage, setSlippage] = useState(DEFAULT_SLIPPAGE);
   const [gasEstimate, setGasEstimate] = useState<bigint | null>(null);
@@ -169,17 +149,9 @@ export function SwapPanel({ initialToken = "", initialMode = "buy", fixedPair }:
         : quote?.paymentDecimals ?? payToken.decimals;
 
   useEffect(() => {
-    if (isOpnUsdtPair) return;
     setTokenAddress(initialToken);
     setMode(initialMode === "sell" ? "sell" : "buy");
-  }, [initialToken, initialMode, isOpnUsdtPair]);
-
-  useEffect(() => {
-    if (!isOpnUsdtPair || !usdtPayToken) return;
-    setTokenAddress(wopnAddress);
-    setTokenSymbol("OPN");
-    setPayToken(usdtPayToken);
-  }, [isOpnUsdtPair, usdtPayToken, wopnAddress]);
+  }, [initialToken, initialMode]);
 
   useEffect(() => {
     if (!validToken) {
@@ -335,13 +307,9 @@ export function SwapPanel({ initialToken = "", initialMode = "buy", fixedPair }:
           : "Approve Token"
         : !amountIn || Number(amountIn) <= 0
           ? "Enter Amount"
-          : isOpnUsdtPair
-            ? mode === "buy"
-              ? "Buy OPN"
-              : "Sell OPN"
-            : mode === "buy"
-              ? "Buy Token"
-              : "Sell Token";
+          : mode === "buy"
+            ? "Buy Token"
+            : "Sell Token";
 
   const activeStatus = isWrapOrUnwrap ? mapWrapStatus(wrapStatus) : status;
   const activeHash = isWrapOrUnwrap ? wrapHash ?? undefined : hash;
@@ -358,17 +326,12 @@ export function SwapPanel({ initialToken = "", initialMode = "buy", fixedPair }:
 
   return (
     <div className="mx-auto w-full max-w-lg space-y-4">
-      {!isOpnUsdtPair && !usdtPayToken && fixedPair === "opn-usdt" && (
-        <p className="text-sm text-muted-foreground">USDT is not configured on this network.</p>
-      )}
       <Card ref={swapCardRef} className="overflow-visible border-border shadow-sm">
         <CardHeader className="relative z-20 pb-4">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <CardTitle className="text-2xl">{isOpnUsdtPair ? "Advanced" : "Swap"}</CardTitle>
-              <CardDescription>
-                {isOpnUsdtPair ? "Trade OPN against USDT" : "Trade tokens instantly"}
-              </CardDescription>
+              <CardTitle className="text-2xl">Swap</CardTitle>
+              <CardDescription>Trade tokens instantly</CardDescription>
             </div>
             {!isWrapOrUnwrap && (
               <div ref={settingsRef} className="relative z-30 shrink-0">
@@ -454,9 +417,7 @@ export function SwapPanel({ initialToken = "", initialMode = "buy", fixedPair }:
                   resetAll();
                 }}
               />
-              {isOpnUsdtPair ? (
-                <FixedTokenPill symbol={mode === "buy" ? "USDT" : "OPN"} />
-              ) : mode === "buy" ? (
+              {mode === "buy" ? (
                 <SwapPayTokenSelect
                   variant="pill"
                   value={payToken}
@@ -499,9 +460,7 @@ export function SwapPanel({ initialToken = "", initialMode = "buy", fixedPair }:
             </div>
             <div className="flex items-center gap-3">
               <SwapAmountInput value={amountOutDisplay} readOnly />
-              {isOpnUsdtPair ? (
-                <FixedTokenPill symbol={mode === "buy" ? "OPN" : "USDT"} />
-              ) : mode === "buy" ? (
+              {mode === "buy" ? (
                 <SwapTokenPicker
                   variant="pill"
                   value={tokenAddress}
