@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import Image from "next/image";
 import {
@@ -9,6 +11,7 @@ import {
   Users,
 } from "lucide-react";
 import { BRAND_BLUE } from "@/lib/brand";
+import { usePlatformBranding } from "@/hooks/usePlatformBranding";
 
 const features = [
   { icon: Layers, label: "Create Tokens", href: "/create" },
@@ -20,6 +23,8 @@ const features = [
 ] as const;
 
 export function LandingFeatures() {
+  const { branding } = usePlatformBranding();
+
   return (
     <section id="features" className="w-full px-4 py-16 sm:px-6 sm:py-20 lg:px-8 xl:px-10">
       <div
@@ -58,12 +63,13 @@ export function LandingFeatures() {
           <Link href="/" className="block" aria-label="FansPump home">
             <div className="relative h-20 w-20 sm:h-28 sm:w-28">
               <Image
-                src="/images/logo-brand.png"
-                alt="FansPump"
+                src={branding.logoBrandUrl}
+                alt={branding.platformName}
                 fill
                 priority
                 className="object-contain drop-shadow-sm"
                 sizes="112px"
+                unoptimized={branding.logoBrandUrl.startsWith("http")}
               />
             </div>
           </Link>

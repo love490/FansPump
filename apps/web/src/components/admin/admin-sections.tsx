@@ -16,6 +16,9 @@ import { Badge } from "@/components/ui/badge";
 import { Star, Download, AlertTriangle } from "lucide-react";
 import { useAccount } from "wagmi";
 import { LaunchpoolAdminSection } from "@/components/admin/launchpool-admin-section";
+import { invalidatePlatformBrandingCache } from "@/hooks/usePlatformBranding";
+import Image from "next/image";
+import { Loader2, Upload } from "lucide-react";
 
 function SaveButton({ saving, onClick }: { saving: boolean; onClick: () => void }) {
   return (
@@ -536,13 +539,114 @@ export function SecuritySection() {
 export function SystemSection() {
   const [system, setSystem] = useState<Record<string, unknown> | null>(null);
   const [saving, setSaving] = useState(false);
+  const [uploadingKey, setUploadingKey] = useState<string | null>(null);
+
   useEffect(() => {
     adminFetch("/api/admin/settings/system").then((r) => r.json()).then((d) => setSystem(d.system));
   }, []);
+
+  async function uploadBrandingImage(
+    key: "logoUrl" | "logoBrandUrl" | "heroLogoUrl" | "faviconUrl",
+    file: File,
+    kind: "logo" | "banner" | "avatar"
+  ) {
+    setUploadingKey(key);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("kind", kind);
+      const res = await fetch(apiUrl("/api/upload"), { method: "POST", body: formData });
+      const data = (await res.json().catch(() => ({}))) as { url?: string; error?: string };
+      if (!res.ok || !data.url) throw new Error(data.error ?? "Upload failed");
+      setSystem((prev) => (prev ? { ...prev, [key]: data.url } : prev));
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Upload failed");
+    } finally {
+      setUploadingKey(null);
+    }
+  }
+
   if (!system) return null;
   return (
     <div className="space-y-4">
       <h2 className="text-2xl font-bold">System Settings</h2>
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Site branding</CardTitle>
+          <CardDescription>Upload logos and images used across the site header, landing page, and favicon.</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-6 sm:grid-cols-2">
+          {(
+            [
+              { key: "logoUrl", label: "Header logo", kind: "logo" as const },
+              { key: "logoBrandUrl", label: "Brand / marketing logo", kind: "logo" as const },
+              { key: "heroLogoUrl", label: "Hero image", kind: "banner" as const },
+              { key: "faviconUrl", label: "Favicon", kind: "logo" as const },
+            ] as const
+          ).map(({ key, label, kind }) => {
+            const url = String(system[key] ?? "");
+            return (
+              <div key={key} className="space-y-2 rounded-lg border p-3">
+                <Label>{label}</Label>
+                {url ? (
+                  <div className="relative h-16 w-16 overflow-hidden rounded-md border bg-muted/30">
+                    <Image
+                      src={url}
+                      alt={label}
+                      fill
+                      className="object-contain p-1"
+                      unoptimized={url.startsWith("http")}
+                    />
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground">No image set</p>
+                )}
+                <div className="flex flex-wrap gap-2">
+                  <label className="inline-flex cursor-pointer items-center gap-2">
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp,image/gif"
+                      className="hidden"
+                      disabled={uploadingKey === key}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        e.target.value = "";
+                        if (file) void uploadBrandingImage(key, file, kind);
+                      }}
+                    />
+                    <Button type="button" variant="outline" size="sm" asChild disabled={uploadingKey === key}>
+                      <span>
+                        {uploadingKey === key ? (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                          <Upload className="mr-2 h-4 w-4" />
+                        )}
+                        Upload
+                      </span>
+                    </Button>
+                  </label>
+                  {url && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setSystem({ ...system, [key]: "" })}
+                    >
+                      Clear
+                    </Button>
+                  )}
+                </div>
+                <Input
+                  className="font-mono text-xs"
+                  value={url}
+                  placeholder="https://… or /images/logo.png"
+                  onChange={(e) => setSystem({ ...system, [key]: e.target.value })}
+                />
+              </div>
+            );
+          })}
+        </CardContent>
+      </Card>
       <Card><CardContent className="space-y-4 pt-6">
         {["platformName", "platformDescription", "announcementBanner", "supportEmail", "supportUrl"].map((key) => (
           <div key={key}><Label>{key}</Label><Input className="mt-1" value={String(system[key] ?? "")} onChange={(e) => setSystem({ ...system, [key]: e.target.value })} /></div>
@@ -552,6 +656,7 @@ export function SystemSection() {
       <SaveButton saving={saving} onClick={async () => {
         setSaving(true);
         await adminFetch("/api/admin/settings/system", { method: "PATCH", body: JSON.stringify({ system }) });
+        invalidatePlatformBrandingCache();
         setSaving(false);
       }} />
     </div>

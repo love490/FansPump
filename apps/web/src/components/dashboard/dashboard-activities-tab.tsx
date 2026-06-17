@@ -1,6 +1,6 @@
 "use client";
 
-import { apiUrl } from "@/lib/api";
+import { apiUrl, readApiJson } from "@/lib/api";
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
@@ -41,11 +41,9 @@ export function DashboardActivitiesTab() {
     setLoadError(null);
     fetch(apiUrl(`/api/user/dashboard?wallet=${walletAddress.toLowerCase()}`))
       .then(async (r) => {
-        if (!r.ok) {
-          const body = (await r.json().catch(() => ({}))) as { error?: string };
-          throw new Error(body.error ?? `Failed to load activity (${r.status})`);
-        }
-        return r.json();
+        const { ok, data, error } = await readApiJson<{ activities?: UserActivity[]; error?: string }>(r);
+        if (!ok) throw new Error(error ?? data.error ?? `Failed to load activity (${r.status})`);
+        return data;
       })
       .then((d) => setActivities(d?.activities ?? []))
       .catch((e) => {
@@ -123,7 +121,7 @@ export function DashboardActivitiesTab() {
     return <p className="py-8 text-center text-sm text-muted-foreground">Loading activities…</p>;
   }
 
-  if (loadError) {
+  if (loadError && allActivities.length === 0) {
     return (
       <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-center dark:border-red-900 dark:bg-red-950/30">
         <p className="text-sm text-red-700 dark:text-red-400">{loadError}</p>
@@ -141,6 +139,11 @@ export function DashboardActivitiesTab() {
 
   return (
     <div className="space-y-2">
+      {loadError && (
+        <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
+          Some activity history could not be loaded from the server. Showing wallet data where available.
+        </p>
+      )}
       <p className="text-sm text-muted-foreground">
         Tokens created, liquidity locks, burns, stakes, and quests on FansPump and OPN Network.
       </p>

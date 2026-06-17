@@ -23,6 +23,11 @@ export type SystemConfig = {
     telegram?: string;
     discord?: string;
   };
+  /** Public site branding — editable in admin System settings */
+  logoUrl: string;
+  logoBrandUrl: string;
+  heroLogoUrl: string;
+  faviconUrl: string;
 };
 
 export type DiscoveryConfig = {
@@ -71,6 +76,10 @@ export const DEFAULT_SYSTEM: SystemConfig = {
   supportEmail: "",
   supportUrl: "",
   socialLinks: {},
+  logoUrl: "/images/logo.png",
+  logoBrandUrl: "/images/logo-brand.png",
+  heroLogoUrl: "/images/hero-logo.png",
+  faviconUrl: "/images/logo.png",
 };
 
 export const DEFAULT_SECURITY: SecurityConfig = {

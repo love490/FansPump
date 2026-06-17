@@ -40,6 +40,10 @@ const systemSchema = z.object({
       telegram: z.string().optional(),
       discord: z.string().optional(),
     }),
+    logoUrl: z.string().optional(),
+    logoBrandUrl: z.string().optional(),
+    heroLogoUrl: z.string().optional(),
+    faviconUrl: z.string().optional(),
   }),
 });
 

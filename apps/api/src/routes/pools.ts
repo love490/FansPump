@@ -8,6 +8,7 @@ import {
   syncPoolFromChain,
 } from "@/lib/pools/index";
 import prisma from "../lib/prisma";
+import { isMissingTableError } from "../lib/db-errors";
 import { asyncHandler, getRouteParam } from "../lib/http-helpers";
 import { publicRateLimit } from "../middleware/rateLimit";
 
@@ -51,6 +52,20 @@ router.get(
       });
     } catch (e) {
       console.error("[GET /api/pools]", e);
+      if (isMissingTableError(e)) {
+        res.json({
+          pools: [],
+          analytics: {
+            totalPools: 0,
+            totalLiquidity: "0",
+            totalVolume: "0",
+            totalProviders: 0,
+            trackingOnly: true,
+            note: "Pool tracking will appear after database migrations complete.",
+          },
+        });
+        return;
+      }
       res.status(500).json({ error: "Failed to load pools" });
     }
   })

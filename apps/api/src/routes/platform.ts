@@ -9,6 +9,32 @@ const router = Router();
 router.use(publicRateLimit);
 
 router.get(
+  "/branding",
+  asyncHandler(async (_req, res) => {
+    try {
+      const system = await getPlatformSetting(SETTING_KEYS.SYSTEM, DEFAULT_SYSTEM);
+      setCacheControl(res, "public, s-maxage=120, stale-while-revalidate=300");
+      res.json({
+        logoUrl: system.logoUrl || DEFAULT_SYSTEM.logoUrl,
+        logoBrandUrl: system.logoBrandUrl || DEFAULT_SYSTEM.logoBrandUrl,
+        heroLogoUrl: system.heroLogoUrl || DEFAULT_SYSTEM.heroLogoUrl,
+        faviconUrl: system.faviconUrl || DEFAULT_SYSTEM.faviconUrl,
+        platformName: system.platformName,
+      });
+    } catch (e) {
+      console.error("[GET /api/platform/branding]", e);
+      res.json({
+        logoUrl: DEFAULT_SYSTEM.logoUrl,
+        logoBrandUrl: DEFAULT_SYSTEM.logoBrandUrl,
+        heroLogoUrl: DEFAULT_SYSTEM.heroLogoUrl,
+        faviconUrl: DEFAULT_SYSTEM.faviconUrl,
+        platformName: DEFAULT_SYSTEM.platformName,
+      });
+    }
+  })
+);
+
+router.get(
   "/creation-fees",
   asyncHandler(async (_req, res) => {
     try {

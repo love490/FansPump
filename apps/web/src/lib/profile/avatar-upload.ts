@@ -1,4 +1,4 @@
-import { apiUrl, formatFetchError } from "@/lib/api";
+import { apiUrl, formatFetchError, readApiJson } from "@/lib/api";
 export async function uploadProfileAvatar(file: File): Promise<string> {
   const formData = new FormData();
   formData.append("file", file);
@@ -11,10 +11,9 @@ export async function uploadProfileAvatar(file: File): Promise<string> {
     throw new Error(formatFetchError(error, "Upload"));
   }
 
-  const data = (await res.json().catch(() => ({}))) as { error?: string; url?: string | null };
-
-  if (!res.ok) throw new Error(data.error ?? "Upload failed");
-  if (!data.url) throw new Error("Image storage is not configured yet.");
+  const { ok, data, error } = await readApiJson<{ error?: string; url?: string | null }>(res);
+  if (!ok) throw new Error(error ?? data.error ?? "Upload failed");
+  if (!data.url) throw new Error(data.error ?? "Image storage is not configured yet.");
 
   return data.url;
 }
@@ -29,12 +28,12 @@ export async function saveProfileImage(
     body: JSON.stringify({ walletAddress, profileImageUrl }),
   });
 
-  const data = (await res.json()) as {
+  const { ok, data, error } = await readApiJson<{
     error?: string;
     profile?: { username: string | null; profileImageUrl: string | null };
-  };
+  }>(res);
 
-  if (!res.ok) throw new Error(data.error ?? "Failed to save profile");
+  if (!ok) throw new Error(error ?? data.error ?? "Failed to save profile");
 
   return {
     username: data.profile?.username ?? null,

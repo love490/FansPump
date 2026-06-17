@@ -1,6 +1,6 @@
 "use client";
 
-import { apiUrl, formatFetchError } from "@/lib/api";
+import { apiUrl, formatFetchError, readApiJson } from "@/lib/api";
 
 import { useRef, useState } from "react";
 import { ImagePlus, Link2, Loader2, Upload } from "lucide-react";
@@ -62,8 +62,8 @@ export function MetadataImageField({
       } catch (error) {
         throw new Error(formatFetchError(error, "Upload"));
       }
-      const data = (await res.json().catch(() => ({}))) as { error?: string; url?: string | null };
-      if (!res.ok) throw new Error(data.error ?? "Upload failed");
+      const { ok, data, error } = await readApiJson<{ error?: string; url?: string | null }>(res);
+      if (!ok) throw new Error(error ?? data.error ?? "Upload failed");
       if (!data.url) {
         setError("Image storage is not configured yet. Paste an external image URL instead.");
         setMode("url");

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
+import { usePlatformBranding } from "@/hooks/usePlatformBranding";
 
 export function FansPumpLogo({
   className,
@@ -9,6 +10,7 @@ export function FansPumpLogo({
   showText = true,
   size = "md",
   vertical = false,
+  logoSrc,
 }: {
   className?: string;
   href?: string;
@@ -16,9 +18,12 @@ export function FansPumpLogo({
   showText?: boolean;
   size?: "sm" | "md" | "lg";
   vertical?: boolean;
+  logoSrc?: string;
 }) {
+  const { branding } = usePlatformBranding();
   const light = variant === "light";
   const iconSize = size === "sm" ? 32 : size === "lg" ? 48 : 40;
+  const src = logoSrc ?? branding.logoUrl;
 
   return (
     <Link
@@ -30,12 +35,13 @@ export function FansPumpLogo({
       )}
     >
       <Image
-        src="/images/logo.png"
-        alt="FansPump"
+        src={src}
+        alt={branding.platformName}
         width={iconSize}
         height={iconSize}
         className="shrink-0 bg-transparent object-contain"
         priority
+        unoptimized={src.startsWith("http")}
       />
       {showText && (
         <span className={cn("text-xl", size === "lg" && "text-2xl", size === "md" && "text-lg")}>

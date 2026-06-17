@@ -17,6 +17,7 @@ import { getPlatformSetting, DEFAULT_SECURITY } from "@/lib/admin/platform-setti
 import { requireCreatorActionAuth, CreatorAuthError } from "@/lib/creator-auth";
 import { formatUnits } from "viem";
 import prisma from "../lib/prisma";
+import { isMissingTableError, safeQuery } from "../lib/db-errors";
 import { asyncHandler, queryToSearchParams } from "../lib/http-helpers";
 import { publicRateLimit } from "../middleware/rateLimit";
 
@@ -163,79 +164,103 @@ router.get(
         stakingRows,
         launchpoolStakeRows,
       ] = await Promise.all([
-        prisma.tokenProject.findMany({
-          where: { creatorAddress: walletMatch },
-          select: { id: true, symbol: true, name: true, contractAddress: true, createdAt: true },
-          orderBy: { createdAt: "desc" },
-          take: 50,
-        }),
-        prisma.liquidityLock.findMany({
-          where: { creatorWallet: walletMatch },
-          include: { token: { select: { symbol: true } } },
-          orderBy: { createdAt: "desc" },
-          take: 50,
-        }),
-        prisma.lpBurn.findMany({
-          where: { creatorWallet: walletMatch },
-          include: { token: { select: { symbol: true, contractAddress: true } } },
-          orderBy: { burnedAt: "desc" },
-          take: 50,
-        }),
-        prisma.bounty.findMany({
-          where: { creatorWallet: walletMatch },
-          select: { id: true, title: true, createdAt: true },
-          orderBy: { createdAt: "desc" },
-          take: 50,
-        }),
-        prisma.bountyParticipation.findMany({
-          where: { walletAddress: walletMatch },
-          include: {
-            bounty: {
-              select: {
-                id: true,
-                title: true,
-                status: true,
-                createdAt: true,
-                rewardType: true,
-                rewardAmount: true,
-                rewardDescription: true,
-                token: { select: { symbol: true } },
+        safeQuery("tokensCreated", () =>
+          prisma.tokenProject.findMany({
+            where: { creatorAddress: walletMatch },
+            select: { id: true, symbol: true, name: true, contractAddress: true, createdAt: true },
+            orderBy: { createdAt: "desc" },
+            take: 50,
+          }),
+          []
+        ),
+        safeQuery("liquidityLocks", () =>
+          prisma.liquidityLock.findMany({
+            where: { creatorWallet: walletMatch },
+            include: { token: { select: { symbol: true } } },
+            orderBy: { createdAt: "desc" },
+            take: 50,
+          }),
+          []
+        ),
+        safeQuery("lpBurns", () =>
+          prisma.lpBurn.findMany({
+            where: { creatorWallet: walletMatch },
+            include: { token: { select: { symbol: true, contractAddress: true } } },
+            orderBy: { burnedAt: "desc" },
+            take: 50,
+          }),
+          []
+        ),
+        safeQuery("bountiesCreated", () =>
+          prisma.bounty.findMany({
+            where: { creatorWallet: walletMatch },
+            select: { id: true, title: true, createdAt: true },
+            orderBy: { createdAt: "desc" },
+            take: 50,
+          }),
+          []
+        ),
+        safeQuery("joinedQuests", () =>
+          prisma.bountyParticipation.findMany({
+            where: { walletAddress: walletMatch },
+            include: {
+              bounty: {
+                select: {
+                  id: true,
+                  title: true,
+                  status: true,
+                  createdAt: true,
+                  rewardType: true,
+                  rewardAmount: true,
+                  rewardDescription: true,
+                  token: { select: { symbol: true } },
+                },
               },
             },
-          },
-          orderBy: { createdAt: "desc" },
-          take: 50,
-        }),
-        prisma.bountyParticipation.findMany({
-          where: {
-            walletAddress: walletMatch,
-            bounty: { status: "COMPLETED" },
-          },
-          include: {
-            bounty: {
-              select: {
-                id: true,
-                title: true,
-                completedAt: true,
-                rewardType: true,
-                rewardAmount: true,
-                rewardDescription: true,
-                token: { select: { symbol: true } },
+            orderBy: { createdAt: "desc" },
+            take: 50,
+          }),
+          []
+        ),
+        safeQuery("completedQuests", () =>
+          prisma.bountyParticipation.findMany({
+            where: {
+              walletAddress: walletMatch,
+              bounty: { status: "COMPLETED" },
+            },
+            include: {
+              bounty: {
+                select: {
+                  id: true,
+                  title: true,
+                  completedAt: true,
+                  rewardType: true,
+                  rewardAmount: true,
+                  rewardDescription: true,
+                  token: { select: { symbol: true } },
+                },
               },
             },
-          },
-          orderBy: { createdAt: "desc" },
-          take: 50,
-        }),
-        prisma.stakingPosition.findMany({
-          where: { wallet: walletMatch, isActive: true },
-          orderBy: { stakedAt: "desc" },
-        }),
-        prisma.launchpoolStake.findMany({
-          where: { walletAddress: walletMatch, isActive: true },
-          include: { launchpool: { select: { id: true, title: true } } },
-          orderBy: { stakedAt: "desc" },
-        }),
+            orderBy: { createdAt: "desc" },
+            take: 50,
+          }),
+          []
+        ),
+        safeQuery("stakingPositions", () =>
+          prisma.stakingPosition.findMany({
+            where: { wallet: walletMatch, isActive: true },
+            orderBy: { stakedAt: "desc" },
+          }),
+          []
+        ),
+        safeQuery("launchpoolStakes", () =>
+          prisma.launchpoolStake.findMany({
+            where: { walletAddress: walletMatch, isActive: true },
+            include: { launchpool: { select: { id: true, title: true } } },
+            orderBy: { stakedAt: "desc" },
+          }),
+          []
+        ),
       ]);
 
       const lockAmountWei = liquidityLocks.reduce((sum, row) => sum + BigInt(row.amount || "0"), 0n);
@@ -253,10 +278,18 @@ router.get(
         .filter((p) => p.bounty.rewardType === "OPN")
         .reduce((sum, p) => sum + Number(p.bounty.rewardAmount || 0), 0);
 
-      const creatorEarningsWei = await getCreatorEarningsTotal(wallet);
+      const creatorEarningsWei = await safeQuery(
+        "creatorEarnings",
+        () => getCreatorEarningsTotal(wallet),
+        "0"
+      );
       const creatorEarningsOpn = weiToOpnFloat(BigInt(creatorEarningsWei || "0"));
 
-      const launchpoolRewards = await getUnclaimedLaunchpoolRewards(wallet);
+      const launchpoolRewards = await safeQuery(
+        "launchpoolRewards",
+        () => getUnclaimedLaunchpoolRewards(wallet),
+        []
+      );
       const launchpoolRewardRows = launchpoolRewards.map((reward) => ({
         id: reward.id,
         launchpoolId: reward.launchpoolId,
@@ -410,6 +443,14 @@ router.get(
       });
     } catch (e) {
       console.error("[GET /api/user/dashboard]", e);
+      if (isMissingTableError(e)) {
+        res.status(503).json({
+          error: "Dashboard data is not available yet — database migrations may be pending.",
+          activities: [],
+          stats: {},
+        });
+        return;
+      }
       res.status(500).json({ error: "Failed to load dashboard stats" });
     }
   })

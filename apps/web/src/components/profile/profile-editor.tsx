@@ -1,6 +1,6 @@
 "use client";
 
-import { apiUrl } from "@/lib/api";
+import { apiUrl, readApiJson } from "@/lib/api";
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
@@ -64,11 +64,11 @@ export function ProfileEditor({ showSettingsLink = true }: ProfileEditorProps) {
           profileImageUrl,
         }),
       });
-      const data = (await res.json()) as {
+      const { ok, data, error } = await readApiJson<{
         error?: string;
         profile?: { username: string | null; profileImageUrl: string | null };
-      };
-      if (!res.ok) throw new Error(data.error ?? "Failed to save profile");
+      }>(res);
+      if (!ok) throw new Error(error ?? data.error ?? "Failed to save profile");
       setSavedUsername(data.profile?.username ?? null);
       setProfileImageUrl(data.profile?.profileImageUrl ?? null);
       setProfileMessage("Profile saved.");

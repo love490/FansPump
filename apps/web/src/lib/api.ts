@@ -22,6 +22,34 @@ export function formatFetchError(error: unknown, context = "Request"): string {
   return error instanceof Error ? error.message : `${context} failed`;
 }
 
+/** Parse API JSON even when upstream returns plain-text errors (e.g. proxy 500). */
+export async function readApiJson<T = Record<string, unknown>>(
+  res: Response
+): Promise<{ ok: boolean; status: number; data: T; error?: string }> {
+  const text = await res.text();
+  try {
+    const data = JSON.parse(text) as T;
+    const err =
+      !res.ok && typeof data === "object" && data && "error" in data
+        ? String((data as { error?: unknown }).error ?? "")
+        : undefined;
+    return {
+      ok: res.ok,
+      status: res.status,
+      data,
+      error: err || (!res.ok ? `Request failed (${res.status})` : undefined),
+    };
+  } catch {
+    const snippet = text.trim().slice(0, 160);
+    return {
+      ok: false,
+      status: res.status,
+      data: {} as T,
+      error: snippet || `Request failed (${res.status})`,
+    };
+  }
+}
+
 export async function getServerCookieHeader(): Promise<string | undefined> {
   if (typeof window !== "undefined") return undefined;
   const { cookies } = await import("next/headers");

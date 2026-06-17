@@ -1,6 +1,6 @@
 "use client";
 
-import { apiUrl } from "@/lib/api";
+import { apiUrl, readApiJson } from "@/lib/api";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
@@ -51,9 +51,9 @@ export default function PoolsPage() {
     else setLoading(true);
     try {
       const res = await fetch(apiUrl("/api/pools"));
-      if (!res.ok) throw new Error("Failed to load pools");
-      const json = (await res.json()) as PoolsResponse;
-      setData(json);
+      const { ok, data, error } = await readApiJson<PoolsResponse & { error?: string }>(res);
+      if (!ok) throw new Error(error ?? data.error ?? "Failed to load pools");
+      setData(data);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load pools");
       setData(null);
