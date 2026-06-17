@@ -28,6 +28,7 @@ import {
 import { useWalletPortfolioBalance } from "@/hooks/dashboard/useWalletPortfolioBalance";
 import { formatReserve, formatTokenAmount } from "@/lib/defi/format-reserve";
 import { formatBalanceTotal } from "@/lib/dashboard/wallet-balance";
+import { formatLiquidityAmountFromWei } from "@/lib/liquidity/format-amount";
 
 type StakingPosition = {
   id: string;
@@ -61,7 +62,7 @@ function lpPositionKey(p: MyLiquidityPosition) {
 
 function formatStakeAmount(wei: string, decimals = 18) {
   try {
-    return formatUnits(BigInt(wei), decimals);
+    return formatLiquidityAmountFromWei(BigInt(wei), decimals);
   } catch {
     return "0";
   }
@@ -468,7 +469,7 @@ export default function StakingPage() {
             value:
               personalStakeTotals.lpCount === 0
                 ? "None"
-                : `${formatReserve(personalStakeTotals.lpWei.toString())} LP`,
+                : `${formatLiquidityAmountFromWei(personalStakeTotals.lpWei, 18)} LP`,
             hint:
               personalStakeTotals.lpCount > 0
                 ? `${personalStakeTotals.lpCount} LP position(s)`
@@ -857,7 +858,7 @@ function LpStakeCard({
                 >
                   {walletTokenLpPositions.map((p) => (
                     <option key={lpPositionKey(p)} value={lpPositionKey(p)}>
-                      {p.tokenSymbol} / {p.pairLabel} — {formatUnits(p.lpBalance, p.lpDecimals)} LP
+                      {p.tokenSymbol} / {p.pairLabel} — {formatLiquidityAmountFromWei(p.lpBalance, p.lpDecimals)} LP
                     </option>
                   ))}
                 </select>
@@ -868,7 +869,7 @@ function LpStakeCard({
               <div className="rounded-lg border border-border bg-muted/30 px-3 py-2 text-sm">
                 <p className="font-medium">{balanceLabel}</p>
                 <p className="text-muted-foreground">
-                  Balance: {formatUnits(lpBalance.value, lpBalance.decimals)} LP
+                  Balance: {formatLiquidityAmountFromWei(lpBalance.value, lpBalance.decimals)} LP
                 </p>
               </div>
             ) : (

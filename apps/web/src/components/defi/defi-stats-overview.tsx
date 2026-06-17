@@ -39,14 +39,14 @@ export function StatGrid({
       {stats.map((stat) => (
         <div
           key={stat.label}
-          className="rounded-lg border border-border/80 bg-muted/30 px-3 py-2.5"
+          className="min-w-0 rounded-lg border border-border/80 bg-muted/30 px-3 py-2.5"
         >
           <p className="text-xs font-medium text-muted-foreground">{stat.label}</p>
-          <p className="mt-0.5 text-lg font-semibold tabular-nums">
+          <p className="mt-0.5 break-words text-sm font-semibold tabular-nums leading-snug sm:text-base">
             {loading ? "…" : stat.value}
           </p>
           {stat.subValue && !loading && (
-            <p className="mt-0.5 text-sm font-medium tabular-nums text-muted-foreground">
+            <p className="mt-0.5 break-words text-xs font-medium tabular-nums text-muted-foreground sm:text-sm">
               {stat.subValue}
             </p>
           )}

@@ -5,7 +5,6 @@ import { apiUrl, readApiJson } from "@/lib/api";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useAccount } from "wagmi";
-import { formatUnits } from "viem";
 import type { PoolRecord } from "@iopn/shared";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -17,6 +16,11 @@ import { DefiStatsOverview } from "@/components/defi/defi-stats-overview";
 import { useMyLiquidityPositions } from "@/hooks/liquidity/useMyLiquidityPositions";
 import { useBasePoolLpPositions } from "@/hooks/liquidity/useBasePoolLpPositions";
 import { formatReserve } from "@/lib/defi/format-reserve";
+import {
+  formatBaseLpPositionLabel,
+  formatTokenLpPositionLabel,
+  summarizeLpDisplayParts,
+} from "@/lib/liquidity/format-amount";
 import { BarChart3, Droplets, Plus, Radar, RefreshCw } from "lucide-react";
 import { cn, shortenAddress } from "@/lib/utils";
 
@@ -119,8 +123,10 @@ export default function PoolsPage() {
     const tokenLp = positions.filter((p) => !p.pending && p.lpBalance > 0n);
     const baseLp = basePools.filter((p) => p.lpBalance > 0n);
     const lpDisplayParts = [
-      ...tokenLp.map((p) => `${formatUnits(p.lpBalance, p.lpDecimals)} ${p.tokenSymbol}/${p.pairLabel}`),
-      ...baseLp.map((p) => `${formatUnits(p.lpBalance, p.lpDecimals)} ${p.pairLabel}`),
+      ...tokenLp.map((p) =>
+        formatTokenLpPositionLabel(p.lpBalance, p.lpDecimals, p.tokenSymbol, p.pairLabel)
+      ),
+      ...baseLp.map((p) => formatBaseLpPositionLabel(p.lpBalance, p.lpDecimals, p.pairLabel)),
     ];
     return {
       positionCount: tokenLp.length + baseLp.length,
@@ -197,10 +203,7 @@ export default function PoolsPage() {
                 ? "…"
                 : personal.positionCount === 0
                   ? "None yet"
-                  : personal.lpDisplayParts.slice(0, 2).join(" · ") +
-                    (personal.lpDisplayParts.length > 2
-                      ? ` · +${personal.lpDisplayParts.length - 2} more`
-                      : ""),
+                  : summarizeLpDisplayParts(personal.lpDisplayParts),
             hint:
               personal.positionCount > 0
                 ? "Manage positions on Liquidity"

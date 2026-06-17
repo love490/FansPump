@@ -4,7 +4,12 @@ import { apiUrl } from "@/lib/api";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAccount } from "wagmi";
-import { formatLiquidityAmountFromWei } from "@/lib/liquidity/format-amount";
+import {
+  formatBaseLpPositionLabel,
+  formatLiquidityAmountFromWei,
+  formatTokenLpPositionLabel,
+  summarizeLpDisplayParts,
+} from "@/lib/liquidity/format-amount";
 import { AddLiquidityPanel } from "@/components/liquidity/add-liquidity-panel";
 import { MyLiquidityList } from "@/components/liquidity/my-liquidity-list";
 import { MyLiquidityLockBurn } from "@/components/liquidity/my-liquidity-lock-burn";
@@ -51,13 +56,10 @@ export default function LiquidityPage() {
     const tokenLp = positions.filter((p) => !p.pending && p.lpBalance > 0n);
     const baseLp = basePools.filter((p) => p.lpBalance > 0n);
     const lpDisplayParts = [
-      ...tokenLp.map(
-        (p) =>
-          `${formatLiquidityAmountFromWei(p.lpBalance, p.lpDecimals)} ${p.tokenSymbol}/${p.pairLabel}`
+      ...tokenLp.map((p) =>
+        formatTokenLpPositionLabel(p.lpBalance, p.lpDecimals, p.tokenSymbol, p.pairLabel)
       ),
-      ...baseLp.map(
-        (p) => `${formatLiquidityAmountFromWei(p.lpBalance, p.lpDecimals)} ${p.pairLabel}`
-      ),
+      ...baseLp.map((p) => formatBaseLpPositionLabel(p.lpBalance, p.lpDecimals, p.pairLabel)),
     ];
     return {
       positionCount: tokenLp.length + baseLp.length,
@@ -123,10 +125,7 @@ export default function LiquidityPage() {
                       ? "…"
                       : personal.positionCount === 0
                         ? "None yet"
-                        : personal.lpDisplayParts.slice(0, 2).join(" · ") +
-                          (personal.lpDisplayParts.length > 2
-                            ? ` · +${personal.lpDisplayParts.length - 2} more`
-                            : ""),
+                        : summarizeLpDisplayParts(personal.lpDisplayParts),
                   hint:
                     personal.positionCount > 0
                       ? "See position details below"
