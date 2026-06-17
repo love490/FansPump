@@ -17,10 +17,36 @@ function formatBalanceAmount(amount: number): string {
   return amount.toLocaleString(undefined, { maximumFractionDigits: 6 });
 }
 
-function tokenHref(symbol: string, contractAddress?: string | null, isNative?: boolean): string | null {
-  if (isNative || symbol === "OPN") return "/swap";
-  if (contractAddress?.startsWith("0x")) return `/token/${contractAddress}`;
+function tokenHref(
+  row: {
+    symbol: string;
+    contractAddress?: string | null;
+    isNative?: boolean;
+    isLp?: boolean;
+    projectTokenAddress?: string | null;
+  }
+): string | null {
+  if (row.isLp) {
+    if (row.projectTokenAddress?.startsWith("0x")) {
+      return `/liquidity/${row.projectTokenAddress}`;
+    }
+    return "/liquidity";
+  }
+  if (row.isNative || row.symbol === "OPN") return "/swap";
+  if (row.contractAddress?.startsWith("0x") && !row.isLp) {
+    return `/token/${row.contractAddress}`;
+  }
   return null;
+}
+
+function rowKey(row: {
+  symbol: string;
+  contractAddress?: string | null;
+  isNative?: boolean;
+  isLp?: boolean;
+}): string {
+  if (row.isLp) return `lp-${row.contractAddress ?? row.symbol}`;
+  return `${row.symbol}-${row.contractAddress ?? "native"}`;
 }
 
 export function DashboardMyTokensTab() {
@@ -28,17 +54,20 @@ export function DashboardMyTokensTab() {
 
   const rows = useMemo(() => {
     return assets
-      .filter((a) => a.amount > 0)
+      .filter((a) => a.amount > 0 || a.isCreator)
       .map((asset) => {
         const unitPriceUsd = asset.amount > 0 && asset.usdValue > 0 ? asset.usdValue / asset.amount : 0;
         return { ...asset, unitPriceUsd };
       })
       .sort((a, b) => {
-        const builtin = (s: string) => ["OPN", "WOPN", "USDT"].includes(s.toUpperCase());
+        const builtin = (s: string) => ["OPN", "WOPN", "USDT", "USDC"].includes(s.toUpperCase());
         const aBuiltin = builtin(a.symbol);
         const bBuiltin = builtin(b.symbol);
         if (aBuiltin !== bBuiltin) return aBuiltin ? -1 : 1;
+        if (a.isLp !== b.isLp) return a.isLp ? 1 : -1;
+        if (a.isCreator !== b.isCreator) return a.isCreator ? -1 : 1;
         if (a.usdValue !== b.usdValue) return b.usdValue - a.usdValue;
+        if (a.amount !== b.amount) return b.amount - a.amount;
         return a.symbol.localeCompare(b.symbol);
       });
   }, [assets]);
@@ -80,18 +109,30 @@ export function DashboardMyTokensTab() {
       ) : (
         <div className="divide-y divide-border overflow-hidden rounded-xl border border-border">
           {rows.map((row) => {
-            const href = tokenHref(row.symbol, row.contractAddress, row.isNative);
+            const href = tokenHref(row);
             const content = (
               <>
                 <TokenLogo
                   src={row.logoUrl}
-                  symbol={row.symbol}
+                  symbol={row.isLp ? "LP" : row.symbol}
                   name={row.name}
                   layout="fixed"
                   size={40}
                 />
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-base font-bold uppercase tracking-wide">{row.symbol}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="truncate text-base font-bold uppercase tracking-wide">{row.symbol}</p>
+                    {row.isCreator && (
+                      <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase text-primary">
+                        Created
+                      </span>
+                    )}
+                    {row.isLp && (
+                      <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold uppercase text-muted-foreground">
+                        LP
+                      </span>
+                    )}
+                  </div>
                   <p className="mt-0.5 text-sm tabular-nums text-muted-foreground">
                     {formatBalanceAmount(row.amount)}
                   </p>
@@ -110,7 +151,7 @@ export function DashboardMyTokensTab() {
             if (href) {
               return (
                 <Link
-                  key={`${row.symbol}-${row.contractAddress ?? "native"}`}
+                  key={rowKey(row)}
                   href={href}
                   className="flex items-center gap-3 px-3 py-3 transition-colors hover:bg-muted/30"
                 >
@@ -120,10 +161,7 @@ export function DashboardMyTokensTab() {
             }
 
             return (
-              <div
-                key={`${row.symbol}-${row.contractAddress ?? "native"}`}
-                className="flex items-center gap-3 px-3 py-3"
-              >
+              <div key={rowKey(row)} className="flex items-center gap-3 px-3 py-3">
                 {content}
               </div>
             );

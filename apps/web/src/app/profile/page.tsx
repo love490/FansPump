@@ -3,6 +3,8 @@
 import { useActiveWallet } from "@/hooks/useActiveWallet";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ProfileEditor } from "@/components/profile/profile-editor";
+import { ProfileVerificationSection } from "@/components/verification/profile-verification-section";
+import { Suspense } from "react";
 
 export default function ProfilePage() {
   const { hasWallet } = useActiveWallet();
@@ -29,6 +31,10 @@ export default function ProfilePage() {
           <ProfileEditor showSettingsLink />
         </CardContent>
       </Card>
+
+      <Suspense fallback={null}>
+        <ProfileVerificationSection />
+      </Suspense>
     </div>
   );
 }

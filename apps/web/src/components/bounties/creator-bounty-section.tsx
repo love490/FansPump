@@ -11,6 +11,8 @@ import { Label } from "@/components/ui/label";
 import {
   BOUNTY_REWARD_TYPES,
   BOUNTY_TASK_TYPES,
+  ONCHAIN_REQUIREMENTS,
+  VERIFICATION_METHODS,
   type BountyListItem,
 } from "@/lib/bounties";
 import { BountyCard } from "@/components/bounties/bounty-card";
@@ -52,6 +54,11 @@ export function CreatorBountySection({
   const [maxParticipants, setMaxParticipants] = useState("50");
   const [endsAt, setEndsAt] = useState("");
   const [tokenAddress, setTokenAddress] = useState("");
+  const [verificationMethod, setVerificationMethod] =
+    useState<(typeof VERIFICATION_METHODS)[number]["id"]>("MANUAL");
+  const [onchainRequirement, setOnchainRequirement] =
+    useState<(typeof ONCHAIN_REQUIREMENTS)[number]["id"]>("HOLD_TOKEN");
+  const [onchainMinAmount, setOnchainMinAmount] = useState("1");
 
   function loadBounties() {
     setLoading(true);
@@ -93,6 +100,20 @@ export function CreatorBountySection({
           maxParticipants: Number(maxParticipants),
           endsAt: endsAt ? new Date(endsAt).toISOString() : null,
           tokenAddress: tokenAddress || null,
+          verificationMethod,
+          verificationConfig:
+            verificationMethod === "ONCHAIN"
+              ? {
+                  requirementType: onchainRequirement,
+                  tokenAddress: onchainRequirement === "HOLD_TOKEN" && tokenAddress ? tokenAddress : undefined,
+                  minAmount:
+                    onchainRequirement === "HOLD_TOKEN" || onchainRequirement === "STAKE"
+                      ? String(Number(onchainMinAmount) * 1e18)
+                      : undefined,
+                  pairId: onchainRequirement === "ADD_LIQUIDITY" ? "OPN" : undefined,
+                  minLpAmount: onchainRequirement === "ADD_LIQUIDITY" ? "1" : undefined,
+                }
+              : null,
         }),
       });
       const data = await res.json();
@@ -236,6 +257,57 @@ export function CreatorBountySection({
                     ))}
                   </select>
                 </div>
+              )}
+              <div className="space-y-2">
+                <Label htmlFor="bounty-verification">Verification</Label>
+                <select
+                  id="bounty-verification"
+                  value={verificationMethod}
+                  onChange={(e) =>
+                    setVerificationMethod(e.target.value as typeof verificationMethod)
+                  }
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                >
+                  {VERIFICATION_METHODS.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              {verificationMethod === "ONCHAIN" && (
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="bounty-onchain-req">On-chain requirement</Label>
+                    <select
+                      id="bounty-onchain-req"
+                      value={onchainRequirement}
+                      onChange={(e) =>
+                        setOnchainRequirement(e.target.value as typeof onchainRequirement)
+                      }
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    >
+                      {ONCHAIN_REQUIREMENTS.map((r) => (
+                        <option key={r.id} value={r.id}>
+                          {r.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  {(onchainRequirement === "HOLD_TOKEN" || onchainRequirement === "STAKE") && (
+                    <div className="space-y-2">
+                      <Label htmlFor="bounty-min-amount">Minimum amount</Label>
+                      <Input
+                        id="bounty-min-amount"
+                        type="number"
+                        min={0}
+                        step="any"
+                        value={onchainMinAmount}
+                        onChange={(e) => setOnchainMinAmount(e.target.value)}
+                      />
+                    </div>
+                  )}
+                </>
               )}
               <div className="space-y-2 sm:col-span-2">
                 <Label htmlFor="bounty-requirements">Requirements (optional)</Label>

@@ -14,7 +14,7 @@ import { cn } from "@/lib/utils";
 export default function EarnPage() {
   const { address } = useAccount();
   const { signMessageAsync } = useSignMessage();
-  const [tab, setTab] = useState<BountyTab>("trending");
+  const [tab, setTab] = useState<BountyTab>("featured");
   const [bounties, setBounties] = useState<BountyListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [joiningId, setJoiningId] = useState<string | null>(null);
@@ -74,7 +74,7 @@ export default function EarnPage() {
           <CircleDollarSign className="h-7 w-7 text-primary" /> Earn
         </h1>
         <p className="mt-1 text-muted-foreground">
-          Complete tasks from creators and earn rewards across FansPump.
+          Complete quests from creators and earn rewards — social, on-chain, and community tasks.
         </p>
       </header>
 

@@ -11,6 +11,8 @@ import { getBuiltinPayTokens, type PayToken } from "@/lib/swap/payment-tokens";
 import { opnChainConfig } from "@/lib/chain-config/opn";
 import { getRegistryTokenByAddress } from "@/lib/token-registry";
 import { useWalletLiquidityTokens } from "@/hooks/liquidity/useWalletLiquidityTokens";
+import { useMyLiquidityPositions } from "@/hooks/liquidity/useMyLiquidityPositions";
+import { useBasePoolLpPositions } from "@/hooks/liquidity/useBasePoolLpPositions";
 import {
   bigintToFloat,
   sumPortfolio,
@@ -20,6 +22,7 @@ import {
   DEFAULT_OPN_USD,
   fetchOpnUsdRate,
   fetchTokenUsdValue,
+  quoteLpTokenUsd,
 } from "@/lib/dashboard/token-quotes";
 
 async function readPayTokenBalance(
@@ -45,12 +48,23 @@ export function useWalletPortfolioBalance() {
     loading: walletTokensLoading,
     refresh: refreshWalletTokens,
   } = useWalletLiquidityTokens(walletAddress);
+  const {
+    positions: lpPositions,
+    loading: lpLoading,
+    refresh: refreshLpPositions,
+  } = useMyLiquidityPositions(walletAddress);
+  const {
+    positions: basePoolLps,
+    loading: baseLpLoading,
+    refresh: refreshBasePoolLps,
+  } = useBasePoolLpPositions(walletAddress);
 
   const [payBalances, setPayBalances] = useState<Record<string, bigint>>({});
   const [payLoading, setPayLoading] = useState(false);
   const [opnUsdRate, setOpnUsdRate] = useState(DEFAULT_OPN_USD);
   const [rateLoading, setRateLoading] = useState(false);
   const [tokenUsdMap, setTokenUsdMap] = useState<Record<string, number>>({});
+  const [lpUsdMap, setLpUsdMap] = useState<Record<string, number>>({});
   const [quotesLoading, setQuotesLoading] = useState(false);
 
   const payTokens = useMemo(() => getBuiltinPayTokens().filter((t) => !t.isNative && t.address), []);
@@ -88,8 +102,9 @@ export function useWalletPortfolioBalance() {
   }, [client]);
 
   useEffect(() => {
-    if (!client || !walletAddress || walletTokens.length === 0) {
+    if (!client || !walletAddress) {
       setTokenUsdMap({});
+      setLpUsdMap({});
       return;
     }
 
@@ -98,6 +113,7 @@ export function useWalletPortfolioBalance() {
     const wopn = opnChainConfig.contracts.wopn;
     if (!router || router === "0x0000000000000000000000000000000000000000" || !usdt) {
       setTokenUsdMap({});
+      setLpUsdMap({});
       return;
     }
 
@@ -106,8 +122,9 @@ export function useWalletPortfolioBalance() {
 
     (async () => {
       const priced: Record<string, number> = {};
+      const lpPriced: Record<string, number> = {};
       const withBalance = walletTokens.filter((t) => t.balance > 0n);
-      for (const token of withBalance.slice(0, 20)) {
+      for (const token of withBalance.slice(0, 40)) {
         const usd = await fetchTokenUsdValue(
           client,
           token.contractAddress as Address,
@@ -118,10 +135,27 @@ export function useWalletPortfolioBalance() {
         );
         priced[token.contractAddress.toLowerCase()] = usd;
       }
-      if (!cancelled) setTokenUsdMap(priced);
+
+      const lpRows = [
+        ...lpPositions.filter((p) => !p.pending && p.lpBalance > 0n),
+        ...basePoolLps.filter((p) => p.lpBalance > 0n),
+      ];
+      for (const pos of lpRows) {
+        const key = pos.lpToken.toLowerCase();
+        if (lpPriced[key] !== undefined) continue;
+        lpPriced[key] = await quoteLpTokenUsd(client, pos.lpToken as Address, pos.lpBalance);
+      }
+
+      if (!cancelled) {
+        setTokenUsdMap(priced);
+        setLpUsdMap(lpPriced);
+      }
     })()
       .catch(() => {
-        if (!cancelled) setTokenUsdMap({});
+        if (!cancelled) {
+          setTokenUsdMap({});
+          setLpUsdMap({});
+        }
       })
       .finally(() => {
         if (!cancelled) setQuotesLoading(false);
@@ -130,7 +164,7 @@ export function useWalletPortfolioBalance() {
     return () => {
       cancelled = true;
     };
-  }, [walletAddress, client, walletTokens]);
+  }, [walletAddress, client, walletTokens, lpPositions, basePoolLps]);
 
   const assets = useMemo((): PortfolioAsset[] => {
     const rows: PortfolioAsset[] = [];
@@ -169,10 +203,13 @@ export function useWalletPortfolioBalance() {
       });
     }
 
+    const seenAddresses = new Set(rows.map((r) => r.contractAddress?.toLowerCase()).filter(Boolean));
+
     for (const token of walletTokens) {
-      if (token.balance <= 0n) continue;
+      if (token.balance <= 0n && !token.isCreator) continue;
       const addr = token.contractAddress.toLowerCase();
       if (payTokens.some((p) => p.address?.toLowerCase() === addr)) continue;
+      if (seenAddresses.has(addr)) continue;
       const amount = bigintToFloat(token.balance, token.decimals);
       const usdValue = tokenUsdMap[addr] ?? 0;
       rows.push({
@@ -183,20 +220,82 @@ export function useWalletPortfolioBalance() {
         usdValue,
         contractAddress: addr,
         logoUrl: token.logoUrl,
+        isCreator: token.isCreator,
       });
+      seenAddresses.add(addr);
+    }
+
+    for (const pos of lpPositions) {
+      if (pos.pending || pos.lpBalance <= 0n) continue;
+      const lpKey = pos.lpToken.toLowerCase();
+      if (seenAddresses.has(lpKey)) continue;
+      const amount = bigintToFloat(pos.lpBalance, pos.lpDecimals);
+      const label = `${pos.tokenSymbol}/${pos.pairLabel} LP`;
+      const usdValue = lpUsdMap[lpKey] ?? 0;
+      rows.push({
+        symbol: label,
+        name: label,
+        amount,
+        opnValue: usdValue > 0 ? usdValue / rate : 0,
+        usdValue,
+        contractAddress: lpKey,
+        projectTokenAddress: pos.tokenAddress,
+        isLp: true,
+      });
+      seenAddresses.add(lpKey);
+    }
+
+    for (const pos of basePoolLps) {
+      if (pos.lpBalance <= 0n) continue;
+      const lpKey = pos.lpToken.toLowerCase();
+      if (seenAddresses.has(lpKey)) continue;
+      const amount = bigintToFloat(pos.lpBalance, pos.lpDecimals);
+      const label = `${pos.pairLabel} LP`;
+      const usdValue = lpUsdMap[lpKey] ?? 0;
+      rows.push({
+        symbol: label,
+        name: label,
+        amount,
+        opnValue: usdValue > 0 ? usdValue / rate : 0,
+        usdValue,
+        contractAddress: lpKey,
+        isLp: true,
+      });
+      seenAddresses.add(lpKey);
     }
 
     return rows;
-  }, [nativeBalance, payBalances, payTokens, walletTokens, tokenUsdMap, opnUsdRate]);
+  }, [
+    nativeBalance,
+    payBalances,
+    payTokens,
+    walletTokens,
+    lpPositions,
+    basePoolLps,
+    tokenUsdMap,
+    lpUsdMap,
+    opnUsdRate,
+  ]);
 
   const totals = useMemo(() => sumPortfolio(assets), [assets]);
 
   const loading =
-    nativeLoading || payLoading || walletTokensLoading || rateLoading || quotesLoading;
+    nativeLoading ||
+    payLoading ||
+    walletTokensLoading ||
+    lpLoading ||
+    baseLpLoading ||
+    rateLoading ||
+    quotesLoading;
 
   const refresh = useCallback(async () => {
-    await Promise.all([refreshPayBalances(), refreshWalletTokens()]);
-  }, [refreshPayBalances, refreshWalletTokens]);
+    await Promise.all([
+      refreshPayBalances(),
+      refreshWalletTokens(),
+      refreshLpPositions(),
+      refreshBasePoolLps(),
+    ]);
+  }, [refreshPayBalances, refreshWalletTokens, refreshLpPositions, refreshBasePoolLps]);
 
   return {
     assets,

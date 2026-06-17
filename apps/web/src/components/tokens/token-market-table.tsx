@@ -2,8 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useAccount } from "wagmi";
+import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { ArrowDown, ArrowUp, ChevronDown, ChevronUp, Star } from "lucide-react";
+import { useActiveWallet } from "@/hooks/useActiveWallet";
 import { TokenLogo } from "@/components/tokens/token-logo";
 import { Button } from "@/components/ui/button";
 import { TablePagination } from "@/components/ui/table-pagination";
@@ -96,8 +97,9 @@ export function TokenMarketTable({
   activeTab,
   onTabChange,
 }: TokenMarketTableProps) {
-  const { isConnected } = useAccount();
-  const allowFavorites = canToggleFavorite ?? isConnected;
+  const { hasWallet } = useActiveWallet();
+  const { openConnectModal } = useConnectModal();
+  const allowFavorites = canToggleFavorite ?? hasWallet;
   const [sortKey, setSortKey] = useState<MarketSortKey>("rank");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [page, setPage] = useState(1);
@@ -211,7 +213,9 @@ export function TokenMarketTable({
                     key={row.id}
                     row={row}
                     isFavorite={favoriteIds?.has(row.id) ?? false}
-                    canToggleFavorite={Boolean(allowFavorites && onToggleFavorite)}
+                    canToggleFavorite={Boolean(onToggleFavorite)}
+                    allowFavorites={allowFavorites}
+                    onNeedWallet={openConnectModal}
                     onToggleFavorite={onToggleFavorite}
                   />
                 ))
@@ -238,27 +242,37 @@ function MarketRow({
   row,
   isFavorite,
   canToggleFavorite,
+  allowFavorites,
+  onNeedWallet,
   onToggleFavorite,
 }: {
   row: MarketTableRow;
   isFavorite: boolean;
   canToggleFavorite: boolean;
+  allowFavorites: boolean;
+  onNeedWallet?: () => void;
   onToggleFavorite?: (tokenId: string) => void;
 }) {
+  const favoriteEnabled = canToggleFavorite && row.canFavorite;
+
   return (
     <tr className="border-b border-border transition-colors hover:bg-muted/50">
       <td className="px-3 py-3">
         <button
           type="button"
-          disabled={!canToggleFavorite}
+          disabled={!favoriteEnabled}
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
+            if (!allowFavorites) {
+              onNeedWallet?.();
+              return;
+            }
             onToggleFavorite?.(row.id);
           }}
           className={cn(
-            "relative z-10 rounded p-1 transition-colors",
-            canToggleFavorite ? "cursor-pointer hover:bg-muted" : "cursor-default opacity-40"
+            "pointer-events-auto relative z-20 rounded p-1 transition-colors",
+            favoriteEnabled ? "cursor-pointer hover:bg-muted" : "cursor-not-allowed opacity-40"
           )}
           aria-label={isFavorite ? "Remove from favorites" : "Add to favorites"}
         >

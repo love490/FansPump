@@ -154,16 +154,31 @@ export function HomeTokenSections() {
     async (tokenId: string) => {
       if (!wallet) return;
       const isFavorite = favoriteIds.has(tokenId);
-      await fetch(apiUrl("/api/watchlist"), {
-        method: isFavorite ? "DELETE" : "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tokenId, walletAddress: wallet }),
+
+      queryClient.setQueryData<TokenCardData[]>(["watchlist", wallet, chainId], (prev) => {
+        const list = prev ?? [];
+        if (isFavorite) return list.filter((t) => t.id !== tokenId);
+        const token = activeTokens.find((t) => t.id === tokenId);
+        return token ? [...list, token] : list;
       });
-      await queryClient.invalidateQueries({
-        queryKey: ["watchlist", wallet, chainId],
-      });
+
+      try {
+        const res = await fetch(apiUrl("/api/watchlist"), {
+          method: isFavorite ? "DELETE" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ tokenId, walletAddress: wallet }),
+        });
+        if (!res.ok) throw new Error("Failed to update favorites");
+        await queryClient.invalidateQueries({
+          queryKey: ["watchlist", wallet, chainId],
+        });
+      } catch {
+        await queryClient.invalidateQueries({
+          queryKey: ["watchlist", wallet, chainId],
+        });
+      }
     },
-    [wallet, chainId, favoriteIds, queryClient]
+    [wallet, chainId, favoriteIds, queryClient, activeTokens]
   );
 
   function retryAll() {
@@ -181,7 +196,6 @@ export function HomeTokenSections() {
         isLoading={sectionLoading}
         includeBaseTokens={tabMeta.includeBaseTokens}
         favoriteIds={favoriteIds}
-        canToggleFavorite={hasWallet}
         onToggleFavorite={toggleFavorite}
         emptyMessage={emptyMessage}
         tabs={HOME_MARKET_TABS.map((t) => ({ id: t.id, label: t.label }))}

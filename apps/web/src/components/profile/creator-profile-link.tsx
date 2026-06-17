@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { CreatorAvatar } from "@/components/tokens/token-card-hero";
+import { VerifiedBadge } from "@/components/verification/VerifiedBadge";
+import { useVerification } from "@/hooks/useVerification";
 import { creatorProfilePath, formatCreatorDisplay } from "@/lib/username";
 import { cn, shortenAddress } from "@/lib/utils";
 
@@ -13,6 +15,7 @@ type CreatorProfileLinkProps = {
   labelClassName?: string;
   showAvatar?: boolean;
   avatarClassName?: string;
+  showVerifiedBadge?: boolean;
   onClick?: () => void;
 };
 
@@ -24,9 +27,11 @@ export function CreatorProfileLink({
   labelClassName,
   showAvatar = true,
   avatarClassName,
+  showVerifiedBadge = true,
   onClick,
 }: CreatorProfileLinkProps) {
   const label = formatCreatorDisplay(username, walletAddress, shortenAddress);
+  const { level } = useVerification(showVerifiedBadge ? walletAddress : undefined);
 
   return (
     <Link
@@ -55,6 +60,7 @@ export function CreatorProfileLink({
       >
         {label}
       </span>
+      {showVerifiedBadge && <VerifiedBadge level={level} size="sm" />}
     </Link>
   );
 }

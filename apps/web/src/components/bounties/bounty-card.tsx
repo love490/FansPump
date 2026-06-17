@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CreatorProfileLink } from "@/components/profile/creator-profile-link";
-import { formatBountyReward, type BountyListItem } from "@/lib/bounties";
+import { formatBountyReward, timeRemaining, type BountyListItem } from "@/lib/bounties";
 import { Calendar, Users, Gift } from "lucide-react";
 
 function statusBadge(status: BountyListItem["effectiveStatus"]) {
@@ -31,6 +31,7 @@ export function BountyCard({
   showJoin?: boolean;
 }) {
   const reward = formatBountyReward(bounty);
+  const remaining = timeRemaining(bounty.endsAt);
   const canJoin =
     showJoin &&
     bounty.effectiveStatus === "active" &&
@@ -42,7 +43,11 @@ export function BountyCard({
       <CardHeader className="space-y-3 pb-3">
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div className="min-w-0 flex-1">
-            <CardTitle className="text-base leading-snug sm:text-lg">{bounty.title}</CardTitle>
+            <CardTitle className="text-base leading-snug sm:text-lg">
+              <Link href={`/earn/${bounty.id}`} className="hover:text-primary">
+                {bounty.title}
+              </Link>
+            </CardTitle>
             <div className="mt-2 flex flex-wrap items-center gap-2">
               {statusBadge(bounty.effectiveStatus)}
               <Badge variant="outline">{bounty.taskType}</Badge>
@@ -82,20 +87,26 @@ export function BountyCard({
             <span className="inline-flex items-center gap-1">
               <Calendar className="h-3.5 w-3.5" />
               Ends {new Date(bounty.endsAt).toLocaleDateString()}
+              {remaining && ` · ${remaining}`}
             </span>
           )}
         </div>
 
-        {canJoin && (
-          <Button
-            size="sm"
-            disabled={joining}
-            onClick={() => onJoin?.(bounty.id)}
-            className={joining ? "opacity-70" : undefined}
-          >
-            {joining ? "Joining…" : "Join bounty"}
+        <div className="flex flex-wrap gap-2">
+          <Button asChild size="sm" variant="outline">
+            <Link href={`/earn/${bounty.id}`}>View quest</Link>
           </Button>
-        )}
+          {canJoin && (
+            <Button
+              size="sm"
+              disabled={joining}
+              onClick={() => onJoin?.(bounty.id)}
+              className={joining ? "opacity-70" : undefined}
+            >
+              {joining ? "Joining…" : "Join quest"}
+            </Button>
+          )}
+        </div>
         {bounty.isFull && bounty.effectiveStatus === "active" && (
           <p className="text-xs font-medium text-amber-600">All spots filled</p>
         )}

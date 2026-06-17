@@ -52,6 +52,12 @@ export type PortfolioAsset = {
   contractAddress?: string | null;
   logoUrl?: string | null;
   isNative?: boolean;
+  /** Liquidity pool LP token */
+  isLp?: boolean;
+  /** Project token address for project LP rows */
+  projectTokenAddress?: string | null;
+  /** Token created by this wallet (shown even at zero balance) */
+  isCreator?: boolean;
 };
 
 export function sumPortfolio(assets: PortfolioAsset[]) {

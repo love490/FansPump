@@ -226,7 +226,7 @@ router.get(
           prisma.bountyParticipation.findMany({
             where: {
               walletAddress: walletMatch,
-              bounty: { status: "COMPLETED" },
+              status: { in: ["VERIFIED", "CLAIMED"] },
             },
             include: {
               bounty: {

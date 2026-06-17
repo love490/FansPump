@@ -5,7 +5,6 @@ import { apiUrl } from "@/lib/api";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { useAccount } from "wagmi";
 import { TokenFeatureBadges } from "@/components/token/token-feature-badges";
 import { TrustScorePanel, TokenHealthPanel } from "@/components/trust/TrustScorePanel";
 import { AnnouncementsSection } from "@/components/token/announcements-section";
@@ -18,9 +17,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { VoteButtons } from "@/components/tokens/vote-buttons";
 import { CreatorProfileLink } from "@/components/profile/creator-profile-link";
-import { shortenAddress } from "@/lib/utils";
+import { useActiveWallet } from "@/hooks/useActiveWallet";
+import { shortenAddress, cn } from "@/lib/utils";
 import { OPN_EXPLORER_BASE } from "@/lib/wagmi";
-import { CheckCircle2, ExternalLink, Star, ShoppingCart, TrendingDown, ArrowLeftRight, Droplets, FileCode } from "lucide-react";
+import { ExternalLink, Star, ShoppingCart, TrendingDown, ArrowLeftRight, Droplets, FileCode } from "lucide-react";
 
 interface TokenDetail {
   id: string;
@@ -45,10 +45,13 @@ interface TokenDetail {
 export default function TokenPage() {
   const params = useParams();
   const address = params.address as string;
-  const { address: wallet } = useAccount();
+  const { walletAddress, hasWallet } = useActiveWallet();
+  const wallet = walletAddress;
   const [token, setToken] = useState<TokenDetail | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isWatchlisted, setIsWatchlisted] = useState(false);
+  const [watchlistBusy, setWatchlistBusy] = useState(false);
 
   useEffect(() => {
     if (!address) return;
@@ -84,6 +87,20 @@ export default function TokenPage() {
     };
   }, [address]);
 
+  useEffect(() => {
+    if (!wallet || !token?.id) {
+      setIsWatchlisted(false);
+      return;
+    }
+    fetch(apiUrl(`/api/watchlist?wallet=${wallet}`))
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        const ids = new Set((data?.tokens ?? []).map((t: { id: string }) => t.id));
+        setIsWatchlisted(ids.has(token.id));
+      })
+      .catch(() => setIsWatchlisted(false));
+  }, [wallet, token?.id]);
+
   if (loading) {
     return <div className="mx-auto max-w-4xl px-4 py-20 text-center text-muted-foreground">Loading...</div>;
   }
@@ -103,12 +120,22 @@ export default function TokenPage() {
   const isCreator = wallet?.toLowerCase() === token.creatorAddress?.toLowerCase();
 
   async function toggleWatchlist() {
-    if (!wallet || !token?.id) return;
-    await fetch(apiUrl("/api/watchlist"), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ tokenId: token.id, walletAddress: wallet }),
-    });
+    if (!wallet || !token?.id || watchlistBusy) return;
+    setWatchlistBusy(true);
+    const removing = isWatchlisted;
+    setIsWatchlisted(!removing);
+    try {
+      const res = await fetch(apiUrl("/api/watchlist"), {
+        method: removing ? "DELETE" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tokenId: token.id, walletAddress: wallet }),
+      });
+      if (!res.ok) throw new Error("Failed");
+    } catch {
+      setIsWatchlisted(removing);
+    } finally {
+      setWatchlistBusy(false);
+    }
   }
 
   return (
@@ -121,11 +148,6 @@ export default function TokenPage() {
           <div>
             <h1 className="text-3xl font-bold flex items-center gap-2">
               {token.name}
-              {token.creatorVerified && (
-                <Badge variant="verified" className="gap-1">
-                  <CheckCircle2 className="h-3 w-3" /> Verified Creator
-                </Badge>
-              )}
             </h1>
             <p className="text-muted-foreground font-mono text-sm">{shortenAddress(address, 6)}</p>
             {token.category && token.category !== "OTHER" && (
@@ -173,8 +195,14 @@ export default function TokenPage() {
               <FileCode className="h-4 w-4" /> View Contract
             </a>
           </Button>
-          <Button variant="outline" size="sm" onClick={toggleWatchlist}>
-            <Star className="h-4 w-4" /> Watchlist
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={!hasWallet || watchlistBusy}
+            onClick={() => void toggleWatchlist()}
+          >
+            <Star className={cn("h-4 w-4", isWatchlisted && "fill-amber-400 text-amber-400")} />
+            {isWatchlisted ? "Favorited" : "Favorite"}
           </Button>
           {isCreator && (
             <>

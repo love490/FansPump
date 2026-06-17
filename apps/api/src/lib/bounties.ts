@@ -1,9 +1,26 @@
-import type { BountyStatus, BountyRewardType, BountyTaskType, Prisma } from "@iopn/database";
+import type {
+  BountyStatus,
+  BountyRewardType,
+  BountyTaskType,
+  BountyVerificationMethod,
+  BountyParticipationStatus,
+  Prisma,
+} from "@iopn/database";
 
-export type BountyTab = "trending" | "active" | "completed" | "ended";
+export type BountyTab =
+  | "trending"
+  | "active"
+  | "completed"
+  | "ended"
+  | "featured"
+  | "newest"
+  | "ending_soon";
 
 export const BOUNTY_TABS: { id: BountyTab; label: string }[] = [
+  { id: "featured", label: "Featured" },
+  { id: "newest", label: "Newest" },
   { id: "trending", label: "Trending" },
+  { id: "ending_soon", label: "Ending Soon" },
   { id: "active", label: "Active" },
   { id: "completed", label: "Completed" },
   { id: "ended", label: "Ended" },
@@ -11,9 +28,11 @@ export const BOUNTY_TABS: { id: BountyTab; label: string }[] = [
 
 export const BOUNTY_TASK_TYPES: { id: BountyTaskType; label: string }[] = [
   { id: "SOCIAL", label: "Social" },
+  { id: "ENGAGEMENT", label: "Engagement" },
+  { id: "GROWTH", label: "Growth" },
+  { id: "COMMUNITY", label: "Community" },
   { id: "CONTENT", label: "Content" },
   { id: "REFERRAL", label: "Referral" },
-  { id: "COMMUNITY", label: "Community" },
   { id: "CUSTOM", label: "Custom" },
 ];
 
@@ -38,6 +57,9 @@ export type BountyListItem = {
   rewardType: BountyRewardType;
   rewardAmount: string;
   rewardDescription: string | null;
+  verificationMethod: BountyVerificationMethod;
+  verificationConfig: unknown | null;
+  isFeatured: boolean;
   maxParticipants: number;
   participantCount: number;
   viewCount: number;
@@ -49,12 +71,36 @@ export type BountyListItem = {
   createdAt: string;
   spotsLeft: number;
   isFull: boolean;
+  completionCount?: number;
+};
+
+export type BountyParticipationView = {
+  status: BountyParticipationStatus;
+  proofJson: unknown | null;
+  verifiedAt: string | null;
+  claimedAt: string | null;
+  rejectionReason: string | null;
 };
 
 export const bountyListInclude = {
   creator: { select: { username: true, profileImageUrl: true } },
   token: { select: { symbol: true, contractAddress: true } },
   _count: { select: { participations: true } },
+} satisfies Prisma.BountyInclude;
+
+export const bountyDetailInclude = {
+  ...bountyListInclude,
+  participations: {
+    select: {
+      walletAddress: true,
+      status: true,
+      proofJson: true,
+      verifiedAt: true,
+      claimedAt: true,
+      rejectionReason: true,
+      createdAt: true,
+    },
+  },
 } satisfies Prisma.BountyInclude;
 
 export function resolveEffectiveStatus(bounty: {
@@ -88,6 +134,9 @@ export function mapBountyRow(
     rewardType: b.rewardType,
     rewardAmount: b.rewardAmount,
     rewardDescription: b.rewardDescription,
+    verificationMethod: b.verificationMethod,
+    verificationConfig: b.verificationConfig,
+    isFeatured: b.isFeatured,
     maxParticipants: b.maxParticipants,
     participantCount,
     viewCount: b.viewCount,
@@ -103,17 +152,25 @@ export function mapBountyRow(
 }
 
 export function bountyTabWhere(tab: BountyTab, now = new Date()): Prisma.BountyWhereInput {
+  const activeWindow = {
+    status: "ACTIVE" as const,
+    OR: [{ endsAt: null }, { endsAt: { gt: now } }],
+  };
+
   switch (tab) {
+    case "featured":
+      return { ...activeWindow, isFeatured: true };
+    case "newest":
+      return activeWindow;
+    case "ending_soon":
+      return {
+        ...activeWindow,
+        endsAt: { not: null, gt: now },
+      };
     case "trending":
-      return {
-        status: "ACTIVE",
-        OR: [{ endsAt: null }, { endsAt: { gt: now } }],
-      };
+      return activeWindow;
     case "active":
-      return {
-        status: "ACTIVE",
-        OR: [{ endsAt: null }, { endsAt: { gt: now } }],
-      };
+      return activeWindow;
     case "completed":
       return { status: "COMPLETED" };
     case "ended":
@@ -129,6 +186,9 @@ export function bountyTabWhere(tab: BountyTab, now = new Date()): Prisma.BountyW
 }
 
 export function bountyTabOrderBy(tab: BountyTab): Prisma.BountyOrderByWithRelationInput[] {
+  if (tab === "newest") return [{ createdAt: "desc" }];
+  if (tab === "ending_soon") return [{ endsAt: "asc" }, { createdAt: "desc" }];
+  if (tab === "featured") return [{ createdAt: "desc" }];
   if (tab === "trending") {
     return [{ participantCount: "desc" }, { viewCount: "desc" }, { createdAt: "desc" }];
   }

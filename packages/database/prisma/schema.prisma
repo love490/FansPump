@@ -101,10 +101,26 @@ enum BountyRewardType {
 
 enum BountyTaskType {
   SOCIAL
+  ENGAGEMENT
+  GROWTH
   CONTENT
   REFERRAL
   COMMUNITY
   CUSTOM
+}
+
+enum BountyVerificationMethod {
+  MANUAL
+  ONCHAIN
+  API
+}
+
+enum BountyParticipationStatus {
+  JOINED
+  SUBMITTED
+  VERIFIED
+  REJECTED
+  CLAIMED
 }
 
 model User {
@@ -654,6 +670,9 @@ model Bounty {
   rewardType        BountyRewardType @map("reward_type")
   rewardAmount      String           @map("reward_amount")
   rewardDescription String?          @map("reward_description")
+  verificationMethod BountyVerificationMethod @default(MANUAL) @map("verification_method")
+  verificationConfig Json?           @map("verification_config")
+  isFeatured        Boolean          @default(false) @map("is_featured")
   maxParticipants   Int              @map("max_participants")
   participantCount  Int              @default(0) @map("participant_count")
   viewCount         Int              @default(0) @map("view_count")
@@ -674,15 +693,22 @@ model Bounty {
   @@index([endsAt])
   @@index([participantCount])
   @@index([createdAt])
+  @@index([isFeatured])
   @@map("bounties")
 }
 
 model BountyParticipation {
-  id            String   @id @default(cuid())
-  bountyId      String   @map("bounty_id")
-  walletAddress String   @map("wallet_address")
-  status        String   @default("JOINED")
-  createdAt     DateTime @default(now()) @map("created_at")
+  id              String                    @id @default(cuid())
+  bountyId        String                    @map("bounty_id")
+  walletAddress   String                    @map("wallet_address")
+  status          BountyParticipationStatus @default(JOINED)
+  proofJson       Json?                     @map("proof_json")
+  verifiedAt      DateTime?                 @map("verified_at")
+  verifiedBy      String?                   @map("verified_by")
+  claimedAt       DateTime?                 @map("claimed_at")
+  rejectionReason String?                   @map("rejection_reason") @db.Text
+  createdAt       DateTime                  @default(now()) @map("created_at")
+  updatedAt       DateTime                  @updatedAt @map("updated_at")
 
   bounty Bounty @relation(fields: [bountyId], references: [id], onDelete: Cascade)
   user   User   @relation(fields: [walletAddress], references: [walletAddress], onDelete: Cascade)
@@ -841,4 +867,37 @@ model EmailOtp {
 
   @@index([email])
   @@map("email_otps")
+}
+
+/// Wallet-level verification badges (email ✓, NeoID ✦) and quest social OAuth tokens.
+model WalletVerification {
+  id                String    @id @default(cuid())
+  walletAddress     String    @unique @map("wallet_address")
+
+  email             String?
+  emailVerified     Boolean   @default(false) @map("email_verified")
+  emailVerifiedAt   DateTime? @map("email_verified_at")
+  emailOtp          String?   @map("email_otp")
+  emailOtpExpiresAt DateTime? @map("email_otp_expires_at")
+
+  neoIdVerified     Boolean   @default(false) @map("neo_id_verified")
+  neoIdAddress      String?   @map("neo_id_address")
+  neoIdVerifiedAt   DateTime? @map("neo_id_verified_at")
+
+  xConnected        Boolean   @default(false) @map("x_connected")
+  xUserId           String?   @map("x_user_id")
+  xUsername         String?   @map("x_username")
+  xAccessToken      String?   @map("x_access_token")
+  xConnectedAt      DateTime? @map("x_connected_at")
+
+  discordConnected     Boolean   @default(false) @map("discord_connected")
+  discordUserId        String?   @map("discord_user_id")
+  discordUsername      String?   @map("discord_username")
+  discordAccessToken   String?   @map("discord_access_token")
+  discordConnectedAt   DateTime? @map("discord_connected_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("wallet_verifications")
 }

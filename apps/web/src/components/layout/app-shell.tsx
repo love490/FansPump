@@ -28,7 +28,7 @@ function MainColumn({ children }: { children: React.ReactNode }) {
             )}
           >
             {showDexSubNav && (
-              <div className="mb-6 flex justify-center px-4 lg:px-8">
+              <div className="mb-6 flex justify-center px-0 sm:px-4 lg:px-8">
                 <DexSubNav className="w-full max-w-3xl" />
               </div>
             )}

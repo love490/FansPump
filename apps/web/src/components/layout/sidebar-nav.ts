@@ -10,12 +10,11 @@ import {
   Users,
   ArrowLeftRight,
   Settings,
-  Droplets,
-  Layers,
   CircleDollarSign,
   Megaphone,
   LifeBuoy,
 } from "lucide-react";
+import { isDexPath } from "@/lib/navigation/swap-nav";
 
 export type SidebarNavId =
   | "home"
@@ -47,29 +46,13 @@ export type SidebarNavItem = {
   children?: SidebarNavItem[];
 };
 
-export const dexNavChildren: SidebarNavItem[] = [
-  { id: "swap", href: "/swap", label: "Swap", icon: ArrowLeftRight },
-  { id: "my-liquidity", href: "/liquidity", label: "Liquidity", icon: Droplets },
-  { id: "staking", href: "/staking", label: "Staking", icon: Layers },
-  { id: "pools", href: "/pools", label: "Pool", icon: Layers },
-];
-
-/** @deprecated Use dexNavChildren */
-export const swapNavChildren = dexNavChildren;
-
 export const platformLinks: SidebarNavItem[] = [
   { id: "home", href: "/", label: "Home", icon: Home },
   { id: "create", href: "/create", label: "Create Token", icon: Rocket },
   { id: "discover", href: "/discover?section=all", label: "Discover", icon: Compass },
   { id: "earn", href: "/earn", label: "Earn", icon: CircleDollarSign },
   { id: "launchpool", href: "/launchpool", label: "Launchpool", icon: Rocket },
-  {
-    id: "dex",
-    href: "/swap",
-    label: "DEX",
-    icon: ArrowLeftRight,
-    children: dexNavChildren,
-  },
+  { id: "dex", href: "/swap", label: "DEX", icon: ArrowLeftRight },
   { id: "how-it-works", href: "/docs/how-it-works", label: "How It Works", icon: HelpCircle },
   { id: "docs", href: "/docs", label: "Docs", icon: BookOpen },
 ];
@@ -111,7 +94,7 @@ export function isSidebarNavActive(
     case "docs":
       return pathname === "/docs";
     case "dex":
-      return false;
+      return isDexPath(pathname);
     case "swap":
       return pathname === "/swap" || pathname.startsWith("/swap/");
     case "pools":

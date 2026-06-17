@@ -7,7 +7,8 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { TokenCard, type TokenCardData } from "@/components/tokens/token-card";
 import { tokenCardGridClass } from "@/components/tokens/token-card-styles";
-import { VerifiedCreatorBadge } from "@/components/creator/verified-creator-badge";
+import { VerifiedBadge } from "@/components/verification/VerifiedBadge";
+import { useVerification } from "@/hooks/useVerification";
 import { SecurityBadges } from "@/components/v2/security-badges";
 import { CreatorQuestSection } from "@/components/v2/creator-quest-section";
 import { CreatorBountySection } from "@/components/bounties/creator-bounty-section";
@@ -18,7 +19,7 @@ import { FollowCreatorButton } from "@/components/profile/follow-creator-button"
 import { formatCreatorDisplay } from "@/lib/username";
 import { shortenAddress } from "@/lib/utils";
 import { ANNOUNCEMENT_TYPE_LABELS, type AnnouncementTypeId } from "@iopn/shared";
-import { CheckCircle2, Coins, BarChart3, Layers, Users } from "lucide-react";
+import { Coins, BarChart3, Layers, Users } from "lucide-react";
 
 type CreatorProfile = {
   walletAddress: string;
@@ -67,6 +68,7 @@ type Announcement = {
 export default function CreatorProfilePage() {
   const params = useParams();
   const wallet = (params.wallet as string)?.toLowerCase();
+  const { level: verificationLevel } = useVerification(wallet);
   const [profile, setProfile] = useState<CreatorProfile | null>(null);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [quests, setQuests] = useState<Quest[]>([]);
@@ -107,18 +109,12 @@ export default function CreatorProfilePage() {
           <h1 className="text-2xl font-bold">
             {formatCreatorDisplay(profile.username, profile.walletAddress, shortenAddress)}
           </h1>
-          {profile.walletVerified && <VerifiedCreatorBadge />}
+          <VerifiedBadge level={verificationLevel} size="md" />
           <FollowCreatorButton creatorWallet={profile.walletAddress} />
         </div>
         {profile.username && (
           <p className="mt-1 font-mono text-sm text-muted-foreground">
             {shortenAddress(profile.walletAddress, 6)}
-          </p>
-        )}
-        {profile.verifiedAt && (
-          <p className="mt-1 flex items-center gap-1 text-sm text-muted-foreground">
-            <CheckCircle2 className="h-3.5 w-3.5 text-green-600" />
-            Verified {new Date(profile.verifiedAt).toLocaleDateString()}
           </p>
         )}
         {profile.badges && profile.badges.length > 0 && (
