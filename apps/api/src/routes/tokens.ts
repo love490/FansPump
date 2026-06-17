@@ -1,6 +1,8 @@
 import { Router } from "express";
 import { type Prisma } from "@iopn/database";
 import { isAddress } from "viem";
+import { z } from "zod";
+import { isTokenCategory } from "@iopn/shared";
 import { getActiveChainId } from "@/lib/chain-config/opn";
 import {
   getPopularRegistryTokens,
@@ -9,6 +11,7 @@ import {
 } from "@/lib/token-registry";
 import { buildDiscoverWhere, parseDiscoverFilters } from "@/lib/discover-filters";
 import { mapTokenListRow, mapTokenListRowSafe, tokenListSelect } from "@/lib/analytics/token-list";
+import { initializeTokenAnalytics } from "@/lib/analytics/token-init";
 import {
   buildHomePreviewSections,
   sortTokensNewest,
@@ -28,6 +31,47 @@ router.use(optionalAuthMiddleware);
 const POOL_LIMIT = 100;
 const MARKET_LIMIT = 50;
 const PREVIEW_LIMIT = 24;
+
+const emptyToNull = (v: unknown) => (v === "" ? null : v);
+
+const optionalImageUrl = z.preprocess(
+  emptyToNull,
+  z
+    .union([
+      z.string().url(),
+      z.string().regex(/^\/uploads\/projects\/[a-zA-Z0-9._-]+$/),
+      z.null(),
+    ])
+    .optional()
+);
+
+const optionalUrl = z.preprocess(emptyToNull, z.string().url().nullable().optional());
+const optionalText = z.preprocess(emptyToNull, z.string().nullable().optional());
+
+const createTokenSchema = z.object({
+  contractAddress: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
+  chainId: z.number().int(),
+  name: z.string().min(1).max(64),
+  symbol: z.string().min(1).max(16),
+  initialSupply: z.string(),
+  featureFlags: z.string(),
+  creatorAddress: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
+  factoryAddress: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
+  txHash: z.string().optional(),
+  logoUrl: optionalImageUrl,
+  bannerUrl: optionalImageUrl,
+  description: z.string().max(5000).optional().nullable(),
+  website: optionalUrl,
+  telegram: optionalText,
+  twitter: optionalText,
+  discord: optionalText,
+  github: optionalUrl,
+  buyTaxBps: z.number().int().optional().nullable(),
+  sellTaxBps: z.number().int().optional().nullable(),
+  maxWallet: z.string().optional().nullable(),
+  maxTx: z.string().optional().nullable(),
+  category: z.string().optional(),
+});
 
 router.get(
   "/home",
@@ -414,7 +458,111 @@ router.get(
   })
 );
 
-router.post("/", notImplemented);
+router.post(
+  "/",
+  asyncHandler(async (req, res) => {
+    try {
+      const raw = req.body as Record<string, unknown>;
+      console.log(
+        "[POST /api/tokens] Registering token:",
+        raw?.contractAddress,
+        "creator:",
+        raw?.creatorAddress
+      );
+
+      const body = createTokenSchema.parse({
+        ...raw,
+        contractAddress:
+          typeof raw?.contractAddress === "string"
+            ? raw.contractAddress.toLowerCase()
+            : raw?.contractAddress,
+        creatorAddress:
+          typeof raw?.creatorAddress === "string"
+            ? raw.creatorAddress.toLowerCase()
+            : raw?.creatorAddress,
+        factoryAddress:
+          typeof raw?.factoryAddress === "string"
+            ? raw.factoryAddress.toLowerCase()
+            : raw?.factoryAddress,
+      });
+
+      await prisma.user.upsert({
+        where: { walletAddress: body.creatorAddress },
+        create: { walletAddress: body.creatorAddress },
+        update: {},
+      });
+
+      const category =
+        body.category && isTokenCategory(body.category) ? body.category : "OTHER";
+
+      const data = {
+        chainId: body.chainId,
+        name: body.name,
+        symbol: body.symbol,
+        initialSupply: body.initialSupply,
+        featureFlags: BigInt(body.featureFlags),
+        creatorAddress: body.creatorAddress,
+        factoryAddress: body.factoryAddress,
+        txHash: body.txHash,
+        logoUrl: body.logoUrl,
+        bannerUrl: body.bannerUrl,
+        description: body.description,
+        website: body.website,
+        telegram: body.telegram,
+        twitter: body.twitter,
+        discord: body.discord,
+        github: body.github,
+        buyTaxBps: body.buyTaxBps,
+        sellTaxBps: body.sellTaxBps,
+        maxWallet: body.maxWallet,
+        maxTx: body.maxTx,
+        category,
+      };
+
+      const token = await prisma.tokenProject.upsert({
+        where: { contractAddress: body.contractAddress },
+        create: {
+          contractAddress: body.contractAddress,
+          trendingScore: Date.now(),
+          ...data,
+        },
+        update: {
+          ...data,
+          trendingScore: Date.now(),
+        },
+      });
+
+      console.log("[POST /api/tokens] Saved token:", token.contractAddress, "id:", token.id);
+
+      await initializeTokenAnalytics({
+        tokenId: token.id,
+        tokenAddress: token.contractAddress,
+      });
+
+      res.json({
+        success: true,
+        contractAddress: token.contractAddress,
+        token: {
+          ...token,
+          featureFlags: token.featureFlags.toString(),
+        },
+      });
+    } catch (e) {
+      if (e instanceof z.ZodError) {
+        const msg = e.errors.map((err) => `${err.path.join(".")}: ${err.message}`).join("; ");
+        console.error("[POST /api/tokens] Validation error:", msg);
+        res.status(400).json({ error: msg || "Invalid token data" });
+        return;
+      }
+      console.error("[POST /api/tokens] Failed to register token:", e);
+      res.status(500).json({
+        error: "Failed to register token",
+        detail: e instanceof Error ? e.message : String(e),
+      });
+    }
+  })
+);
+
 router.patch("/:address", notImplemented);
 
 export default router;

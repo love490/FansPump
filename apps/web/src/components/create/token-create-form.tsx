@@ -49,8 +49,9 @@ import {
   isFactoryConfigured,
   opnChain,
 } from "@/lib/wagmi";
-import { isReceiptSuccess, resolveDeployedTokenAddress, waitForDeployReceipt } from "@/lib/token-deploy";
+import { isReceiptSuccess, resolveDeployedTokenAddress } from "@/lib/token-deploy";
 import { registerTokenMetadata } from "@/lib/token-register";
+import { formatContractError } from "@/lib/contract-errors";
 import { tokenQueryKeys } from "@/lib/tokens-api";
 import { getActiveChainId } from "@/lib/chain-config/opn";
 import Link from "next/link";
@@ -151,6 +152,7 @@ export function TokenCreateForm() {
     hash: txHash,
   });
   const [deployError, setDeployError] = useState<string | null>(null);
+  const [isPreparingDeploy, setIsPreparingDeploy] = useState(false);
   const [deployedToken, setDeployedToken] = useState<string | null>(null);
   const [extractFailed, setExtractFailed] = useState(false);
   const [registering, setRegistering] = useState(false);
@@ -333,12 +335,16 @@ export function TokenCreateForm() {
   ]);
 
   async function deploy() {
-    if (!address) return;
+    if (!address || isPreparingDeploy || isPending || confirming) return;
     setDeployError(null);
     resetWrite();
+    setIsPreparingDeploy(true);
+
+    const finishPreparing = () => setIsPreparingDeploy(false);
 
     if (deployBlockReason) {
       setDeployError(deployBlockReason);
+      finishPreparing();
       return;
     }
 
@@ -346,6 +352,7 @@ export function TokenCreateForm() {
     if (configError) {
       setDeployError(configError);
       console.error("[deploy] Factory config:", configError);
+      finishPreparing();
       return;
     }
 
@@ -353,25 +360,7 @@ export function TokenCreateForm() {
       const msg = `Wrong network. Switch to ${opnChain.name} (chain ID ${opnChain.id}). Currently on chain ${chainId}.`;
       setDeployError(msg);
       console.error("[deploy] Wrong chain:", chainId, "expected", opnChain.id);
-      return;
-    }
-
-    if (!publicClient) {
-      setDeployError("Wallet RPC not available. Refresh and try again.");
-      return;
-    }
-
-    try {
-      const bytecode = await publicClient.getBytecode({ address: FACTORY_ADDRESS });
-      if (!bytecode || bytecode === "0x") {
-        const msg = `Factory contract not found at ${FACTORY_ADDRESS} on ${opnChain.name}. Verify NEXT_PUBLIC_FACTORY_ADDRESS.`;
-        setDeployError(msg);
-        console.error("[deploy] No bytecode at factory:", FACTORY_ADDRESS);
-        return;
-      }
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : "Could not verify factory contract on-chain.";
-      setDeployError(msg);
+      finishPreparing();
       return;
     }
 
@@ -392,6 +381,7 @@ export function TokenCreateForm() {
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Invalid token configuration.";
       setDeployError(msg);
+      finishPreparing();
       return;
     }
 
@@ -399,11 +389,6 @@ export function TokenCreateForm() {
       typeof onChainCreationFee === "bigint"
         ? onChainCreationFee
         : parseEther(String(totalCreationFee));
-
-    console.log("[deploy] Deploying token…");
-    console.log("[deploy] Factory Address:", FACTORY_ADDRESS);
-    console.log("[deploy] Chain:", chainId);
-    console.log("[deploy] Deployment Fee:", deploymentFee.toString(), "wei");
 
     const taxDist = {
       marketingWallet: zeroAddress,
@@ -439,27 +424,6 @@ export function TokenCreateForm() {
       owner: address,
     } as const;
 
-    try {
-      await publicClient.simulateContract({
-        account: address,
-        address: FACTORY_ADDRESS,
-        abi: factoryAbi,
-        functionName: "createToken",
-        value: deploymentFee,
-        args: [tokenConfig],
-      });
-    } catch (e) {
-      const msg =
-        e instanceof Error
-          ? e.message.includes("reverted")
-            ? "Transaction would fail on-chain. Check tax allocation totals, feature settings, and creation fee."
-            : e.message
-          : "Could not simulate deployment.";
-      setDeployError(msg);
-      console.error("[deploy] Simulation failed:", e);
-      return;
-    }
-
     writeContract(
       {
         address: FACTORY_ADDRESS,
@@ -473,15 +437,16 @@ export function TokenCreateForm() {
           console.log("[deploy] Transaction Hash:", hash);
         },
         onError: (err) => {
-          const msg =
+          const raw =
             err instanceof Error
               ? err.message
               : "shortMessage" in err && typeof err.shortMessage === "string"
                 ? err.shortMessage
                 : "Token deployment failed";
-          setDeployError(msg);
+          setDeployError(formatContractError(raw));
           console.error("[deploy] writeContract error:", err);
         },
+        onSettled: finishPreparing,
       }
     );
   }
@@ -523,17 +488,13 @@ export function TokenCreateForm() {
     setResolvingAddress(true);
     setExtractFailed(false);
 
-    console.log("[deploy] Waiting for confirmation… receipt received for:", txHash);
+    console.log("[deploy] Receipt confirmed for:", txHash);
 
     void (async () => {
       try {
-        const confirmedReceipt =
-          publicClient && txHash
-            ? await waitForDeployReceipt(publicClient, txHash)
-            : receipt;
         const token = await resolveDeployedTokenAddress(
           publicClient,
-          confirmedReceipt,
+          receipt,
           FACTORY_ADDRESS,
           address
         );
@@ -558,6 +519,12 @@ export function TokenCreateForm() {
   useEffect(() => {
     if (txHash) console.log("[deploy] Transaction Hash:", txHash);
   }, [txHash]);
+
+  const retryRegister = useCallback(() => {
+    setRegisterError(null);
+    setDismissedRegisterError(false);
+    setRegistered(false);
+  }, []);
 
   useEffect(() => {
     if (!deployedToken || !address || registered || registering) return;
@@ -591,7 +558,7 @@ export function TokenCreateForm() {
     }
   }, [registered, deployedToken, router]);
 
-  const activeDeployError = deployError ?? writeError?.message ?? null;
+  const activeDeployError = deployError ?? (writeError?.message ? formatContractError(writeError.message) : null);
 
   useEffect(() => {
     setDismissedDeployError(false);
@@ -688,9 +655,15 @@ export function TokenCreateForm() {
               </div>
 
               <div className="flex flex-wrap gap-2">
-                <Button asChild>
-                  <Link href={`/token/${deployedToken}`}>View token</Link>
-                </Button>
+                {registered ? (
+                  <Button asChild>
+                    <Link href={`/token/${deployedToken}`}>View token</Link>
+                  </Button>
+                ) : (
+                  <Button type="button" disabled={registering}>
+                    {registering ? "Saving token…" : "View token"}
+                  </Button>
+                )}
                 <Button asChild variant="outline">
                   <a
                     href={`${OPN_EXPLORER_BASE.replace(/\/$/, "")}/address/${deployedToken}`}
@@ -714,7 +687,10 @@ export function TokenCreateForm() {
                 <p className="text-sm text-green-700">Saved. Redirecting to your token page…</p>
               ) : registerError && !dismissedRegisterError ? (
                 <DismissibleAlert variant="error" onDismiss={() => setDismissedRegisterError(true)}>
-                  Couldn&apos;t save to My Tokens: {registerError}
+                  <p>Couldn&apos;t save token to the app database: {registerError}</p>
+                  <Button type="button" size="sm" variant="outline" className="mt-3" onClick={retryRegister}>
+                    Retry save
+                  </Button>
                 </DismissibleAlert>
               ) : null}
             </>
@@ -768,12 +744,6 @@ export function TokenCreateForm() {
         </Card>
       )}
 
-      {activeDeployError && !dismissedDeployError && (
-        <DismissibleAlert variant="error" onDismiss={() => setDismissedDeployError(true)}>
-          <p className="font-medium">Deployment error</p>
-          <p className="mt-1 opacity-90">{activeDeployError}</p>
-        </DismissibleAlert>
-      )}
       <Card className="border-amber-200 bg-amber-50">
         <CardContent className="flex gap-3 pt-6">
           <Lock className="h-5 w-5 shrink-0 text-amber-700" />
@@ -783,6 +753,13 @@ export function TokenCreateForm() {
           </p>
         </CardContent>
       </Card>
+
+      {activeDeployError && !dismissedDeployError && step !== 4 && (
+        <DismissibleAlert variant="error" onDismiss={() => setDismissedDeployError(true)}>
+          <p className="font-medium">Deployment error</p>
+          <p className="mt-1 text-xs leading-relaxed opacity-90 sm:text-sm">{activeDeployError}</p>
+        </DismissibleAlert>
+      )}
 
       {step === 1 && (
         <Card>
@@ -1078,16 +1055,26 @@ export function TokenCreateForm() {
               {deployBlockReason && (
                 <p className="text-sm text-amber-800">{deployBlockReason}</p>
               )}
+              {activeDeployError && !dismissedDeployError && step === 4 && (
+                <DismissibleAlert variant="error" onDismiss={() => setDismissedDeployError(true)}>
+                  <p className="font-medium">Deployment error</p>
+                  <p className="mt-1 text-xs leading-relaxed opacity-90 sm:text-sm">{activeDeployError}</p>
+                </DismissibleAlert>
+              )}
               <div className="flex gap-2">
               <Button variant="outline" type="button" onClick={() => setStep(3)}>Back</Button>
               <Button
                 type="button"
                 onClick={() => void deploy()}
-                disabled={Boolean(deployBlockReason) || isPending || confirming}
+                disabled={Boolean(deployBlockReason) || isPreparingDeploy || isPending || confirming || resolvingAddress}
               >
-                {isPending || confirming
-                  ? "Deploying..."
-                  : `Deploy token · ${totalCreationFee} ${TOKEN_CREATION_FEE_SYMBOL}`}
+                {isPreparingDeploy
+                  ? "Preparing…"
+                  : isPending
+                    ? "Confirm in wallet…"
+                    : confirming || resolvingAddress
+                      ? "Confirming on chain…"
+                      : `Deploy token · ${totalCreationFee} ${TOKEN_CREATION_FEE_SYMBOL}`}
               </Button>
               </div>
             </div>

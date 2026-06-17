@@ -2,9 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { ArrowDown, ArrowUp, ChevronDown, ChevronUp, Star } from "lucide-react";
 import { useActiveWallet } from "@/hooks/useActiveWallet";
+import { SignInModal } from "@/components/auth/sign-in-modal";
 import { TokenLogo } from "@/components/tokens/token-logo";
 import { Button } from "@/components/ui/button";
 import { TablePagination } from "@/components/ui/table-pagination";
@@ -98,7 +98,7 @@ export function TokenMarketTable({
   onTabChange,
 }: TokenMarketTableProps) {
   const { hasWallet } = useActiveWallet();
-  const { openConnectModal } = useConnectModal();
+  const [signInOpen, setSignInOpen] = useState(false);
   const allowFavorites = canToggleFavorite ?? hasWallet;
   const [sortKey, setSortKey] = useState<MarketSortKey>("rank");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
@@ -215,7 +215,7 @@ export function TokenMarketTable({
                     isFavorite={favoriteIds?.has(row.id) ?? false}
                     canToggleFavorite={Boolean(onToggleFavorite)}
                     allowFavorites={allowFavorites}
-                    onNeedWallet={openConnectModal}
+                    onNeedSignIn={() => setSignInOpen(true)}
                     onToggleFavorite={onToggleFavorite}
                   />
                 ))
@@ -234,6 +234,8 @@ export function TokenMarketTable({
           />
         )}
       </div>
+
+      <SignInModal open={signInOpen} onOpenChange={setSignInOpen} />
     </section>
   );
 }
@@ -243,14 +245,14 @@ function MarketRow({
   isFavorite,
   canToggleFavorite,
   allowFavorites,
-  onNeedWallet,
+  onNeedSignIn,
   onToggleFavorite,
 }: {
   row: MarketTableRow;
   isFavorite: boolean;
   canToggleFavorite: boolean;
   allowFavorites: boolean;
-  onNeedWallet?: () => void;
+  onNeedSignIn?: () => void;
   onToggleFavorite?: (tokenId: string) => void;
 }) {
   const favoriteEnabled = canToggleFavorite && row.canFavorite;
@@ -265,7 +267,7 @@ function MarketRow({
             e.preventDefault();
             e.stopPropagation();
             if (!allowFavorites) {
-              onNeedWallet?.();
+              onNeedSignIn?.();
               return;
             }
             onToggleFavorite?.(row.id);
@@ -274,7 +276,13 @@ function MarketRow({
             "pointer-events-auto relative z-20 rounded p-1 transition-colors",
             favoriteEnabled ? "cursor-pointer hover:bg-muted" : "cursor-not-allowed opacity-40"
           )}
-          aria-label={isFavorite ? "Remove from favorites" : "Add to favorites"}
+          aria-label={
+            !allowFavorites
+              ? "Sign in to add favorites"
+              : isFavorite
+                ? "Remove from favorites"
+                : "Add to favorites"
+          }
         >
           <Star
             className={cn("h-4 w-4", isFavorite ? "fill-amber-400 text-amber-400" : "text-muted-foreground")}

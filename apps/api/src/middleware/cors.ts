@@ -9,11 +9,23 @@ const DEFAULT_ORIGINS = [
 
 function parseOrigins(): string[] {
   const raw = process.env.CORS_ORIGINS?.trim();
-  if (!raw) return DEFAULT_ORIGINS;
-  return raw
-    .split(",")
-    .map((origin) => origin.trim())
-    .filter(Boolean);
+  const fromEnv = raw
+    ? raw.split(",").map((origin) => origin.trim()).filter(Boolean)
+    : [];
+  const merged = new Set([...DEFAULT_ORIGINS, ...fromEnv]);
+
+  // Ensure apex + www pairs stay allowed when either is configured.
+  for (const origin of [...merged]) {
+    try {
+      const host = new URL(origin).hostname;
+      if (host === "fanspump.xyz") merged.add("https://www.fanspump.xyz");
+      if (host === "www.fanspump.xyz") merged.add("https://fanspump.xyz");
+    } catch {
+      /* ignore invalid origin entries */
+    }
+  }
+
+  return [...merged];
 }
 
 export const corsMiddleware = cors({

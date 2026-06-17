@@ -46,7 +46,7 @@ export function DismissibleAlert({
   return (
     <div
       role="alert"
-      className={cn("relative rounded-lg border p-4 pr-10 text-sm", VARIANT_STYLES[variant], className)}
+      className={cn("relative rounded-lg border p-4 pr-10 text-sm break-words", VARIANT_STYLES[variant], className)}
     >
       <button
         type="button"

@@ -116,7 +116,7 @@ export async function fetchLatestTokenFromFactory(
   const creator = creatorAddress.toLowerCase();
 
   // Walk backwards — creator may have deployed multiple tokens.
-  for (let i = count - 1n; i >= 0n && i >= count - 10n; i--) {
+  for (let i = count - 1n; i >= 0n && i >= count - 3n; i--) {
     const token = await publicClient.readContract({
       address: factoryAddress,
       abi: factoryAbi,

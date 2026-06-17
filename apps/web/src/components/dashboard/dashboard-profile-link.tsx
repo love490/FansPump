@@ -25,23 +25,30 @@ export function DashboardProfileLink({ className }: { className?: string }) {
 
   return (
     <div className={cn("flex flex-col items-center gap-1.5 text-center", className)}>
-      <Link
-        href="/profile"
-        className="group relative flex h-14 w-14 items-center justify-center overflow-hidden rounded-full ring-2 ring-border transition-colors hover:ring-primary/40"
-        title="Edit profile"
-        aria-label="Edit profile"
-      >
-        <CreatorAvatar
-          key={avatarUrl ?? "fallback"}
-          username={profile?.username ?? account?.displayName}
-          address={avatarAddress}
-          imageUrl={avatarUrl}
-          className="h-14 w-14 text-base ring-0"
-        />
-        <span className="pointer-events-none absolute -bottom-0.5 -right-0.5 flex h-5 w-5 items-center justify-center rounded-full border border-background bg-primary text-primary-foreground shadow-sm">
+      <div className="relative h-14 w-14 shrink-0">
+        <Link
+          href="/profile"
+          className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-full ring-2 ring-border transition-colors hover:ring-primary/40"
+          title="View profile"
+          aria-label="View profile"
+        >
+          <CreatorAvatar
+            key={avatarUrl ?? "fallback"}
+            username={profile?.username ?? account?.displayName}
+            address={avatarAddress}
+            imageUrl={avatarUrl}
+            className="h-14 w-14 text-base ring-0"
+          />
+        </Link>
+        <Link
+          href="/profile"
+          className="absolute -bottom-1 -right-1 z-10 flex h-6 w-6 items-center justify-center rounded-full border-2 border-background bg-primary text-primary-foreground shadow-sm transition-transform hover:scale-105"
+          title="Edit profile"
+          aria-label="Edit profile"
+        >
           <Pencil className="h-3 w-3" aria-hidden />
-        </span>
-      </Link>
+        </Link>
+      </div>
       <Link
         href="/profile"
         className="max-w-[7rem] truncate text-xs font-medium text-foreground transition-opacity hover:opacity-80"
