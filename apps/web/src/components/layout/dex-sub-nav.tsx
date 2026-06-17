@@ -21,8 +21,8 @@ export function DexSubNav({ className, onNavigate, compact }: DexSubNavProps) {
   return (
     <nav
       className={cn(
-        "flex flex-wrap items-center gap-x-6 gap-y-2 rounded-lg bg-zinc-950 px-4 py-3",
-        compact && "gap-x-4 px-3 py-2",
+        "flex flex-wrap items-center justify-center gap-x-10 gap-y-2 border-b border-border bg-transparent px-6 py-3",
+        compact && "gap-x-8 px-4 py-2",
         className
       )}
       aria-label="DEX navigation"
@@ -37,7 +37,7 @@ export function DexSubNav({ className, onNavigate, compact }: DexSubNavProps) {
             className={cn(
               "text-sm font-bold transition-colors",
               compact && "text-xs sm:text-sm",
-              active ? "text-white" : "text-zinc-500 hover:text-zinc-300"
+              active ? "text-foreground" : "text-muted-foreground hover:text-foreground"
             )}
           >
             {link.label}

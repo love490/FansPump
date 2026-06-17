@@ -19,7 +19,6 @@ import {
   type SidebarNavItem,
 } from "@/components/layout/sidebar-nav";
 import { isDexPath } from "@/lib/navigation/swap-nav";
-import { DexSubNav } from "@/components/layout/dex-sub-nav";
 
 function NavLink({
   link,
@@ -131,23 +130,17 @@ function NavItemWithChildren({
         </button>
       </div>
       {open && (
-        <div className="px-1 py-1">
-          {link.id === "dex" ? (
-            <DexSubNav compact onNavigate={onNavigate} />
-          ) : (
-            <div className="space-y-0.5 border-l border-border/60 ml-5 pl-1">
-              {link.children.map((child) => (
-                <NavLink
-                  key={child.id}
-                  link={child}
-                  pathname={pathname}
-                  searchParams={searchParams}
-                  onNavigate={onNavigate}
-                  nested
-                />
-              ))}
-            </div>
-          )}
+        <div className="space-y-0.5 border-l border-border/60 ml-5 pl-1">
+          {link.children.map((child) => (
+            <NavLink
+              key={child.id}
+              link={child}
+              pathname={pathname}
+              searchParams={searchParams}
+              onNavigate={onNavigate}
+              nested
+            />
+          ))}
         </div>
       )}
     </div>

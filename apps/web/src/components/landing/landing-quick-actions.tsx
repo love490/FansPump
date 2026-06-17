@@ -31,7 +31,7 @@ const primaryActions: QuickAction[] = [
   },
   {
     href: "/swap",
-    label: "Swap",
+    label: "DEX",
     icon: (
       <span className="flex h-11 w-11 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm sm:h-12 sm:w-12 lg:h-14 lg:w-14">
         <ArrowLeftRight className="h-5 w-5 sm:h-6 sm:w-6 lg:h-7 lg:w-7" strokeWidth={1.75} />
