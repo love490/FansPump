@@ -50,8 +50,8 @@ export type SidebarNavItem = {
 export const dexNavChildren: SidebarNavItem[] = [
   { id: "swap", href: "/swap", label: "Swap", icon: ArrowLeftRight },
   { id: "my-liquidity", href: "/liquidity", label: "Liquidity", icon: Droplets },
-  { id: "pools", href: "/pools", label: "Pool", icon: Layers },
   { id: "staking", href: "/staking", label: "Staking", icon: Layers },
+  { id: "pools", href: "/pools", label: "Pool", icon: Layers },
 ];
 
 /** @deprecated Use dexNavChildren */

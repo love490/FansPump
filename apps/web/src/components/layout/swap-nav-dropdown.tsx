@@ -2,16 +2,11 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
-import {
-  DEX_HOME,
-  DEX_LABEL,
-  dexMenuNavLinks,
-  isDexPath,
-} from "@/lib/navigation/swap-nav";
+import { DexSubNav } from "@/components/layout/dex-sub-nav";
+import { DEX_LABEL, isDexPath } from "@/lib/navigation/swap-nav";
 
 type DexNavDropdownProps = {
   linkClassName?: string;
@@ -50,9 +45,9 @@ export function DexNavDropdown({ linkClassName, menuClassName, compact, classNam
       if (!el) return;
       const rect = el.getBoundingClientRect();
       setMenuPos({
-        top: rect.bottom + 4,
+        top: rect.bottom + 6,
         left: rect.left,
-        minWidth: Math.max(rect.width, 176),
+        minWidth: Math.max(rect.width, 320),
       });
     }
 
@@ -88,8 +83,8 @@ export function DexNavDropdown({ linkClassName, menuClassName, compact, classNam
 
   const triggerClass = cn(
     compact
-      ? "inline-flex shrink-0 items-center gap-0.5 whitespace-nowrap rounded-md px-2 py-1.5 text-[11px] font-medium sm:px-2.5 sm:text-xs"
-      : "inline-flex items-center gap-0.5 rounded-md px-3 py-2 text-sm font-medium",
+      ? "inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-md px-2 py-1.5 text-[11px] font-medium sm:px-2.5 sm:text-xs"
+      : "inline-flex items-center gap-1 rounded-md px-3 py-2 text-sm font-medium",
     "transition-colors",
     active || open ? "text-primary" : "text-muted-foreground hover:text-foreground",
     linkClassName
@@ -100,58 +95,31 @@ export function DexNavDropdown({ linkClassName, menuClassName, compact, classNam
       <div
         ref={menuRef}
         role="menu"
-        className={cn(
-          "fixed z-[200] rounded-xl border border-border bg-background py-1.5 shadow-xl",
-          menuClassName
-        )}
+        className={cn("fixed z-[200] shadow-xl", menuClassName)}
         style={{
           top: menuPos.top,
           left: menuPos.left,
           minWidth: menuPos.minWidth,
         }}
       >
-        {dexMenuNavLinks.map((link) => (
-          <Link
-            key={link.id}
-            href={link.href}
-            role="menuitem"
-            className={cn(
-              "flex items-center gap-2 px-3 py-2 text-sm transition-colors hover:bg-muted",
-              pathname === link.href || pathname.startsWith(`${link.href}/`)
-                ? "text-primary"
-                : "text-foreground"
-            )}
-            onClick={() => setOpen(false)}
-          >
-            <link.icon className="h-4 w-4 shrink-0 text-primary" />
-            {link.label}
-          </Link>
-        ))}
+        <DexSubNav compact onNavigate={() => setOpen(false)} />
       </div>
     ) : null;
 
   return (
     <>
       <div ref={triggerRef} className={cn("relative inline-flex shrink-0", className)}>
-        <div className={triggerClass}>
-          <Link href={DEX_HOME} onClick={() => setOpen(false)}>
-            {DEX_LABEL}
-          </Link>
-          <button
-            type="button"
-            className="rounded p-0.5 hover:bg-muted/60"
-            aria-expanded={open}
-            aria-haspopup="menu"
-            aria-label={`Open ${DEX_LABEL} menu`}
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              setOpen((o) => !o);
-            }}
-          >
-            <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", open && "rotate-180")} />
-          </button>
-        </div>
+        <button
+          type="button"
+          className={triggerClass}
+          aria-expanded={open}
+          aria-haspopup="menu"
+          aria-label={`${DEX_LABEL} menu`}
+          onClick={() => setOpen((o) => !o)}
+        >
+          {DEX_LABEL}
+          <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", open && "rotate-180")} />
+        </button>
       </div>
       {mounted && menu ? createPortal(menu, document.body) : null}
     </>
@@ -162,36 +130,14 @@ export function DexNavDropdown({ linkClassName, menuClassName, compact, classNam
 export const SwapNavDropdown = DexNavDropdown;
 
 export function DexNavMobileLinks({
-  pathname,
   onNavigate,
   className,
 }: {
-  pathname: string;
+  pathname?: string;
   onNavigate?: () => void;
   className?: string;
 }) {
-  return (
-    <div className={cn("space-y-1", className)}>
-      <p className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-        {DEX_LABEL}
-      </p>
-      {dexMenuNavLinks.map((link) => (
-        <Link
-          key={link.id}
-          href={link.href}
-          className={cn(
-            "block rounded-lg px-3 py-2.5 text-sm font-medium",
-            pathname === link.href || pathname.startsWith(`${link.href}/`)
-              ? "bg-primary/10 text-primary"
-              : "hover:bg-muted"
-          )}
-          onClick={onNavigate}
-        >
-          {link.label}
-        </Link>
-      ))}
-    </div>
-  );
+  return <DexSubNav className={className} onNavigate={onNavigate} />;
 }
 
 /** @deprecated Use DexNavMobileLinks */

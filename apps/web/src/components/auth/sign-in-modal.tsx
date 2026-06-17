@@ -59,16 +59,6 @@ const SOCIAL_PROVIDERS: {
     ),
   },
   {
-    id: "apple",
-    label: "Apple",
-    className: "bg-black text-white hover:bg-neutral-900",
-    icon: (
-      <svg viewBox="0 0 24 24" className="h-4 w-4 fill-current" aria-hidden>
-        <path d="M16.365 1.43c0 1.14-.46 2.21-1.24 3.02-.83.86-2.18 1.52-3.28 1.43-.14-1.09.48-2.24 1.24-3.02.83-.83 2.28-1.5 3.28-1.43zm2.9 15.57c-.57 1.31-.85 1.9-1.58 3.06-1.02 1.58-2.46 3.55-4.24 3.56-1.59.01-2-.98-4.16-.98-2.16 0-2.62.99-4.21 1-1.79.01-3.15-1.64-4.17-3.22-2.87-4.43-3.17-9.63-1.4-12.39 1.26-2.02 3.25-3.21 5.5-3.24 1.72-.03 3.34 1.16 4.16 1.16.82 0 2.67-1.43 4.5-1.22.77.03 2.93.31 4.32 2.34-.11.07-2.58 1.51-2.55 4.5.03 3.58 3.13 4.77 3.17 4.79-.03.08-.5 1.72-1.64 3.54z" />
-      </svg>
-    ),
-  },
-  {
     id: "discord",
     label: "Discord",
     className: "bg-[#5865F2] text-white hover:bg-[#4752C4]",
@@ -185,37 +175,35 @@ export function SignInModal({
         </DialogHeader>
 
         <div className="space-y-3">
-          <div className="grid grid-cols-2 gap-2">
+          <div className="flex flex-wrap items-center justify-center gap-2">
             {SOCIAL_PROVIDERS.map((provider) => (
               <button
                 key={provider.id}
                 type="button"
                 onClick={() => void handleOAuth(provider.id)}
+                title={provider.label}
+                aria-label={`Sign in with ${provider.label}`}
                 className={cn(
-                  "flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+                  "inline-flex h-11 w-11 items-center justify-center rounded-lg transition-colors",
                   provider.className
                 )}
               >
-                {provider.icon}
-                {provider.label}
+                <span className="scale-110">{provider.icon}</span>
               </button>
             ))}
           </div>
 
           {step === "email" ? (
             <form onSubmit={sendEmailCode} className="space-y-2">
-              <div className="space-y-1.5">
-                <Label htmlFor="signin-email">Email</Label>
-                <Input
-                  id="signin-email"
-                  type="email"
-                  placeholder="you@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  autoComplete="email"
-                />
-              </div>
+              <Input
+                id="signin-email"
+                type="email"
+                placeholder="Email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                autoComplete="email"
+              />
               <Button type="submit" className="w-full gap-2" disabled={loading}>
                 <Mail className="h-4 w-4" />
                 {loading ? "Sending…" : "Continue with email"}

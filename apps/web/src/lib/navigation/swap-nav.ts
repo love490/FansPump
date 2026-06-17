@@ -28,13 +28,17 @@ export const dexNavLinks: DexNavLink[] = [
   { id: "staking", href: "/staking", label: "Staking", icon: Layers },
 ];
 
-/** Header / sidebar DEX menu — no LP Management or Analytics (same as Pool). */
+/** Header / sidebar / mobile DEX menu */
 export const dexMenuNavLinks: DexNavLink[] = [
   { id: "swap", href: "/swap", label: "Swap", icon: ArrowLeftRight },
   { id: "liquidity", href: "/liquidity", label: "Liquidity", icon: Droplets },
-  { id: "pool", href: "/pools", label: "Pool", icon: Layers },
   { id: "staking", href: "/staking", label: "Staking", icon: Layers },
+  { id: "pool", href: "/pools", label: "Pool", icon: Layers },
 ];
+
+export function isDexNavLinkActive(pathname: string, href: string): boolean {
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
 
 /** @deprecated Use dexNavLinks */
 export const swapNavLinks = dexNavLinks;

@@ -8,9 +8,14 @@ import { SidebarProvider, useSidebar } from "@/components/layout/sidebar-context
 import { Footer } from "@/components/layout/footer";
 import { MobileBottomNav, MOBILE_BOTTOM_NAV_PADDING } from "@/components/layout/mobile-bottom-nav";
 import { cn } from "@/lib/utils";
+import { isDexPath } from "@/lib/navigation/swap-nav";
+import { DexSubNav } from "@/components/layout/dex-sub-nav";
 
 function MainColumn({ children }: { children: React.ReactNode }) {
   const { collapsed } = useSidebar();
+  const pathname = usePathname();
+  const showDexSubNav = isDexPath(pathname ?? "");
+
   return (
     <div className="flex min-w-0 flex-1 flex-col">
       <TopBar />
@@ -22,6 +27,11 @@ function MainColumn({ children }: { children: React.ReactNode }) {
               collapsed ? "lg:max-w-[calc(100vw-4.5rem-3rem)]" : "lg:max-w-[calc(100vw-18rem-3rem)]"
             )}
           >
+            {showDexSubNav && (
+              <div className="mb-6">
+                <DexSubNav />
+              </div>
+            )}
             {children}
           </div>
         </main>

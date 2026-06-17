@@ -13,7 +13,8 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AppNavMenuContent } from "@/components/layout/sidebar";
-import { DEX_LABEL, dexMenuNavLinks, isDexPath } from "@/lib/navigation/swap-nav";
+import { DexSubNav } from "@/components/layout/dex-sub-nav";
+import { DEX_LABEL, isDexPath } from "@/lib/navigation/swap-nav";
 
 const MOBILE_MENU_EXCLUDE = new Set(["home", "discover", "create", "dex"]);
 
@@ -97,12 +98,11 @@ function MobileBottomNavInner() {
 
       {dexOpen && (
         <div
-          className="fixed inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-[95] mx-3 rounded-xl border border-border bg-background p-3 shadow-xl max-md:block hidden"
+          className="fixed inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-[95] mx-3 max-md:block hidden"
           role="dialog"
           aria-label={`${DEX_LABEL} navigation`}
         >
-          <div className="mb-2 flex items-center justify-between px-1">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{DEX_LABEL}</p>
+          <div className="mb-2 flex items-center justify-end px-1">
             <button
               type="button"
               className="rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -112,28 +112,7 @@ function MobileBottomNavInner() {
               <X className="h-4 w-4" />
             </button>
           </div>
-          <div className="grid grid-cols-2 gap-2">
-            {dexMenuNavLinks.map((link) => {
-              const active =
-                pathname === link.href || pathname.startsWith(`${link.href}/`);
-              return (
-                <Link
-                  key={link.id}
-                  href={link.href}
-                  onClick={() => setDexOpen(false)}
-                  className={cn(
-                    "flex items-center gap-2 rounded-lg border px-3 py-3 text-sm font-medium transition-colors",
-                    active
-                      ? "border-primary/30 bg-primary/10 text-primary"
-                      : "border-border/70 bg-muted/30 text-foreground hover:bg-muted"
-                  )}
-                >
-                  <link.icon className="h-4 w-4 shrink-0" />
-                  {link.label}
-                </Link>
-              );
-            })}
-          </div>
+          <DexSubNav onNavigate={() => setDexOpen(false)} />
         </div>
       )}
 
