@@ -69,7 +69,7 @@ export function MyLiquidityList({
         </div>
       ) : !hasRows ? (
         <p className="rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">
-          No liquidity positions yet. Add liquidity on the Add Liquidity tab — your positions will appear
+          No active positions yet. Add liquidity on the Add Liquidity tab — your positions will appear
           here after a successful transaction.
         </p>
       ) : (

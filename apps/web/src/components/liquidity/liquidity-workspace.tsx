@@ -1,13 +1,13 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { AddLiquidityPanel } from "@/components/liquidity/add-liquidity-panel";
 import { MyLiquidityList } from "@/components/liquidity/my-liquidity-list";
 import { LiquidityLockBurnEntryCard } from "@/components/liquidity/liquidity-lock-burn-entry-card";
-import { DefiStatsOverview } from "@/components/defi/defi-stats-overview";
+import { StatGrid } from "@/components/defi/defi-stats-overview";
 import { useAccount } from "wagmi";
 import { useMyLiquidityPositions } from "@/hooks/liquidity/useMyLiquidityPositions";
 import { useBasePoolLpPositions } from "@/hooks/liquidity/useBasePoolLpPositions";
@@ -16,7 +16,6 @@ import {
   formatTokenLpPositionLabel,
   summarizeLpDisplayParts,
 } from "@/lib/liquidity/format-amount";
-import { useMemo } from "react";
 
 type LiquidityTab = "add" | "remove";
 
@@ -57,33 +56,10 @@ function LiquidityWorkspaceInner({ refreshSeq = 0, onLiquidityAdded }: Liquidity
     };
   }, [positions, basePools]);
 
+  const statsLoading = lpLoading || baseLoading;
+
   return (
     <div className="space-y-4">
-      <DefiStatsOverview
-        showPersonal
-        showPlatform={false}
-        personalDescription="Your LP holdings across FansPump pools."
-        personalStats={[
-          {
-            label: "Your LP positions",
-            value: lpLoading || baseLoading ? "…" : String(personal.positionCount),
-          },
-          {
-            label: "Your liquidity",
-            value:
-              lpLoading || baseLoading
-                ? "…"
-                : personal.positionCount === 0
-                  ? "None yet"
-                  : summarizeLpDisplayParts(personal.lpDisplayParts),
-            hint: personal.positionCount > 0 ? "See activity below" : "Add a position above",
-          },
-        ]}
-        personalLoading={lpLoading || baseLoading}
-        isConnected={isConnected}
-        connectMessage="Connect your wallet to see your LP holdings."
-      />
-
       <Card>
         <CardHeader className="pb-3">
           <CardTitle>Liquidity</CardTitle>
@@ -119,25 +95,58 @@ function LiquidityWorkspaceInner({ refreshSeq = 0, onLiquidityAdded }: Liquidity
           {tab === "add" ? (
             <AddLiquidityPanel variant="compact" onLiquidityAdded={handleLiquidityAdded} />
           ) : (
-            <p className="text-sm text-muted-foreground">
-              Your LP positions are listed below. Open a position and choose{" "}
-              <span className="font-medium text-foreground">Remove liquidity</span> to withdraw.
-            </p>
+            <div className="space-y-6">
+              <div className="space-y-3">
+                <div>
+                  <h3 className="text-base font-semibold">My activity</h3>
+                  <p className="text-sm text-muted-foreground">Your LP holdings across FansPump pools.</p>
+                </div>
+
+                {!isConnected ? (
+                  <p className="rounded-lg border border-dashed px-4 py-6 text-center text-sm text-muted-foreground">
+                    Connect your wallet to see your LP activity.
+                  </p>
+                ) : (
+                  <StatGrid
+                    stats={[
+                      {
+                        label: "Your LP positions",
+                        value: statsLoading ? "…" : String(personal.positionCount),
+                      },
+                      {
+                        label: "Your liquidity",
+                        value:
+                          statsLoading
+                            ? "…"
+                            : personal.positionCount === 0
+                              ? "None yet"
+                              : summarizeLpDisplayParts(personal.lpDisplayParts),
+                        hint:
+                          personal.positionCount > 0
+                            ? "See active positions below"
+                            : "Add liquidity to get started",
+                      },
+                    ]}
+                    loading={statsLoading}
+                  />
+                )}
+              </div>
+
+              <div className="space-y-3 border-t border-border pt-6">
+                <div>
+                  <h3 className="text-base font-semibold">Active positions</h3>
+                  <p className="text-sm text-muted-foreground">
+                    LP tokens you hold — project pairs and base pools.
+                  </p>
+                </div>
+                <MyLiquidityList refreshSeq={refreshSeq} showBasePools emphasizeLp />
+              </div>
+
+              {isConnected && <LiquidityLockBurnEntryCard />}
+            </div>
           )}
         </CardContent>
       </Card>
-
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle>My activities</CardTitle>
-          <CardDescription>LP tokens you hold — project pairs and base pools.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <MyLiquidityList refreshSeq={refreshSeq} showBasePools emphasizeLp />
-        </CardContent>
-      </Card>
-
-      {isConnected && <LiquidityLockBurnEntryCard />}
     </div>
   );
 }

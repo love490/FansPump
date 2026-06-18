@@ -9,12 +9,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { AddressCopyButton } from "@/components/ui/address-copy-button";
 import { DefiStatsOverview } from "@/components/defi/defi-stats-overview";
 import { formatReserve } from "@/lib/defi/format-reserve";
-import { BarChart3, Droplets, Plus, Radar, RefreshCw, Search } from "lucide-react";
+import { BarChart3, Droplets, Plus, RefreshCw, Search } from "lucide-react";
 import { cn, shortenAddress } from "@/lib/utils";
 
 type PoolsResponse = {
@@ -30,6 +29,7 @@ type PoolsResponse = {
 };
 
 const SMALL_POOL_TVL = 1;
+const POOL_ADDRESS_RE = /^0x[a-fA-F0-9]{40}$/;
 
 function poolLabel(pool: PoolRecord): string {
   return `${pool.token0Symbol ?? shortenAddress(pool.token0, 4)} / ${pool.token1Symbol ?? shortenAddress(pool.token1, 4)}`;
@@ -56,9 +56,7 @@ export default function PoolsPage() {
   const [data, setData] = useState<PoolsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [discovering, setDiscovering] = useState(false);
   const [syncing, setSyncing] = useState(false);
-  const [poolAddress, setPoolAddress] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [hideSmallPools, setHideSmallPools] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -86,26 +84,12 @@ export default function PoolsPage() {
     void load();
   }, [load]);
 
-  async function discoverPools() {
-    setDiscovering(true);
-    setError(null);
-    setMessage(null);
-    try {
-      const res = await fetch(apiUrl("/api/pools/discover"), { method: "POST" });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? "Discover failed");
-      setData(json);
-      setMessage(`Indexed ${json.syncedCount ?? 0} pool(s) from chain.`);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Discover failed");
-    } finally {
-      setDiscovering(false);
-    }
-  }
+  const trimmedQuery = searchQuery.trim();
+  const canAddPool = POOL_ADDRESS_RE.test(trimmedQuery);
 
   async function addPool() {
-    const addr = poolAddress.trim();
-    if (!/^0x[a-fA-F0-9]{40}$/.test(addr)) {
+    const addr = trimmedQuery;
+    if (!POOL_ADDRESS_RE.test(addr)) {
       setError("Enter a valid pool address (0x…).");
       return;
     }
@@ -121,7 +105,7 @@ export default function PoolsPage() {
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "Could not add pool");
-      setPoolAddress("");
+      setSearchQuery("");
       setMessage(`Pool ${shortenAddress(addr)} indexed.`);
       await load({ silent: true });
     } catch (e) {
@@ -135,31 +119,23 @@ export default function PoolsPage() {
   const pools = data?.pools ?? [];
 
   const filteredPools = useMemo(() => {
-    const q = searchQuery.trim();
+    const q = trimmedQuery;
     return pools.filter((pool) => {
       if (hideSmallPools && parseTvl(pool.totalLiquidity) < SMALL_POOL_TVL) return false;
       if (!q) return true;
       return poolMatchesQuery(pool, q);
     });
-  }, [pools, searchQuery, hideSmallPools]);
+  }, [pools, trimmedQuery, hideSmallPools]);
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6 lg:px-8">
-      <header className="mb-8 flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="flex items-center gap-2 text-2xl font-bold">
-            <BarChart3 className="h-6 w-6" /> Pools
-          </h1>
-          <p className="mt-1 text-muted-foreground">
-            Browse liquidity pools on OPN Network. Add a new position from Liquidity.
-          </p>
-        </div>
-        <Button asChild size="sm" className="shrink-0">
-          <Link href="/liquidity?tab=add">
-            <Plus className="mr-2 h-4 w-4" />
-            + New Position
-          </Link>
-        </Button>
+      <header className="mb-8">
+        <h1 className="flex items-center gap-2 text-2xl font-bold">
+          <BarChart3 className="h-6 w-6" /> Pools
+        </h1>
+        <p className="mt-1 text-muted-foreground">
+          Browse liquidity pools on OPN Network. Paste a pool address in search to index it.
+        </p>
       </header>
 
       {error && (
@@ -199,38 +175,6 @@ export default function PoolsPage() {
         ]}
       />
 
-      <Card className="mb-8">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Plus className="h-5 w-5" /> Index pool
-          </CardTitle>
-          <CardDescription>
-            Paste a swap pair (LP) contract address to index it, or use Discover pools to scan platform tokens.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-end">
-          <div className="min-w-0 flex-1 space-y-2">
-            <Label htmlFor="pool-address">Pool address</Label>
-            <Input
-              id="pool-address"
-              value={poolAddress}
-              onChange={(e) => setPoolAddress(e.target.value)}
-              placeholder="0x…"
-              className="font-mono text-sm"
-            />
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Button disabled={syncing || !poolAddress.trim()} onClick={() => void addPool()}>
-              {syncing ? "Adding…" : "Add pool"}
-            </Button>
-            <Button variant="outline" disabled={discovering || loading} onClick={() => void discoverPools()}>
-              <Radar className={cn("mr-2 h-4 w-4", discovering && "animate-pulse")} />
-              {discovering ? "Discovering…" : "Discover"}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
       <Card>
         <CardHeader className="space-y-4">
           <div className="flex flex-row items-start justify-between gap-3 space-y-0">
@@ -239,8 +183,7 @@ export default function PoolsPage() {
                 <Droplets className="h-5 w-5" /> All pools
               </CardTitle>
               <CardDescription>
-                {analytics?.note ??
-                  "Pools with on-chain liquidity. Use New position to add liquidity on Liquidity."}
+                {analytics?.note ?? "Search by name or paste a pool address to index and browse."}
               </CardDescription>
             </div>
             <Button
@@ -256,20 +199,39 @@ export default function PoolsPage() {
             </Button>
           </div>
 
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search by name or paste address"
-              className="pl-9"
-            />
+          <div className="flex gap-2">
+            <div className="relative min-w-0 flex-1">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && canAddPool) void addPool();
+                }}
+                placeholder="Search by name or paste address"
+                className="pl-9 font-mono text-sm"
+              />
+            </div>
+            {canAddPool && (
+              <Button disabled={syncing} onClick={() => void addPool()} className="shrink-0">
+                {syncing ? "Adding…" : "Add pool"}
+              </Button>
+            )}
           </div>
 
           <label className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground">
             <Checkbox checked={hideSmallPools} onCheckedChange={(v) => setHideSmallPools(v === true)} />
             Hide small pools
           </label>
+
+          <div className="flex justify-end">
+            <Button asChild size="sm" className="shrink-0">
+              <Link href="/liquidity?tab=add">
+                <Plus className="mr-2 h-4 w-4" />
+                + New Position
+              </Link>
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           {loading ? (
@@ -277,15 +239,13 @@ export default function PoolsPage() {
           ) : !filteredPools.length ? (
             <div className="space-y-4 rounded-lg border border-dashed p-6 text-sm text-muted-foreground">
               <p>{pools.length ? "No pools match your search." : "No pools indexed yet."}</p>
-              <div className="flex flex-wrap gap-2">
-                <Button asChild size="sm">
-                  <Link href="/liquidity?tab=add">New position</Link>
+              {canAddPool ? (
+                <Button size="sm" disabled={syncing} onClick={() => void addPool()}>
+                  {syncing ? "Adding…" : "Add pool"}
                 </Button>
-                <Button size="sm" variant="outline" disabled={discovering} onClick={() => void discoverPools()}>
-                  <Radar className="mr-2 h-4 w-4" />
-                  Discover pools
-                </Button>
-              </div>
+              ) : (
+                <p className="text-xs">Paste a pool contract address above to index it.</p>
+              )}
             </div>
           ) : (
             <div className="overflow-x-auto">
