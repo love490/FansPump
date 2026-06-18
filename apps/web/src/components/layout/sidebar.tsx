@@ -228,7 +228,8 @@ function SidebarContent({
             <FansPumpTagline className="mt-2" />
           </>
         ) : (
-          <div className="flex h-10 items-center justify-center">
+          <div className="flex flex-col items-center gap-2">
+            <FansPumpLogo showText={false} size="sm" className="justify-center" href="/" />
             {onToggle && <SidebarToggle collapsed onClick={onToggle} />}
           </div>
         )}
@@ -320,7 +321,7 @@ export function Sidebar() {
       className={cn(
         "hidden shrink-0 border-r border-border bg-card/50 md:block",
         "transition-[width] duration-300 ease-in-out motion-reduce:transition-none",
-        collapsed ? "w-[4.5rem] overflow-hidden" : "w-72 overflow-visible"
+        collapsed ? "w-[4.5rem]" : "w-72 overflow-visible"
       )}
     >
       <div className={cn("sticky top-0 h-screen", collapsed ? "px-2 py-3" : "p-4")}>

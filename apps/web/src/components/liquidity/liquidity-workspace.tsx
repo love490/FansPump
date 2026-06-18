@@ -88,20 +88,13 @@ function RemoveLiquidityTab({ refreshSeq }: { refreshSeq: number }) {
 
 export function LiquidityWorkspace({ refreshSeq = 0, onLiquidityAdded }: LiquidityWorkspaceProps) {
   const [tab, setTab] = useState<LiquidityTab>("add");
-  const [removeMounted, setRemoveMounted] = useState(false);
 
   const syncTabFromUrl = useCallback((next: LiquidityTab) => {
     setTab(next);
-    if (next === "remove") setRemoveMounted(true);
   }, []);
-
-  useEffect(() => {
-    if (tab === "remove") setRemoveMounted(true);
-  }, [tab]);
 
   const handleLiquidityAdded = useCallback(() => {
     onLiquidityAdded?.();
-    setRemoveMounted(true);
     setTab("remove");
   }, [onLiquidityAdded]);
 
@@ -111,7 +104,7 @@ export function LiquidityWorkspace({ refreshSeq = 0, onLiquidityAdded }: Liquidi
         <TabFromUrl onTab={syncTabFromUrl} />
       </Suspense>
 
-      <Card>
+      <Card className="overflow-visible">
         <CardHeader className="pb-3">
           <CardTitle>Liquidity</CardTitle>
           <CardDescription>Add or remove liquidity</CardDescription>
@@ -142,15 +135,11 @@ export function LiquidityWorkspace({ refreshSeq = 0, onLiquidityAdded }: Liquidi
           </div>
         </div>
 
-        <CardContent className="pt-5">
-          <div className={cn(tab !== "add" && "hidden")} aria-hidden={tab !== "add"}>
+        <CardContent className="overflow-visible pt-5">
+          {tab === "add" ? (
             <AddLiquidityPanel variant="compact" onLiquidityAdded={handleLiquidityAdded} />
-          </div>
-
-          {removeMounted && (
-            <div className={cn(tab !== "remove" && "hidden")} aria-hidden={tab !== "remove"}>
-              <RemoveLiquidityTab refreshSeq={refreshSeq} />
-            </div>
+          ) : (
+            <RemoveLiquidityTab refreshSeq={refreshSeq} />
           )}
         </CardContent>
       </Card>

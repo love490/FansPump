@@ -30,7 +30,6 @@ export type SidebarNavId =
   | "staking"
   | "launchpool"
   | "support"
-  | "advertise"
   | "how-it-works"
   | "docs"
   | "dashboard"
@@ -59,7 +58,6 @@ export const platformLinks: SidebarNavItem[] = [
 
 export const accountFooterLinks: SidebarNavItem[] = [
   { id: "support", href: "/support", label: "Support", icon: LifeBuoy },
-  { id: "advertise", href: "/advertise", label: "Advertise", icon: Megaphone },
 ];
 
 export const userLinks: SidebarNavItem[] = [
@@ -108,8 +106,6 @@ export function isSidebarNavActive(
       return pathname === "/launchpool";
     case "support":
       return pathname === "/support";
-    case "advertise":
-      return pathname === "/advertise";
     case "analytics":
       return pathname === "/pools" || pathname.startsWith("/pools/");
     case "dashboard":

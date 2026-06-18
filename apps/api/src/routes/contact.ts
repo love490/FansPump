@@ -5,7 +5,7 @@ import { asyncHandler } from "../lib/http-helpers";
 import { publicRateLimit } from "../middleware/rateLimit";
 
 const contactSchema = z.object({
-  type: z.enum(["support", "advertise"]),
+  type: z.enum(["support"]),
   name: z.string().min(2).max(80),
   email: z.string().email(),
   subject: z.string().max(120).optional(),
@@ -25,7 +25,7 @@ router.post(
 
       await prisma.contactInquiry.create({
         data: {
-          type: body.type === "support" ? "SUPPORT" : "ADVERTISE",
+          type: "SUPPORT",
           name: body.name,
           email: body.email.toLowerCase(),
           subject: body.subject ?? null,

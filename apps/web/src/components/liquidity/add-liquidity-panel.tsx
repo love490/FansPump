@@ -508,9 +508,7 @@ export function AddLiquidityPanel({
         ? `Approving ${usesWopnPath ? "WOPN" : pair.symbol}… (${pendingSteps} wallet steps)`
         : action === "add"
           ? `Adding liquidity…`
-          : pendingSteps > 1
-            ? `Add liquidity (${pendingSteps} steps in wallet)`
-            : `Add liquidity (${tokenSymbol}/${pair.symbol})`;
+          : "Add liquidity";
 
   const terminalSuccess =
     Boolean(status && !busy && status.toLowerCase().includes("liquidity added"));
@@ -528,122 +526,120 @@ export function AddLiquidityPanel({
   }
 
   if (variant === "compact") {
+    const formDisabled = !isConnected || wrongNetwork;
+
     return (
       <div ref={cardRef} className="relative space-y-3 overflow-visible">
-        {!isConnected ? (
-          <p className="text-sm text-muted-foreground">Connect your wallet to add liquidity.</p>
-        ) : (
-          <>
-            <div className="overflow-visible rounded-xl border border-border/60 bg-muted/20 p-4">
-              <div className="mb-3 flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Input</span>
-                {tokenBalance !== undefined && (
-                  <span className="text-muted-foreground">
-                    Balance: {formatBalance(tokenBalance, tokenDecimals)}{" "}
-                    <button
-                      type="button"
-                      className="font-semibold text-primary hover:underline"
-                      onClick={() =>
-                        setTokenAmount(formatBalance(tokenBalance, tokenDecimals))
-                      }
-                    >
-                      MAX
-                    </button>
-                  </span>
-                )}
-              </div>
-              <div className="flex items-center gap-3">
-                <LiquidityAmountInput value={tokenAmount} onChange={setTokenAmount} />
-                <SwapTokenPicker
-                  variant="pill"
-                  value={tokenAddress}
-                  onChange={setTokenAddress}
-                  placeholder="Token"
-                  searchPlaceholder="Search by name or paste address"
-                  fallbackSymbol={tokenSymbol !== "Token" ? tokenSymbol : undefined}
-                  rowAnchorRef={cardRef}
-                />
-              </div>
-            </div>
-
-            <div className="flex justify-center -my-1">
-              <span className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-border bg-background text-muted-foreground shadow-sm">
-                <Plus className="h-4 w-4" />
+        <div className="overflow-visible rounded-xl border border-border/60 bg-muted/20 p-4">
+          <div className="mb-3 flex items-center justify-between text-sm">
+            <span className="text-muted-foreground">Input</span>
+            {isConnected && tokenBalance !== undefined && (
+              <span className="text-muted-foreground">
+                Balance: {formatBalance(tokenBalance, tokenDecimals)}{" "}
+                <button
+                  type="button"
+                  className="font-semibold text-primary hover:underline"
+                  onClick={() => setTokenAmount(formatBalance(tokenBalance, tokenDecimals))}
+                >
+                  MAX
+                </button>
               </span>
-            </div>
+            )}
+          </div>
+          <div className="flex items-center gap-3">
+            <LiquidityAmountInput value={tokenAmount} onChange={setTokenAmount} />
+            <SwapTokenPicker
+              variant="pill"
+              value={tokenAddress}
+              onChange={setTokenAddress}
+              placeholder="Token"
+              searchPlaceholder="Search by name or paste address"
+              fallbackSymbol={tokenSymbol !== "Token" ? tokenSymbol : undefined}
+              rowAnchorRef={cardRef}
+            />
+          </div>
+        </div>
 
-            <div className="overflow-visible rounded-xl border border-border/60 bg-muted/20 p-4">
-              <div className="mb-3 flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Input</span>
-                {pairBalanceDisplay !== undefined && (
-                  <span className="text-muted-foreground">
-                    Balance: {formatBalance(pairBalanceDisplay, pairBalanceDecimals)}{" "}
-                    <button
-                      type="button"
-                      className="font-semibold text-primary hover:underline"
-                      onClick={() =>
-                        setPairAmount(formatBalance(pairBalanceDisplay, pairBalanceDecimals))
-                      }
-                    >
-                      MAX
-                    </button>
-                  </span>
-                )}
-              </div>
-              <div className="flex items-center gap-3">
-                <LiquidityAmountInput value={pairAmount} onChange={setPairAmount} />
-                <LiquidityPairPicker value={pairId} onChange={setPairId} rowAnchorRef={cardRef} />
-              </div>
-            </div>
+        <div className="flex justify-center -my-1">
+          <span className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-border bg-background text-muted-foreground shadow-sm">
+            <Plus className="h-4 w-4" />
+          </span>
+        </div>
 
-            {pairConflict && (
-              <p className="text-sm text-red-600">
-                This token is {pair.symbol}. Choose a different project token or pair asset.
+        <div className="overflow-visible rounded-xl border border-border/60 bg-muted/20 p-4">
+          <div className="mb-3 flex items-center justify-between text-sm">
+            <span className="text-muted-foreground">Input</span>
+            {isConnected && pairBalanceDisplay !== undefined && (
+              <span className="text-muted-foreground">
+                Balance: {formatBalance(pairBalanceDisplay, pairBalanceDecimals)}{" "}
+                <button
+                  type="button"
+                  className="font-semibold text-primary hover:underline"
+                  onClick={() =>
+                    setPairAmount(formatBalance(pairBalanceDisplay, pairBalanceDecimals))
+                  }
+                >
+                  MAX
+                </button>
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-3">
+            <LiquidityAmountInput value={pairAmount} onChange={setPairAmount} />
+            <LiquidityPairPicker value={pairId} onChange={setPairId} rowAnchorRef={cardRef} />
+          </div>
+        </div>
+
+        {pairConflict && (
+          <p className="text-sm text-red-600">
+            This token is {pair.symbol}. Choose a different project token or pair asset.
+          </p>
+        )}
+
+        {!isConnected && (
+          <p className="text-sm text-muted-foreground">Connect your wallet to add liquidity.</p>
+        )}
+
+        {wrongNetwork && (
+          <p className="text-sm text-amber-700">
+            Switch your wallet to {opnChain.name} (chain {opnChain.id}).
+          </p>
+        )}
+
+        <Button
+          type="button"
+          className="w-full"
+          disabled={formDisabled || !amountsValid || busy || !validToken}
+          onClick={() => void addLiquidity()}
+        >
+          {!isConnected ? "Connect wallet to add liquidity" : addLiquidityLabel}
+        </Button>
+
+        {status && busy && <p className="text-sm text-muted-foreground">{status}</p>}
+
+        {terminalSuccess && status && (
+          <DismissibleAlert variant="success" onDismiss={dismissNotice}>
+            {status}
+            {lastTxHash && (
+              <p className="mt-2 font-mono text-xs opacity-80">
+                Tx:{" "}
+                <a
+                  href={`${opnChainConfig.explorerUrl.replace(/\/$/, "")}/tx/${lastTxHash}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline"
+                >
+                  {shortenAddress(lastTxHash, 10)}
+                </a>
               </p>
             )}
+          </DismissibleAlert>
+        )}
 
-            {wrongNetwork && (
-              <p className="text-sm text-amber-700">
-                Switch your wallet to {opnChain.name} (chain {opnChain.id}).
-              </p>
-            )}
-
-            <Button
-              type="button"
-              className="w-full"
-              disabled={!amountsValid || busy || wrongNetwork || !validToken}
-              onClick={() => void addLiquidity()}
-            >
-              {addLiquidityLabel}
-            </Button>
-
-            {status && busy && <p className="text-sm text-muted-foreground">{status}</p>}
-
-            {terminalSuccess && status && (
-              <DismissibleAlert variant="success" onDismiss={dismissNotice}>
-                {status}
-                {lastTxHash && (
-                  <p className="mt-2 font-mono text-xs opacity-80">
-                    Tx:{" "}
-                    <a
-                      href={`${opnChainConfig.explorerUrl.replace(/\/$/, "")}/tx/${lastTxHash}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="underline"
-                    >
-                      {shortenAddress(lastTxHash, 10)}
-                    </a>
-                  </p>
-                )}
-              </DismissibleAlert>
-            )}
-
-            {error && !busy && (
-              <DismissibleAlert variant="error" onDismiss={dismissNotice}>
-                {error}
-              </DismissibleAlert>
-            )}
-          </>
+        {error && !busy && (
+          <DismissibleAlert variant="error" onDismiss={dismissNotice}>
+            {error}
+          </DismissibleAlert>
         )}
       </div>
     );
