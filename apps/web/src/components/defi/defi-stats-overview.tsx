@@ -16,8 +16,8 @@ type DefiStatsOverviewProps = {
   platformDescription?: string;
   personalTitle?: string;
   personalDescription?: string;
-  platformStats: DefiStatItem[];
-  personalStats: DefiStatItem[];
+  platformStats?: DefiStatItem[];
+  personalStats?: DefiStatItem[];
   loading?: boolean;
   platformLoading?: boolean;
   personalLoading?: boolean;
@@ -25,6 +25,7 @@ type DefiStatsOverviewProps = {
   connectMessage?: string;
   className?: string;
   showPersonal?: boolean;
+  showPlatform?: boolean;
 };
 
 export function StatGrid({
@@ -73,18 +74,30 @@ export function DefiStatsOverview({
   connectMessage = "Connect your wallet to see your personal totals.",
   className,
   showPersonal = true,
+  showPlatform = true,
 }: DefiStatsOverviewProps) {
+  const platform = platformStats ?? [];
+  const personal = personalStats ?? [];
+
   return (
-    <div className={cn("grid gap-4", showPersonal ? "md:grid-cols-2" : "grid-cols-1", className)}>
+    <div
+      className={cn(
+        "grid gap-4",
+        showPersonal && showPlatform ? "md:grid-cols-2" : "grid-cols-1",
+        className
+      )}
+    >
+      {showPlatform && (
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base">{platformTitle}</CardTitle>
           <CardDescription>{platformDescription}</CardDescription>
         </CardHeader>
         <CardContent>
-          <StatGrid stats={platformStats} loading={loading || platformLoading} />
+          <StatGrid stats={platform} loading={loading || platformLoading} />
         </CardContent>
       </Card>
+      )}
 
       {showPersonal && (
       <Card>
@@ -98,7 +111,7 @@ export function DefiStatsOverview({
               {connectMessage}
             </p>
           ) : (
-            <StatGrid stats={personalStats} loading={loading || personalLoading} />
+            <StatGrid stats={personal} loading={loading || personalLoading} />
           )}
         </CardContent>
       </Card>

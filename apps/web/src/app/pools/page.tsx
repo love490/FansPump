@@ -4,24 +4,17 @@ import { apiUrl, readApiJson } from "@/lib/api";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useAccount } from "wagmi";
 import type { PoolRecord } from "@iopn/shared";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { AddressCopyButton } from "@/components/ui/address-copy-button";
 import { DefiStatsOverview } from "@/components/defi/defi-stats-overview";
-import { useMyLiquidityPositions } from "@/hooks/liquidity/useMyLiquidityPositions";
-import { useBasePoolLpPositions } from "@/hooks/liquidity/useBasePoolLpPositions";
 import { formatReserve } from "@/lib/defi/format-reserve";
-import {
-  formatBaseLpPositionLabel,
-  formatTokenLpPositionLabel,
-  summarizeLpDisplayParts,
-} from "@/lib/liquidity/format-amount";
-import { BarChart3, Droplets, Plus, Radar, RefreshCw } from "lucide-react";
+import { BarChart3, Droplets, Plus, Radar, RefreshCw, Search } from "lucide-react";
 import { cn, shortenAddress } from "@/lib/utils";
 
 type PoolsResponse = {
@@ -36,16 +29,38 @@ type PoolsResponse = {
   };
 };
 
+const SMALL_POOL_TVL = 1;
+
+function poolLabel(pool: PoolRecord): string {
+  return `${pool.token0Symbol ?? shortenAddress(pool.token0, 4)} / ${pool.token1Symbol ?? shortenAddress(pool.token1, 4)}`;
+}
+
+function poolMatchesQuery(pool: PoolRecord, q: string): boolean {
+  const needle = q.toLowerCase();
+  return (
+    pool.poolAddress.toLowerCase().includes(needle) ||
+    pool.token0.toLowerCase().includes(needle) ||
+    pool.token1.toLowerCase().includes(needle) ||
+    (pool.token0Symbol?.toLowerCase().includes(needle) ?? false) ||
+    (pool.token1Symbol?.toLowerCase().includes(needle) ?? false) ||
+    poolLabel(pool).toLowerCase().includes(needle)
+  );
+}
+
+function parseTvl(value: string): number {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : 0;
+}
+
 export default function PoolsPage() {
-  const { address, isConnected } = useAccount();
-  const { positions, loading: lpLoading } = useMyLiquidityPositions(address);
-  const { positions: basePools, loading: baseLoading } = useBasePoolLpPositions(address);
   const [data, setData] = useState<PoolsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [discovering, setDiscovering] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [poolAddress, setPoolAddress] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [hideSmallPools, setHideSmallPools] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -119,20 +134,14 @@ export default function PoolsPage() {
   const analytics = data?.analytics;
   const pools = data?.pools ?? [];
 
-  const personal = useMemo(() => {
-    const tokenLp = positions.filter((p) => !p.pending && p.lpBalance > 0n);
-    const baseLp = basePools.filter((p) => p.lpBalance > 0n);
-    const lpDisplayParts = [
-      ...tokenLp.map((p) =>
-        formatTokenLpPositionLabel(p.lpBalance, p.lpDecimals, p.tokenSymbol, p.pairLabel)
-      ),
-      ...baseLp.map((p) => formatBaseLpPositionLabel(p.lpBalance, p.lpDecimals, p.pairLabel)),
-    ];
-    return {
-      positionCount: tokenLp.length + baseLp.length,
-      lpDisplayParts,
-    };
-  }, [positions, basePools]);
+  const filteredPools = useMemo(() => {
+    const q = searchQuery.trim();
+    return pools.filter((pool) => {
+      if (hideSmallPools && parseTvl(pool.totalLiquidity) < SMALL_POOL_TVL) return false;
+      if (!q) return true;
+      return poolMatchesQuery(pool, q);
+    });
+  }, [pools, searchQuery, hideSmallPools]);
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6 lg:px-8">
@@ -142,18 +151,15 @@ export default function PoolsPage() {
             <BarChart3 className="h-6 w-6" /> Pools
           </h1>
           <p className="mt-1 text-muted-foreground">
-            Track liquidity pools across OPN pairs. Discover from chain or add a pool address manually.
+            Browse liquidity pools on OPN Network. Add a new position from Liquidity.
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="outline" size="sm" disabled={discovering || loading} onClick={() => void discoverPools()}>
-            <Radar className={cn("mr-2 h-4 w-4", discovering && "animate-pulse")} />
-            {discovering ? "Discovering…" : "Discover pools"}
-          </Button>
-          <Button asChild size="sm">
-            <Link href="/discover?section=trending">Browse tokens</Link>
-          </Button>
-        </div>
+        <Button asChild size="sm" className="shrink-0">
+          <Link href="/liquidity?tab=add">
+            <Plus className="mr-2 h-4 w-4" />
+            + New Position
+          </Link>
+        </Button>
       </header>
 
       {error && (
@@ -169,14 +175,14 @@ export default function PoolsPage() {
 
       <DefiStatsOverview
         className="mb-8"
+        showPersonal={false}
         platformDescription="Total liquidity and activity across all indexed pools on FansPump."
-        personalDescription="Your LP holdings across platform pools."
         platformLoading={loading}
         platformStats={[
           {
-            label: "Total liquidity added",
+            label: "Total liquidity",
             value: analytics ? formatReserve(analytics.totalLiquidity) : "0",
-            hint: "Across indexed pools",
+            hint: "Platform-wide TVL",
           },
           {
             label: "Total pools",
@@ -191,34 +197,12 @@ export default function PoolsPage() {
             value: analytics ? String(analytics.totalProviders) : "0",
           },
         ]}
-        personalStats={[
-          {
-            label: "Your LP positions",
-            value: lpLoading || baseLoading ? "…" : String(personal.positionCount),
-          },
-          {
-            label: "Your liquidity",
-            value:
-              lpLoading || baseLoading
-                ? "…"
-                : personal.positionCount === 0
-                  ? "None yet"
-                  : summarizeLpDisplayParts(personal.lpDisplayParts),
-            hint:
-              personal.positionCount > 0
-                ? "Manage positions on Liquidity"
-                : "Add liquidity to get started",
-          },
-        ]}
-        personalLoading={lpLoading || baseLoading}
-        isConnected={isConnected}
-        connectMessage="Connect your wallet to see your pool liquidity."
       />
 
       <Card className="mb-8">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Plus className="h-5 w-5" /> Add pool
+            <Plus className="h-5 w-5" /> Index pool
           </CardTitle>
           <CardDescription>
             Paste a swap pair (LP) contract address to index it, or use Discover pools to scan platform tokens.
@@ -235,56 +219,91 @@ export default function PoolsPage() {
               className="font-mono text-sm"
             />
           </div>
-          <Button disabled={syncing || !poolAddress.trim()} onClick={() => void addPool()}>
-            {syncing ? "Adding…" : "Add pool"}
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button disabled={syncing || !poolAddress.trim()} onClick={() => void addPool()}>
+              {syncing ? "Adding…" : "Add pool"}
+            </Button>
+            <Button variant="outline" disabled={discovering || loading} onClick={() => void discoverPools()}>
+              <Radar className={cn("mr-2 h-4 w-4", discovering && "animate-pulse")} />
+              {discovering ? "Discovering…" : "Discover"}
+            </Button>
+          </div>
         </CardContent>
       </Card>
 
       <Card>
-        <CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0">
-          <div>
-            <CardTitle className="flex items-center gap-2">
-              <Droplets className="h-5 w-5" /> All pools
-            </CardTitle>
-            <CardDescription>
-              {analytics?.note ??
-                "Pools with on-chain liquidity. Add liquidity on a token page to create new pairs."}
-            </CardDescription>
+        <CardHeader className="space-y-4">
+          <div className="flex flex-row items-start justify-between gap-3 space-y-0">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Droplets className="h-5 w-5" /> All pools
+              </CardTitle>
+              <CardDescription>
+                {analytics?.note ??
+                  "Pools with on-chain liquidity. Use New position to add liquidity on Liquidity."}
+              </CardDescription>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className="h-8 w-8 shrink-0"
+              disabled={loading || refreshing}
+              onClick={() => void load({ silent: true })}
+              aria-label="Refresh pools"
+            >
+              <RefreshCw className={cn("h-4 w-4", (loading || refreshing) && "animate-spin")} />
+            </Button>
           </div>
-          <Button
-            type="button"
-            variant="outline"
-            size="icon"
-            className="h-8 w-8 shrink-0"
-            disabled={loading || refreshing}
-            onClick={() => void load({ silent: true })}
-            aria-label="Refresh pools"
-          >
-            <RefreshCw className={cn("h-4 w-4", (loading || refreshing) && "animate-spin")} />
-          </Button>
+
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search by name or paste address"
+              className="pl-9"
+            />
+          </div>
+
+          <label className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground">
+            <Checkbox checked={hideSmallPools} onCheckedChange={(v) => setHideSmallPools(v === true)} />
+            Hide small pools
+          </label>
         </CardHeader>
         <CardContent>
           {loading ? (
             <p className="text-sm text-muted-foreground">Loading pools…</p>
-          ) : !pools.length ? (
+          ) : !filteredPools.length ? (
             <div className="space-y-4 rounded-lg border border-dashed p-6 text-sm text-muted-foreground">
-              <p>No pools indexed yet.</p>
+              <p>{pools.length ? "No pools match your search." : "No pools indexed yet."}</p>
               <div className="flex flex-wrap gap-2">
-                <Button size="sm" disabled={discovering} onClick={() => void discoverPools()}>
-                  <Radar className="mr-2 h-4 w-4" />
-                  Discover pools from chain
+                <Button asChild size="sm">
+                  <Link href="/liquidity?tab=add">New position</Link>
                 </Button>
-                <Button asChild size="sm" variant="outline">
-                  <Link href="/create">Create a token</Link>
+                <Button size="sm" variant="outline" disabled={discovering} onClick={() => void discoverPools()}>
+                  <Radar className="mr-2 h-4 w-4" />
+                  Discover pools
                 </Button>
               </div>
             </div>
           ) : (
-            <div className="space-y-3">
-              {pools.map((pool) => (
-                <PoolRow key={pool.poolAddress} pool={pool} />
-              ))}
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[640px] text-sm">
+                <thead>
+                  <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
+                    <th className="pb-3 pr-4 font-medium">Pool</th>
+                    <th className="pb-3 pr-4 font-medium">TVL</th>
+                    <th className="pb-3 pr-4 font-medium">Volume</th>
+                    <th className="pb-3 font-medium text-right">Providers</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {filteredPools.map((pool, index) => (
+                    <PoolRow key={pool.poolAddress} pool={pool} rank={index + 1} />
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
         </CardContent>
@@ -293,31 +312,33 @@ export default function PoolsPage() {
   );
 }
 
-function PoolRow({ pool }: { pool: PoolRecord }) {
+function PoolRow({ pool, rank }: { pool: PoolRecord; rank: number }) {
+  const label = poolLabel(pool);
+
   return (
-    <div className="grid gap-3 rounded-lg border border-border p-4 text-sm sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
-      <div className="min-w-0 space-y-1">
-        <p className="truncate font-medium">
-          {pool.token0Symbol ?? shortenAddress(pool.token0, 4)} /{" "}
-          {pool.token1Symbol ?? shortenAddress(pool.token1, 4)}
-        </p>
-        <div className="flex min-w-0 items-center gap-0.5">
-          <span
-            className="truncate font-mono text-xs text-muted-foreground"
-            title={pool.poolAddress}
-          >
-            {shortenAddress(pool.poolAddress, 4)}
-          </span>
-          <AddressCopyButton value={pool.poolAddress} />
+    <tr className="align-middle">
+      <td className="py-3 pr-4">
+        <div className="flex items-start gap-3">
+          <span className="mt-0.5 shrink-0 text-xs tabular-nums text-muted-foreground">#{rank}</span>
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="font-semibold">{label}</p>
+              <Badge variant="outline" className="text-[10px]">
+                {pool.pairType.replace(/_/g, "/")}
+              </Badge>
+            </div>
+            <div className="mt-1 flex min-w-0 items-center gap-0.5">
+              <span className="truncate font-mono text-xs text-muted-foreground" title={pool.poolAddress}>
+                {shortenAddress(pool.poolAddress, 4)}
+              </span>
+              <AddressCopyButton value={pool.poolAddress} />
+            </div>
+          </div>
         </div>
-      </div>
-      <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-        <Badge variant="outline" className="shrink-0">
-          {pool.pairType.replace(/_/g, "/")}
-        </Badge>
-        <span className="shrink-0 font-medium">TVL: {formatReserve(pool.totalLiquidity)}</span>
-        <span className="shrink-0 text-muted-foreground">Vol: {formatReserve(pool.totalVolume)}</span>
-      </div>
-    </div>
+      </td>
+      <td className="py-3 pr-4 font-medium tabular-nums">{formatReserve(pool.totalLiquidity)}</td>
+      <td className="py-3 pr-4 tabular-nums text-muted-foreground">{formatReserve(pool.totalVolume)}</td>
+      <td className="py-3 text-right tabular-nums text-muted-foreground">{pool.providerCount}</td>
+    </tr>
   );
 }

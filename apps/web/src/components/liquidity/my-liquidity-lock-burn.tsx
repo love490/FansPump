@@ -63,10 +63,48 @@ function LockBurnCard({
   );
 }
 
-export function MyLiquidityLockBurn({ positions }: { positions: MyLiquidityPosition[] }) {
+export function MyLiquidityLockBurn({
+  positions,
+  embedded = false,
+}: {
+  positions: MyLiquidityPosition[];
+  embedded?: boolean;
+}) {
   const active = positions.filter((p) => !p.pending && p.lpBalance > 0n);
 
   if (active.length === 0) return null;
+
+  const body = (
+    <div className="space-y-6">
+      {active.map((p) => (
+        <div key={`${p.tokenAddress}:${p.pairId}`} className="space-y-3">
+          <p className="text-sm font-semibold">
+            {p.tokenSymbol} / {p.pairLabel}
+          </p>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <LockBurnCard
+              href={`/liquidity/${p.tokenAddress}?pair=${p.pairId}#lock`}
+              label="Lock"
+              title="Lock LP"
+              description="Time-lock LP in the on-chain locker contract."
+              icon={Lock}
+              accent="lock"
+            />
+            <LockBurnCard
+              href={`/liquidity/${p.tokenAddress}?pair=${p.pairId}#burn`}
+              label="Burn"
+              title="Burn LP"
+              description="Permanently send LP to your unique burn wallet."
+              icon={Flame}
+              accent="burn"
+            />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+
+  if (embedded) return body;
 
   return (
     <Card>
@@ -76,33 +114,7 @@ export function MyLiquidityLockBurn({ positions }: { positions: MyLiquidityPosit
           Secure LP you hold as a creator — open manage liquidity to lock or burn tokens.
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-6">
-        {active.map((p) => (
-          <div key={`${p.tokenAddress}:${p.pairId}`} className="space-y-3">
-            <p className="text-sm font-semibold">
-              {p.tokenSymbol} / {p.pairLabel}
-            </p>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <LockBurnCard
-                href={`/liquidity/${p.tokenAddress}?pair=${p.pairId}#lock`}
-                label="Lock"
-                title="Lock LP"
-                description="Time-lock LP in the on-chain locker contract."
-                icon={Lock}
-                accent="lock"
-              />
-              <LockBurnCard
-                href={`/liquidity/${p.tokenAddress}?pair=${p.pairId}#burn`}
-                label="Burn"
-                title="Burn LP"
-                description="Permanently send LP to your unique burn wallet."
-                icon={Flame}
-                accent="burn"
-              />
-            </div>
-          </div>
-        ))}
-      </CardContent>
+      <CardContent className="space-y-6">{body}</CardContent>
     </Card>
   );
 }

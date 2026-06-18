@@ -9,6 +9,7 @@ import { formatUnits, type Address } from "viem";
 import { cn } from "@/lib/utils";
 import { isValidTokenAddress } from "@/lib/swap/routerAdapter";
 import { resolveTokenByAddress } from "@/lib/token-resolve";
+import { getActiveChainId } from "@/lib/chain-config/opn";
 import {
   getPopularRegistryTokens,
   mergeSwapTokenLists,
@@ -32,6 +33,7 @@ type SwapTokenPickerProps = {
   label?: string;
   variant?: "default" | "pill";
   placeholder?: string;
+  searchPlaceholder?: string;
   /** Show symbol while token metadata resolves (e.g. deep-linked swap) */
   fallbackSymbol?: string;
   /** Anchor dropdown to the full swap card (same origin for From and To) */
@@ -91,6 +93,7 @@ export function SwapTokenPicker({
   label,
   variant = "default",
   placeholder = "Select token",
+  searchPlaceholder = "Search name, symbol, or address…",
   fallbackSymbol,
   rowAnchorRef,
 }: SwapTokenPickerProps) {
@@ -186,7 +189,7 @@ export function SwapTokenPicker({
         .map(registryToSwapToken)
         .filter((t): t is SwapToken => t !== null);
 
-      fetch(apiUrl(`/api/tokens?q=${encodeURIComponent(q)}&limit=20&chainId=984`))
+      fetch(apiUrl(`/api/tokens?q=${encodeURIComponent(q)}&limit=20&chainId=${getActiveChainId()}`))
         .then((r) => r.json())
         .then((d) => {
           const fromApi = (d.tokens ?? []) as SwapToken[];
@@ -314,7 +317,7 @@ export function SwapTokenPicker({
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search name, symbol, or address…"
+              placeholder={searchPlaceholder}
               className="w-full rounded-lg border border-border bg-muted/30 py-2.5 pl-9 pr-3 text-sm outline-none focus:ring-2 focus:ring-primary/30"
             />
           </div>

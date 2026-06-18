@@ -1,93 +1,183 @@
 "use client";
 
 import Link from "next/link";
-import { useQuery } from "@tanstack/react-query";
+import { useMemo } from "react";
 import { RefreshCw } from "lucide-react";
-import { TokenCard } from "@/components/tokens/token-card";
-import { tokenCardGridClass } from "@/components/tokens/token-card-styles";
+import { TokenLogo } from "@/components/tokens/token-logo";
 import { Button } from "@/components/ui/button";
 import { useActiveWallet } from "@/hooks/useActiveWallet";
-import { fetchMyTokens } from "@/lib/token-register";
-import { getActiveChainId } from "@/lib/chain-config/opn";
-import { tokenQueryKeys } from "@/lib/tokens-api";
+import { useWalletPortfolioBalance } from "@/hooks/dashboard/useWalletPortfolioBalance";
+import { formatMarketPrice } from "@/lib/tokens/market-metrics";
 import { cn } from "@/lib/utils";
 
-export function DashboardMyTokensTab() {
-  const { walletAddress, hasWallet } = useActiveWallet();
-  const chainId = getActiveChainId();
+function formatBalanceAmount(amount: number): string {
+  if (!Number.isFinite(amount) || amount <= 0) return "0";
+  if (amount >= 1_000_000) return `${(amount / 1_000_000).toFixed(2)}M`;
+  if (amount >= 1_000) return amount.toLocaleString(undefined, { maximumFractionDigits: 2 });
+  if (amount >= 1) return amount.toLocaleString(undefined, { maximumFractionDigits: 4 });
+  return amount.toLocaleString(undefined, { maximumFractionDigits: 6 });
+}
 
-  const {
-    data: tokens = [],
-    isLoading,
-    isFetching,
-    error,
-    refetch,
-  } = useQuery({
-    queryKey: tokenQueryKeys.myTokens(walletAddress ?? "", chainId),
-    queryFn: () => fetchMyTokens(walletAddress!),
-    enabled: hasWallet,
-    staleTime: 30_000,
-  });
+function tokenHref(row: {
+  symbol: string;
+  contractAddress?: string | null;
+  isNative?: boolean;
+  isLp?: boolean;
+  projectTokenAddress?: string | null;
+}): string | null {
+  if (row.isLp) {
+    if (row.projectTokenAddress?.startsWith("0x")) {
+      return `/liquidity/${row.projectTokenAddress}`;
+    }
+    return "/liquidity";
+  }
+  if (row.isNative || row.symbol === "OPN") return "/swap";
+  if (row.contractAddress?.startsWith("0x") && !row.isLp) {
+    return `/token/${row.contractAddress}`;
+  }
+  return null;
+}
+
+function rowKey(row: {
+  symbol: string;
+  contractAddress?: string | null;
+  isNative?: boolean;
+  isLp?: boolean;
+}): string {
+  if (row.isLp) return `lp-${row.contractAddress ?? row.symbol}`;
+  return `${row.symbol}-${row.contractAddress ?? "native"}`;
+}
+
+export function DashboardMyTokensTab() {
+  const { hasWallet } = useActiveWallet();
+  const { assets, loading, refresh } = useWalletPortfolioBalance();
+
+  const rows = useMemo(() => {
+    return assets
+      .filter((a) => a.amount > 0 || a.isCreator)
+      .map((asset) => {
+        const unitPriceUsd =
+          asset.amount > 0 && asset.usdValue > 0 ? asset.usdValue / asset.amount : 0;
+        return { ...asset, unitPriceUsd };
+      })
+      .sort((a, b) => {
+        const builtin = (s: string) => ["OPN", "WOPN", "USDT", "USDC"].includes(s.toUpperCase());
+        const aBuiltin = builtin(a.symbol);
+        const bBuiltin = builtin(b.symbol);
+        if (aBuiltin !== bBuiltin) return aBuiltin ? -1 : 1;
+        if (a.isLp !== b.isLp) return a.isLp ? 1 : -1;
+        if (a.isCreator !== b.isCreator) return a.isCreator ? -1 : 1;
+        if (a.usdValue !== b.usdValue) return b.usdValue - a.usdValue;
+        if (a.amount !== b.amount) return b.amount - a.amount;
+        return a.symbol.localeCompare(b.symbol);
+      });
+  }, [assets]);
 
   if (!hasWallet) {
     return (
       <p className="py-8 text-center text-sm text-muted-foreground">
-        Connect or link a wallet to see tokens you created.
+        Connect or link a wallet to see your token holdings.
       </p>
     );
   }
 
-  if (isLoading) {
+  if (loading) {
     return <p className="py-8 text-center text-sm text-muted-foreground">Loading your tokens…</p>;
   }
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3">
-        <p className="text-sm text-muted-foreground">Tokens you launched on FansPump.</p>
+        <p className="text-sm text-muted-foreground">
+          Wallet balances, LP positions, and tokens you created.
+        </p>
         <Button
           type="button"
           variant="outline"
           size="icon"
           className="h-8 w-8 shrink-0"
-          disabled={isFetching}
-          onClick={() => void refetch()}
+          disabled={loading}
+          onClick={() => void refresh()}
           aria-label="Refresh tokens"
         >
-          <RefreshCw className={cn("h-4 w-4", isFetching && "animate-spin")} />
+          <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
         </Button>
       </div>
 
-      {error ? (
-        <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-center dark:border-red-900 dark:bg-red-950/30">
-          <p className="text-sm text-red-700 dark:text-red-400">
-            {error instanceof Error ? error.message : "Failed to load your tokens"}
-          </p>
-          <Button className="mt-4" type="button" size="sm" onClick={() => void refetch()}>
-            Retry
-          </Button>
-        </div>
-      ) : tokens.length === 0 ? (
+      {rows.length === 0 ? (
         <div className="rounded-xl border border-dashed p-8 text-center">
           <p className="text-sm text-muted-foreground">
-            You have not launched a token yet. Create one to see it here.
+            No tokens in your wallet yet — buy on Swap or create one.
           </p>
           <div className="mt-4 flex flex-wrap justify-center gap-2">
             <Button asChild size="sm">
-              <Link href="/create">Create token</Link>
+              <Link href="/swap">Swap</Link>
             </Button>
             <Button asChild size="sm" variant="outline">
-              <Link href="/swap">Swap</Link>
+              <Link href="/create">Create token</Link>
             </Button>
           </div>
         </div>
       ) : (
-        <div className={`${tokenCardGridClass} items-stretch`}>
-          {tokens.map((token, index) => (
-            <div key={token.id} className="h-full">
-              <TokenCard token={token} index={index} />
-            </div>
-          ))}
+        <div className="divide-y divide-border overflow-hidden rounded-xl border border-border">
+          {rows.map((row) => {
+            const href = tokenHref(row);
+            const content = (
+              <>
+                <TokenLogo
+                  src={row.logoUrl}
+                  symbol={row.isLp ? "LP" : row.symbol}
+                  name={row.name}
+                  layout="fixed"
+                  size={40}
+                />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <p className="truncate text-base font-bold uppercase tracking-wide">{row.symbol}</p>
+                    {row.isCreator && (
+                      <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase text-primary">
+                        Created
+                      </span>
+                    )}
+                    {row.isLp && (
+                      <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold uppercase text-muted-foreground">
+                        LP
+                      </span>
+                    )}
+                  </div>
+                  <p className="mt-0.5 text-sm tabular-nums text-muted-foreground">
+                    {formatBalanceAmount(row.amount)}
+                  </p>
+                </div>
+                <div className="shrink-0 text-right">
+                  <p className="font-semibold tabular-nums">
+                    {row.usdValue > 0 ? formatMarketPrice(row.usdValue) : "—"}
+                  </p>
+                  <p className="mt-0.5 text-xs tabular-nums text-muted-foreground">
+                    {row.unitPriceUsd > 0 ? formatMarketPrice(row.unitPriceUsd) : "—"}
+                  </p>
+                </div>
+              </>
+            );
+
+            if (href) {
+              return (
+                <Link
+                  key={rowKey(row)}
+                  href={href}
+                  className="flex items-center gap-3 px-3 py-3 transition-colors hover:bg-muted/30"
+                >
+                  {content}
+                </Link>
+              );
+            }
+
+            return (
+              <div key={rowKey(row)} className="flex items-center gap-3 px-3 py-3">
+                {content}
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
