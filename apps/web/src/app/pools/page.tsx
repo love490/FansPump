@@ -219,16 +219,15 @@ export default function PoolsPage() {
             )}
           </div>
 
-          <label className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground">
-            <Checkbox checked={hideSmallPools} onCheckedChange={(v) => setHideSmallPools(v === true)} />
-            Hide small pools
-          </label>
-
-          <div className="flex justify-end">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <label className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground">
+              <Checkbox checked={hideSmallPools} onCheckedChange={(v) => setHideSmallPools(v === true)} />
+              Hide small pools
+            </label>
             <Button asChild size="sm" className="shrink-0">
               <Link href="/liquidity?tab=add">
                 <Plus className="mr-2 h-4 w-4" />
-                + New Position
+                New Position
               </Link>
             </Button>
           </div>

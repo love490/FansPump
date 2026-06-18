@@ -11,11 +11,6 @@ import { StatGrid } from "@/components/defi/defi-stats-overview";
 import { useAccount } from "wagmi";
 import { useMyLiquidityPositions } from "@/hooks/liquidity/useMyLiquidityPositions";
 import { useBasePoolLpPositions } from "@/hooks/liquidity/useBasePoolLpPositions";
-import {
-  formatBaseLpPositionLabel,
-  formatTokenLpPositionLabel,
-  summarizeLpDisplayParts,
-} from "@/lib/liquidity/format-amount";
 
 type LiquidityTab = "add" | "remove";
 
@@ -24,42 +19,98 @@ type LiquidityWorkspaceProps = {
   onLiquidityAdded?: () => void;
 };
 
-function LiquidityWorkspaceInner({ refreshSeq = 0, onLiquidityAdded }: LiquidityWorkspaceProps) {
+function TabFromUrl({ onTab }: { onTab: (tab: LiquidityTab) => void }) {
   const searchParams = useSearchParams();
-  const initialTab = searchParams.get("tab") === "remove" ? "remove" : "add";
-  const { isConnected, address } = useAccount();
-  const [tab, setTab] = useState<LiquidityTab>(initialTab);
-  const { positions, loading: lpLoading } = useMyLiquidityPositions(address);
-  const { positions: basePools, loading: baseLoading } = useBasePoolLpPositions(address);
 
   useEffect(() => {
-    setTab(searchParams.get("tab") === "remove" ? "remove" : "add");
-  }, [searchParams]);
+    onTab(searchParams.get("tab") === "remove" ? "remove" : "add");
+  }, [searchParams, onTab]);
 
-  const handleLiquidityAdded = useCallback(() => {
-    onLiquidityAdded?.();
-    setTab("remove");
-  }, [onLiquidityAdded]);
+  return null;
+}
+
+function RemoveLiquidityTab({ refreshSeq }: { refreshSeq: number }) {
+  const { isConnected, address } = useAccount();
+  const { positions, loading: lpLoading } = useMyLiquidityPositions(address);
+  const { positions: basePools, loading: baseLoading } = useBasePoolLpPositions(address);
 
   const personal = useMemo(() => {
     const tokenLp = positions.filter((p) => !p.pending && p.lpBalance > 0n);
     const baseLp = basePools.filter((p) => p.lpBalance > 0n);
-    const lpDisplayParts = [
-      ...tokenLp.map((p) =>
-        formatTokenLpPositionLabel(p.lpBalance, p.lpDecimals, p.tokenSymbol, p.pairLabel)
-      ),
-      ...baseLp.map((p) => formatBaseLpPositionLabel(p.lpBalance, p.lpDecimals, p.pairLabel)),
-    ];
-    return {
-      positionCount: tokenLp.length + baseLp.length,
-      lpDisplayParts,
-    };
+    return { positionCount: tokenLp.length + baseLp.length };
   }, [positions, basePools]);
 
   const statsLoading = lpLoading || baseLoading;
 
   return (
+    <div className="space-y-6">
+      <div className="space-y-3">
+        <div>
+          <h3 className="text-base font-semibold">My activity</h3>
+          <p className="text-sm text-muted-foreground">Your LP holdings across FansPump pools.</p>
+        </div>
+
+        {!isConnected ? (
+          <p className="rounded-lg border border-dashed px-4 py-6 text-center text-sm text-muted-foreground">
+            Connect your wallet to see your LP activity.
+          </p>
+        ) : (
+          <StatGrid
+            stats={[
+              {
+                label: "Your LP positions",
+                value: statsLoading ? "…" : String(personal.positionCount),
+                hint:
+                  personal.positionCount > 0
+                    ? "See active positions below"
+                    : "Add liquidity to get started",
+              },
+            ]}
+            loading={statsLoading}
+          />
+        )}
+      </div>
+
+      <div className="space-y-3 border-t border-border pt-6">
+        <div>
+          <h3 className="text-base font-semibold">Active positions</h3>
+          <p className="text-sm text-muted-foreground">
+            LP tokens you hold — project pairs and base pools.
+          </p>
+        </div>
+        <MyLiquidityList refreshSeq={refreshSeq} showBasePools emphasizeLp />
+      </div>
+
+      {isConnected && <LiquidityLockBurnEntryCard />}
+    </div>
+  );
+}
+
+export function LiquidityWorkspace({ refreshSeq = 0, onLiquidityAdded }: LiquidityWorkspaceProps) {
+  const [tab, setTab] = useState<LiquidityTab>("add");
+  const [removeMounted, setRemoveMounted] = useState(false);
+
+  const syncTabFromUrl = useCallback((next: LiquidityTab) => {
+    setTab(next);
+    if (next === "remove") setRemoveMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (tab === "remove") setRemoveMounted(true);
+  }, [tab]);
+
+  const handleLiquidityAdded = useCallback(() => {
+    onLiquidityAdded?.();
+    setRemoveMounted(true);
+    setTab("remove");
+  }, [onLiquidityAdded]);
+
+  return (
     <div className="space-y-4">
+      <Suspense fallback={null}>
+        <TabFromUrl onTab={syncTabFromUrl} />
+      </Suspense>
+
       <Card>
         <CardHeader className="pb-3">
           <CardTitle>Liquidity</CardTitle>
@@ -92,69 +143,17 @@ function LiquidityWorkspaceInner({ refreshSeq = 0, onLiquidityAdded }: Liquidity
         </div>
 
         <CardContent className="pt-5">
-          {tab === "add" ? (
+          <div className={cn(tab !== "add" && "hidden")} aria-hidden={tab !== "add"}>
             <AddLiquidityPanel variant="compact" onLiquidityAdded={handleLiquidityAdded} />
-          ) : (
-            <div className="space-y-6">
-              <div className="space-y-3">
-                <div>
-                  <h3 className="text-base font-semibold">My activity</h3>
-                  <p className="text-sm text-muted-foreground">Your LP holdings across FansPump pools.</p>
-                </div>
+          </div>
 
-                {!isConnected ? (
-                  <p className="rounded-lg border border-dashed px-4 py-6 text-center text-sm text-muted-foreground">
-                    Connect your wallet to see your LP activity.
-                  </p>
-                ) : (
-                  <StatGrid
-                    stats={[
-                      {
-                        label: "Your LP positions",
-                        value: statsLoading ? "…" : String(personal.positionCount),
-                      },
-                      {
-                        label: "Your liquidity",
-                        value:
-                          statsLoading
-                            ? "…"
-                            : personal.positionCount === 0
-                              ? "None yet"
-                              : summarizeLpDisplayParts(personal.lpDisplayParts),
-                        hint:
-                          personal.positionCount > 0
-                            ? "See active positions below"
-                            : "Add liquidity to get started",
-                      },
-                    ]}
-                    loading={statsLoading}
-                  />
-                )}
-              </div>
-
-              <div className="space-y-3 border-t border-border pt-6">
-                <div>
-                  <h3 className="text-base font-semibold">Active positions</h3>
-                  <p className="text-sm text-muted-foreground">
-                    LP tokens you hold — project pairs and base pools.
-                  </p>
-                </div>
-                <MyLiquidityList refreshSeq={refreshSeq} showBasePools emphasizeLp />
-              </div>
-
-              {isConnected && <LiquidityLockBurnEntryCard />}
+          {removeMounted && (
+            <div className={cn(tab !== "remove" && "hidden")} aria-hidden={tab !== "remove"}>
+              <RemoveLiquidityTab refreshSeq={refreshSeq} />
             </div>
           )}
         </CardContent>
       </Card>
     </div>
-  );
-}
-
-export function LiquidityWorkspace(props: LiquidityWorkspaceProps) {
-  return (
-    <Suspense fallback={<div className="h-48 animate-pulse rounded-xl bg-muted" />}>
-      <LiquidityWorkspaceInner {...props} />
-    </Suspense>
   );
 }
