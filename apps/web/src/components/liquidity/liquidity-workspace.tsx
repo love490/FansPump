@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { AddLiquidityPanel } from "@/components/liquidity/add-liquidity-panel";
@@ -19,14 +19,8 @@ type LiquidityWorkspaceProps = {
   onLiquidityAdded?: () => void;
 };
 
-function TabFromUrl({ onTab }: { onTab: (tab: LiquidityTab) => void }) {
-  const searchParams = useSearchParams();
-
-  useEffect(() => {
-    onTab(searchParams.get("tab") === "remove" ? "remove" : "add");
-  }, [searchParams, onTab]);
-
-  return null;
+function tabFromSearchParams(searchParams: URLSearchParams): LiquidityTab {
+  return searchParams.get("tab") === "remove" ? "remove" : "add";
 }
 
 function RemoveLiquidityTab({ refreshSeq }: { refreshSeq: number }) {
@@ -86,24 +80,36 @@ function RemoveLiquidityTab({ refreshSeq }: { refreshSeq: number }) {
   );
 }
 
-export function LiquidityWorkspace({ refreshSeq = 0, onLiquidityAdded }: LiquidityWorkspaceProps) {
-  const [tab, setTab] = useState<LiquidityTab>("add");
+function LiquidityWorkspaceInner({ refreshSeq = 0, onLiquidityAdded }: LiquidityWorkspaceProps) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const urlTab = tabFromSearchParams(searchParams);
+  const [tab, setTab] = useState<LiquidityTab>(urlTab);
 
-  const syncTabFromUrl = useCallback((next: LiquidityTab) => {
-    setTab(next);
-  }, []);
+  useEffect(() => {
+    setTab(urlTab);
+  }, [urlTab]);
+
+  const selectTab = useCallback(
+    (next: LiquidityTab) => {
+      setTab(next);
+      const params = new URLSearchParams(searchParams.toString());
+      if (next === "remove") params.set("tab", "remove");
+      else params.delete("tab");
+      const query = params.toString();
+      router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+    },
+    [pathname, router, searchParams]
+  );
 
   const handleLiquidityAdded = useCallback(() => {
     onLiquidityAdded?.();
-    setTab("remove");
-  }, [onLiquidityAdded]);
+    selectTab("remove");
+  }, [onLiquidityAdded, selectTab]);
 
   return (
     <div className="space-y-4">
-      <Suspense fallback={null}>
-        <TabFromUrl onTab={syncTabFromUrl} />
-      </Suspense>
-
       <Card className="overflow-visible">
         <CardHeader className="pb-3">
           <CardTitle>Liquidity</CardTitle>
@@ -121,7 +127,7 @@ export function LiquidityWorkspace({ refreshSeq = 0, onLiquidityAdded }: Liquidi
               <button
                 key={item.id}
                 type="button"
-                onClick={() => setTab(item.id)}
+                onClick={() => selectTab(item.id)}
                 className={cn(
                   "flex-1 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
                   tab === item.id
@@ -144,5 +150,13 @@ export function LiquidityWorkspace({ refreshSeq = 0, onLiquidityAdded }: Liquidi
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+export function LiquidityWorkspace(props: LiquidityWorkspaceProps) {
+  return (
+    <Suspense fallback={<div className="h-64 animate-pulse rounded-xl bg-muted" />}>
+      <LiquidityWorkspaceInner {...props} />
+    </Suspense>
   );
 }

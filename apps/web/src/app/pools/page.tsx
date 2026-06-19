@@ -6,13 +6,24 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import type { PoolRecord } from "@iopn/shared";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
-import { AddressCopyButton } from "@/components/ui/address-copy-button";
 import { DefiStatsOverview } from "@/components/defi/defi-stats-overview";
 import { formatReserve } from "@/lib/defi/format-reserve";
+import {
+  CompactSelect,
+  PoolsDesktopTable,
+  PoolsMobileTable,
+  StablePoolsSection,
+} from "@/components/pools/pools-table";
+import {
+  filterPoolsByCategory,
+  isStablePool,
+  sortPoolsByMetric,
+  type PoolCategoryFilter,
+  type PoolMetricFilter,
+} from "@/lib/pools/pool-display-metrics";
 import { BarChart3, Droplets, Plus, RefreshCw, Search } from "lucide-react";
 import { cn, shortenAddress } from "@/lib/utils";
 
@@ -59,6 +70,8 @@ export default function PoolsPage() {
   const [syncing, setSyncing] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [hideSmallPools, setHideSmallPools] = useState(false);
+  const [poolCategory, setPoolCategory] = useState<PoolCategoryFilter>("all");
+  const [poolMetric, setPoolMetric] = useState<PoolMetricFilter>("volume24h");
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -127,6 +140,22 @@ export default function PoolsPage() {
     });
   }, [pools, trimmedQuery, hideSmallPools]);
 
+  const stablePools = useMemo(
+    () => sortPoolsByMetric(filteredPools.filter(isStablePool), poolMetric),
+    [filteredPools, poolMetric]
+  );
+
+  const displayPools = useMemo(() => {
+    const categorized = filterPoolsByCategory(filteredPools, poolCategory);
+    return sortPoolsByMetric(categorized, poolMetric);
+  }, [filteredPools, poolCategory, poolMetric]);
+
+  const poolsForMainTable = useMemo(() => {
+    if (poolCategory !== "all") return displayPools;
+    const stableAddresses = new Set(stablePools.map((p) => p.poolAddress.toLowerCase()));
+    return displayPools.filter((p) => !stableAddresses.has(p.poolAddress.toLowerCase()));
+  }, [displayPools, stablePools, poolCategory]);
+
   return (
     <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6 lg:px-8">
       <header className="mb-8">
@@ -152,28 +181,21 @@ export default function PoolsPage() {
       <DefiStatsOverview
         className="mb-8"
         showPersonal={false}
-        platformDescription="Total liquidity and activity across all indexed pools on FansPump."
+        platformDescription="Platform-wide TVL and volume across indexed pools on FansPump."
         platformLoading={loading}
         platformStats={[
           {
-            label: "Total liquidity",
+            label: "TVL",
             value: analytics ? formatReserve(analytics.totalLiquidity) : "0",
-            hint: "Platform-wide TVL",
           },
           {
-            label: "Total pools",
-            value: analytics ? String(analytics.totalPools) : "0",
-          },
-          {
-            label: "Volume tracked",
+            label: "24hr volume",
             value: analytics ? formatReserve(analytics.totalVolume) : "0",
-          },
-          {
-            label: "Providers (est.)",
-            value: analytics ? String(analytics.totalProviders) : "0",
           },
         ]}
       />
+
+      <StablePoolsSection pools={stablePools} />
 
       <Card>
         <CardHeader className="space-y-4">
@@ -231,11 +253,35 @@ export default function PoolsPage() {
               </Link>
             </Button>
           </div>
+
+          <div className="flex gap-2 md:hidden">
+            <CompactSelect
+              label="Pool"
+              value={poolCategory}
+              onChange={(v) => setPoolCategory(v as PoolCategoryFilter)}
+              options={[
+                { value: "all", label: "All pools" },
+                { value: "wopn", label: "WOPN" },
+                { value: "stable", label: "Stable" },
+              ]}
+            />
+            <CompactSelect
+              label="Metric"
+              value={poolMetric}
+              onChange={(v) => setPoolMetric(v as PoolMetricFilter)}
+              options={[
+                { value: "volume24h", label: "24H" },
+                { value: "volume7d", label: "7D" },
+                { value: "fees24h", label: "Fees 24H" },
+                { value: "providers", label: "Providers" },
+              ]}
+            />
+          </div>
         </CardHeader>
         <CardContent>
           {loading ? (
             <p className="text-sm text-muted-foreground">Loading pools…</p>
-          ) : !filteredPools.length ? (
+          ) : !displayPools.length ? (
             <div className="space-y-4 rounded-lg border border-dashed p-6 text-sm text-muted-foreground">
               <p>{pools.length ? "No pools match your search." : "No pools indexed yet."}</p>
               {canAddPool ? (
@@ -247,57 +293,17 @@ export default function PoolsPage() {
               )}
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[640px] text-sm">
-                <thead>
-                  <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
-                    <th className="pb-3 pr-4 font-medium">Pool</th>
-                    <th className="pb-3 pr-4 font-medium">TVL</th>
-                    <th className="pb-3 pr-4 font-medium">Volume</th>
-                    <th className="pb-3 font-medium text-right">Providers</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {filteredPools.map((pool, index) => (
-                    <PoolRow key={pool.poolAddress} pool={pool} rank={index + 1} />
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <>
+              <div className="md:hidden">
+                <PoolsMobileTable pools={displayPools} />
+              </div>
+              <div className="hidden md:block">
+                <PoolsDesktopTable pools={poolsForMainTable} />
+              </div>
+            </>
           )}
         </CardContent>
       </Card>
     </div>
-  );
-}
-
-function PoolRow({ pool, rank }: { pool: PoolRecord; rank: number }) {
-  const label = poolLabel(pool);
-
-  return (
-    <tr className="align-middle">
-      <td className="py-3 pr-4">
-        <div className="flex items-start gap-3">
-          <span className="mt-0.5 shrink-0 text-xs tabular-nums text-muted-foreground">#{rank}</span>
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <p className="font-semibold">{label}</p>
-              <Badge variant="outline" className="text-[10px]">
-                {pool.pairType.replace(/_/g, "/")}
-              </Badge>
-            </div>
-            <div className="mt-1 flex min-w-0 items-center gap-0.5">
-              <span className="truncate font-mono text-xs text-muted-foreground" title={pool.poolAddress}>
-                {shortenAddress(pool.poolAddress, 4)}
-              </span>
-              <AddressCopyButton value={pool.poolAddress} />
-            </div>
-          </div>
-        </div>
-      </td>
-      <td className="py-3 pr-4 font-medium tabular-nums">{formatReserve(pool.totalLiquidity)}</td>
-      <td className="py-3 pr-4 tabular-nums text-muted-foreground">{formatReserve(pool.totalVolume)}</td>
-      <td className="py-3 text-right tabular-nums text-muted-foreground">{pool.providerCount}</td>
-    </tr>
   );
 }

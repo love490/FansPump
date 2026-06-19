@@ -20,6 +20,7 @@ import {
   type MarketTableRow,
 } from "@/lib/tokens/market-metrics";
 import type { TokenCardData } from "@/components/tokens/token-card";
+import type { HomeMarketTabId } from "@/lib/tokens/home-market-tabs";
 
 export type MarketTableTab = {
   id: string;
@@ -44,9 +45,22 @@ type TokenMarketTableProps = {
 
 const DEFAULT_PAGE_SIZE = 10;
 
-const columns: { key: MarketSortKey | "name"; label: string; align?: "right" }[] = [
+const MOBILE_FILTERS: { id: HomeMarketTabId; label: string }[] = [
+  { id: "views", label: "Most Viewed" },
+  { id: "hot", label: "Hot" },
+  { id: "loser", label: "Loser" },
+];
+
+const MOBILE_SORT_OPTIONS: { key: MarketSortKey; label: string }[] = [
+  { key: "change1h", label: "1H" },
+  { key: "marketCap", label: "Market Cap" },
+  { key: "change7d", label: "7D" },
+  { key: "volume24h", label: "Volume" },
+];
+
+const desktopColumns: { key: MarketSortKey | "name"; label: string; align?: "right" }[] = [
   { key: "rank", label: "#" },
-  { key: "name", label: "Name" },
+  { key: "name", label: "Market" },
   { key: "price", label: "Price", align: "right" },
   { key: "change1h", label: "1h %", align: "right" },
   { key: "change24h", label: "24h %", align: "right" },
@@ -82,6 +96,37 @@ function tokenHref(row: MarketTableRow) {
   return `/token/${row.contractAddress}`;
 }
 
+function CompactSelect({
+  label,
+  value,
+  onChange,
+  options,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: { value: string; label: string }[];
+}) {
+  return (
+    <label className="flex min-w-0 flex-1 flex-col gap-1">
+      <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+        {label}
+      </span>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="h-9 w-full rounded-lg border border-border bg-background px-2 text-xs font-medium outline-none focus:ring-2 focus:ring-primary/30"
+      >
+        {options.map((opt) => (
+          <option key={opt.value} value={opt.value}>
+            {opt.label}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
 export function TokenMarketTable({
   tokens,
   title,
@@ -102,7 +147,11 @@ export function TokenMarketTable({
   const allowFavorites = canToggleFavorite ?? hasWallet;
   const [sortKey, setSortKey] = useState<MarketSortKey>("rank");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const [mobileSortKey, setMobileSortKey] = useState<MarketSortKey>("volume24h");
   const [page, setPage] = useState(1);
+
+  const mobileFilter =
+    MOBILE_FILTERS.find((f) => f.id === activeTab)?.id ?? MOBILE_FILTERS[0].id;
 
   const rows = useMemo(() => {
     const built = buildMarketTableRows(tokens, { includeBaseTokens });
@@ -110,11 +159,29 @@ export function TokenMarketTable({
     return sortMarketRows(built, sortKey, sortDir);
   }, [tokens, includeBaseTokens, sortKey, sortDir]);
 
+  const mobileRows = useMemo(() => {
+    const built = buildMarketTableRows(tokens, { includeBaseTokens });
+    return sortMarketRows(built, mobileSortKey, "desc");
+  }, [tokens, includeBaseTokens, mobileSortKey]);
+
   const pagination = useMemo(() => getPageSlice(rows, page, pageSize), [rows, page, pageSize]);
+  const mobilePagination = useMemo(
+    () => getPageSlice(mobileRows, page, pageSize),
+    [mobileRows, page, pageSize]
+  );
 
   useEffect(() => {
     setPage(1);
-  }, [tokens, sortKey, sortDir, pageSize]);
+  }, [tokens, sortKey, sortDir, mobileSortKey, pageSize, activeTab]);
+
+  useEffect(() => {
+    if (!onTabChange) return;
+    const mq = window.matchMedia("(max-width: 767px)");
+    if (!mq.matches) return;
+    if (!MOBILE_FILTERS.some((f) => f.id === activeTab)) {
+      onTabChange(MOBILE_FILTERS[0].id);
+    }
+  }, [activeTab, onTabChange]);
 
   useEffect(() => {
     if (page > pagination.totalPages) {
@@ -131,6 +198,14 @@ export function TokenMarketTable({
     setSortDir(key === "rank" ? "asc" : "desc");
   }
 
+  const rowProps = {
+    favoriteIds,
+    allowFavorites,
+    canToggleFavorite: Boolean(onToggleFavorite),
+    onToggleFavorite,
+    onNeedSignIn: () => setSignInOpen(true),
+  };
+
   return (
     <section className="space-y-4">
       <div className="space-y-3">
@@ -142,8 +217,9 @@ export function TokenMarketTable({
             )}
           </div>
         )}
+
         {tabs && tabs.length > 0 && onTabChange && (
-          <div className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <div className="hidden gap-2 overflow-x-auto pb-1 md:flex [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
@@ -161,15 +237,78 @@ export function TokenMarketTable({
             ))}
           </div>
         )}
+
+        {onTabChange && (
+          <div className="flex gap-2 md:hidden">
+            <CompactSelect
+              label="Filter"
+              value={mobileFilter}
+              onChange={(id) => onTabChange(id)}
+              options={MOBILE_FILTERS.map((f) => ({ value: f.id, label: f.label }))}
+            />
+            <CompactSelect
+              label="Sort"
+              value={mobileSortKey}
+              onChange={(key) => setMobileSortKey(key as MarketSortKey)}
+              options={MOBILE_SORT_OPTIONS.map((o) => ({ value: o.key, label: o.label }))}
+            />
+          </div>
+        )}
       </div>
 
-      <div className="overflow-hidden rounded-2xl border border-border bg-card text-card-foreground shadow-sm">
+      {/* Mobile compact table */}
+      <div className="overflow-hidden rounded-2xl border border-border bg-card text-card-foreground shadow-sm md:hidden">
+        <table className="w-full border-collapse text-sm">
+          <thead>
+            <tr className="border-b border-border text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+              <th className="w-9 px-2 py-2.5" aria-label="Favorite" />
+              <th className="px-2 py-2.5 text-left">Market</th>
+              <th className="px-2 py-2.5 text-right">Price</th>
+              <th className="px-2 py-2.5 text-right">24H</th>
+            </tr>
+          </thead>
+          <tbody>
+            {isLoading ? (
+              [...Array(6)].map((_, i) => (
+                <tr key={i} className="border-b border-border">
+                  <td colSpan={4} className="px-2 py-3">
+                    <div className="h-7 animate-pulse rounded bg-muted" />
+                  </td>
+                </tr>
+              ))
+            ) : mobileRows.length === 0 ? (
+              <tr>
+                <td colSpan={4} className="px-3 py-8 text-center text-sm text-muted-foreground">
+                  {emptyMessage}
+                </td>
+              </tr>
+            ) : (
+              mobilePagination.items.map((row) => (
+                <MarketRowMobile key={row.id} row={row} {...rowProps} />
+              ))
+            )}
+          </tbody>
+        </table>
+        {!isLoading && mobileRows.length > 0 && (
+          <TablePagination
+            page={mobilePagination.page}
+            totalPages={mobilePagination.totalPages}
+            startIndex={mobilePagination.startIndex}
+            endIndex={mobilePagination.endIndex}
+            totalCount={mobilePagination.total}
+            onPageChange={setPage}
+          />
+        )}
+      </div>
+
+      {/* Desktop full table */}
+      <div className="hidden overflow-hidden rounded-2xl border border-border bg-card text-card-foreground shadow-sm md:block">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[920px] border-collapse text-sm">
             <thead>
               <tr className="border-b border-border text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 <th className="w-10 px-3 py-3" aria-label="Favorite" />
-                {columns.map((col) => (
+                {desktopColumns.map((col) => (
                   <th
                     key={col.key}
                     className={cn(
@@ -209,15 +348,7 @@ export function TokenMarketTable({
                 </tr>
               ) : (
                 pagination.items.map((row) => (
-                  <MarketRow
-                    key={row.id}
-                    row={row}
-                    isFavorite={favoriteIds?.has(row.id) ?? false}
-                    canToggleFavorite={Boolean(onToggleFavorite)}
-                    allowFavorites={allowFavorites}
-                    onNeedSignIn={() => setSignInOpen(true)}
-                    onToggleFavorite={onToggleFavorite}
-                  />
+                  <MarketRowDesktop key={row.id} row={row} {...rowProps} />
                 ))
               )}
             </tbody>
@@ -240,7 +371,7 @@ export function TokenMarketTable({
   );
 }
 
-function MarketRow({
+function FavoriteButton({
   row,
   isFavorite,
   canToggleFavorite,
@@ -258,36 +389,113 @@ function MarketRow({
   const favoriteEnabled = canToggleFavorite && row.canFavorite;
 
   return (
+    <button
+      type="button"
+      disabled={!favoriteEnabled}
+      onClick={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!allowFavorites) {
+          onNeedSignIn?.();
+          return;
+        }
+        onToggleFavorite?.(row.id);
+      }}
+      className={cn(
+        "pointer-events-auto relative z-20 rounded p-1 transition-colors",
+        favoriteEnabled ? "cursor-pointer hover:bg-muted" : "cursor-not-allowed opacity-40"
+      )}
+      aria-label={
+        !allowFavorites
+          ? "Sign in to add favorites"
+          : isFavorite
+            ? "Remove from favorites"
+            : "Add to favorites"
+      }
+    >
+      <Star
+        className={cn("h-4 w-4", isFavorite ? "fill-amber-400 text-amber-400" : "text-muted-foreground")}
+      />
+    </button>
+  );
+}
+
+function MarketRowMobile({
+  row,
+  favoriteIds,
+  canToggleFavorite,
+  allowFavorites,
+  onNeedSignIn,
+  onToggleFavorite,
+}: {
+  row: MarketTableRow;
+  favoriteIds?: Set<string>;
+  canToggleFavorite: boolean;
+  allowFavorites: boolean;
+  onNeedSignIn?: () => void;
+  onToggleFavorite?: (tokenId: string) => void;
+}) {
+  const isFavorite = favoriteIds?.has(row.id) ?? false;
+
+  return (
+    <tr className="border-b border-border transition-colors hover:bg-muted/50">
+      <td className="px-2 py-2.5">
+        <FavoriteButton
+          row={row}
+          isFavorite={isFavorite}
+          canToggleFavorite={canToggleFavorite}
+          allowFavorites={allowFavorites}
+          onNeedSignIn={onNeedSignIn}
+          onToggleFavorite={onToggleFavorite}
+        />
+      </td>
+      <td className="px-2 py-2.5">
+        <Link href={tokenHref(row)} className="flex min-w-0 items-center gap-2">
+          <TokenLogo src={row.logoUrl} symbol={row.symbol} name={row.name} layout="fixed" size={24} />
+          <div className="min-w-0">
+            <p className="truncate text-sm font-semibold">{row.symbol}</p>
+            <p className="truncate text-[10px] text-muted-foreground">{row.name}</p>
+          </div>
+        </Link>
+      </td>
+      <td className="px-2 py-2.5 text-right tabular-nums text-foreground">
+        {formatMarketPrice(row.price)}
+      </td>
+      <td className="px-2 py-2.5 text-right">
+        <ChangeCell value={row.change24h} />
+      </td>
+    </tr>
+  );
+}
+
+function MarketRowDesktop({
+  row,
+  favoriteIds,
+  canToggleFavorite,
+  allowFavorites,
+  onNeedSignIn,
+  onToggleFavorite,
+}: {
+  row: MarketTableRow;
+  favoriteIds?: Set<string>;
+  canToggleFavorite: boolean;
+  allowFavorites: boolean;
+  onNeedSignIn?: () => void;
+  onToggleFavorite?: (tokenId: string) => void;
+}) {
+  const isFavorite = favoriteIds?.has(row.id) ?? false;
+
+  return (
     <tr className="border-b border-border transition-colors hover:bg-muted/50">
       <td className="px-3 py-3">
-        <button
-          type="button"
-          disabled={!favoriteEnabled}
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            if (!allowFavorites) {
-              onNeedSignIn?.();
-              return;
-            }
-            onToggleFavorite?.(row.id);
-          }}
-          className={cn(
-            "pointer-events-auto relative z-20 rounded p-1 transition-colors",
-            favoriteEnabled ? "cursor-pointer hover:bg-muted" : "cursor-not-allowed opacity-40"
-          )}
-          aria-label={
-            !allowFavorites
-              ? "Sign in to add favorites"
-              : isFavorite
-                ? "Remove from favorites"
-                : "Add to favorites"
-          }
-        >
-          <Star
-            className={cn("h-4 w-4", isFavorite ? "fill-amber-400 text-amber-400" : "text-muted-foreground")}
-          />
-        </button>
+        <FavoriteButton
+          row={row}
+          isFavorite={isFavorite}
+          canToggleFavorite={canToggleFavorite}
+          allowFavorites={allowFavorites}
+          onNeedSignIn={onNeedSignIn}
+          onToggleFavorite={onToggleFavorite}
+        />
       </td>
       <td className="px-3 py-3 tabular-nums text-muted-foreground">{row.rank}</td>
       <td className="px-3 py-3">
@@ -321,8 +529,12 @@ function MarketRow({
       <td className="px-3 py-3 text-right">
         <ChangeCell value={row.change7d} />
       </td>
-      <td className="px-3 py-3 text-right tabular-nums text-foreground">{formatMarketCompact(row.marketCap)}</td>
-      <td className="px-3 py-3 text-right tabular-nums text-foreground">{formatMarketCompact(row.volume24h)}</td>
+      <td className="px-3 py-3 text-right tabular-nums text-foreground">
+        {formatMarketCompact(row.marketCap)}
+      </td>
+      <td className="px-3 py-3 text-right tabular-nums text-foreground">
+        {formatMarketCompact(row.volume24h)}
+      </td>
     </tr>
   );
 }
