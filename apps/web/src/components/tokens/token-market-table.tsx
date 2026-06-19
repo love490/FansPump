@@ -48,15 +48,20 @@ const DEFAULT_PAGE_SIZE = 10;
 const MOBILE_FILTERS: { id: HomeMarketTabId; label: string }[] = [
   { id: "views", label: "Most Viewed" },
   { id: "hot", label: "Hot" },
+  { id: "gainer", label: "Gainer" },
   { id: "loser", label: "Loser" },
+  { id: "new", label: "New" },
 ];
 
 const MOBILE_SORT_OPTIONS: { key: MarketSortKey; label: string }[] = [
+  { key: "change24h", label: "24H" },
   { key: "change1h", label: "1H" },
   { key: "marketCap", label: "Market Cap" },
   { key: "change7d", label: "7D" },
   { key: "volume24h", label: "Volume" },
 ];
+
+const MOBILE_FILTER_IDS = new Set(MOBILE_FILTERS.map((f) => f.id));
 
 const desktopColumns: { key: MarketSortKey | "name"; label: string; align?: "right" }[] = [
   { key: "rank", label: "#" },
@@ -94,6 +99,30 @@ function swapHref(row: MarketTableRow) {
 function tokenHref(row: MarketTableRow) {
   if (!row.contractAddress || row.isBaseToken) return swapHref(row);
   return `/token/${row.contractAddress}`;
+}
+
+function mobileSortLabel(key: MarketSortKey): string {
+  return MOBILE_SORT_OPTIONS.find((o) => o.key === key)?.label ?? "24H";
+}
+
+function MobileSortCell({ row, sortKey }: { row: MarketTableRow; sortKey: MarketSortKey }) {
+  switch (sortKey) {
+    case "change1h":
+      return <ChangeCell value={row.change1h} />;
+    case "change7d":
+      return <ChangeCell value={row.change7d} />;
+    case "marketCap":
+      return (
+        <span className="tabular-nums text-foreground">{formatMarketCompact(row.marketCap)}</span>
+      );
+    case "volume24h":
+      return (
+        <span className="tabular-nums text-foreground">{formatMarketCompact(row.volume24h)}</span>
+      );
+    case "change24h":
+    default:
+      return <ChangeCell value={row.change24h} />;
+  }
 }
 
 function CompactSelect({
@@ -147,11 +176,13 @@ export function TokenMarketTable({
   const allowFavorites = canToggleFavorite ?? hasWallet;
   const [sortKey, setSortKey] = useState<MarketSortKey>("rank");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
-  const [mobileSortKey, setMobileSortKey] = useState<MarketSortKey>("volume24h");
+  const [mobileSortKey, setMobileSortKey] = useState<MarketSortKey>("change24h");
   const [page, setPage] = useState(1);
 
-  const mobileFilter =
-    MOBILE_FILTERS.find((f) => f.id === activeTab)?.id ?? MOBILE_FILTERS[0].id;
+  const mobileFilterValue =
+    activeTab && MOBILE_FILTER_IDS.has(activeTab as HomeMarketTabId)
+      ? activeTab
+      : MOBILE_FILTERS[0].id;
 
   const rows = useMemo(() => {
     const built = buildMarketTableRows(tokens, { includeBaseTokens });
@@ -176,9 +207,9 @@ export function TokenMarketTable({
 
   useEffect(() => {
     if (!onTabChange) return;
-    const mq = window.matchMedia("(max-width: 767px)");
-    if (!mq.matches) return;
-    if (!MOBILE_FILTERS.some((f) => f.id === activeTab)) {
+    const isMobile = window.matchMedia("(max-width: 767px)").matches;
+    if (!isMobile) return;
+    if (!activeTab || !MOBILE_FILTER_IDS.has(activeTab as HomeMarketTabId)) {
       onTabChange(MOBILE_FILTERS[0].id);
     }
   }, [activeTab, onTabChange]);
@@ -242,7 +273,7 @@ export function TokenMarketTable({
           <div className="flex gap-2 md:hidden">
             <CompactSelect
               label="Filter"
-              value={mobileFilter}
+              value={mobileFilterValue}
               onChange={(id) => onTabChange(id)}
               options={MOBILE_FILTERS.map((f) => ({ value: f.id, label: f.label }))}
             />
@@ -257,14 +288,17 @@ export function TokenMarketTable({
       </div>
 
       {/* Mobile compact table */}
-      <div className="overflow-hidden rounded-2xl border border-border bg-card text-card-foreground shadow-sm md:hidden">
+      <div
+        key={`mobile-${mobileFilterValue}-${mobileSortKey}`}
+        className="overflow-hidden rounded-2xl border border-border bg-card text-card-foreground shadow-sm md:hidden"
+      >
         <table className="w-full border-collapse text-sm">
           <thead>
             <tr className="border-b border-border text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
               <th className="w-9 px-2 py-2.5" aria-label="Favorite" />
               <th className="px-2 py-2.5 text-left">Market</th>
               <th className="px-2 py-2.5 text-right">Price</th>
-              <th className="px-2 py-2.5 text-right">24H</th>
+              <th className="px-2 py-2.5 text-right">{mobileSortLabel(mobileSortKey)}</th>
             </tr>
           </thead>
           <tbody>
@@ -284,7 +318,7 @@ export function TokenMarketTable({
               </tr>
             ) : (
               mobilePagination.items.map((row) => (
-                <MarketRowMobile key={row.id} row={row} {...rowProps} />
+                <MarketRowMobile key={row.id} row={row} sortKey={mobileSortKey} {...rowProps} />
               ))
             )}
           </tbody>
@@ -422,6 +456,7 @@ function FavoriteButton({
 
 function MarketRowMobile({
   row,
+  sortKey,
   favoriteIds,
   canToggleFavorite,
   allowFavorites,
@@ -429,6 +464,7 @@ function MarketRowMobile({
   onToggleFavorite,
 }: {
   row: MarketTableRow;
+  sortKey: MarketSortKey;
   favoriteIds?: Set<string>;
   canToggleFavorite: boolean;
   allowFavorites: boolean;
@@ -462,7 +498,7 @@ function MarketRowMobile({
         {formatMarketPrice(row.price)}
       </td>
       <td className="px-2 py-2.5 text-right">
-        <ChangeCell value={row.change24h} />
+        <MobileSortCell row={row} sortKey={sortKey} />
       </td>
     </tr>
   );

@@ -7,9 +7,12 @@ import { AddressCopyButton } from "@/components/ui/address-copy-button";
 import { formatReserve } from "@/lib/defi/format-reserve";
 import {
   formatApr,
+  formatPoolMetricDisplay,
   poolApr24h,
   poolFees24h,
+  poolMetricLabel,
   poolVolume24h,
+  type PoolMetricFilter,
 } from "@/lib/pools/pool-display-metrics";
 import { cn, shortenAddress } from "@/lib/utils";
 
@@ -42,13 +45,21 @@ function PoolNameCell({ pool, rank }: { pool: PoolRecord; rank?: number }) {
   );
 }
 
-export function PoolsMobileTable({ pools }: { pools: PoolRecord[] }) {
+export function PoolsMobileTable({
+  pools,
+  metric,
+}: {
+  pools: PoolRecord[];
+  metric: PoolMetricFilter;
+}) {
+  const metricHeader = poolMetricLabel(metric);
+
   return (
     <table className="w-full text-sm">
       <thead>
         <tr className="border-b border-border text-left text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
           <th className="pb-2 pr-2 font-medium">Pool</th>
-          <th className="pb-2 pr-2 text-right font-medium">Vol 24H</th>
+          <th className="pb-2 pr-2 text-right font-medium">{metricHeader}</th>
           <th className="pb-2 text-right font-medium">APR 24HR</th>
         </tr>
       </thead>
@@ -59,7 +70,7 @@ export function PoolsMobileTable({ pools }: { pools: PoolRecord[] }) {
               <PoolNameCell pool={pool} rank={index + 1} />
             </td>
             <td className="py-2.5 pr-2 text-right tabular-nums text-muted-foreground">
-              {formatReserve(String(poolVolume24h(pool)))}
+              {formatPoolMetricDisplay(pool, metric)}
             </td>
             <td className="py-2.5 text-right tabular-nums font-medium">
               {formatApr(poolApr24h(pool))}

@@ -294,8 +294,8 @@ export default function PoolsPage() {
             </div>
           ) : (
             <>
-              <div className="md:hidden">
-                <PoolsMobileTable pools={displayPools} />
+              <div className="md:hidden" key={`mobile-${poolCategory}-${poolMetric}`}>
+                <PoolsMobileTable pools={displayPools} metric={poolMetric} />
               </div>
               <div className="hidden md:block">
                 <PoolsDesktopTable pools={poolsForMainTable} />

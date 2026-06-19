@@ -1,4 +1,5 @@
 import type { PoolRecord } from "@iopn/shared";
+import { formatReserve } from "@/lib/defi/format-reserve";
 
 /** Standard 0.3% swap fee tier used for fee/APR estimates until on-chain fee indexing exists. */
 const SWAP_FEE_BPS = 30;
@@ -71,4 +72,22 @@ export function poolMetricValue(pool: PoolRecord, metric: PoolMetricFilter): num
   if (metric === "volume7d") return poolVolume7d(pool);
   if (metric === "fees24h") return poolFees24h(pool);
   return poolVolume24h(pool);
+}
+
+export function poolMetricLabel(metric: PoolMetricFilter): string {
+  switch (metric) {
+    case "volume7d":
+      return "Vol 7D";
+    case "fees24h":
+      return "Fees 24H";
+    case "providers":
+      return "Providers";
+    default:
+      return "Vol 24H";
+  }
+}
+
+export function formatPoolMetricDisplay(pool: PoolRecord, metric: PoolMetricFilter): string {
+  if (metric === "providers") return String(pool.providerCount);
+  return formatReserve(String(poolMetricValue(pool, metric)));
 }
