@@ -5,8 +5,8 @@ import { apiUrl } from "@/lib/api";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { TokenCard, type TokenCardData } from "@/components/tokens/token-card";
-import { tokenCardGridClass } from "@/components/tokens/token-card-styles";
+import type { TokenCardData } from "@/components/tokens/token-card";
+import { CreatorTokenList } from "@/components/creator/creator-token-list";
 import { VerifiedBadge } from "@/components/verification/VerifiedBadge";
 import { useVerification } from "@/hooks/useVerification";
 import { SecurityBadges } from "@/components/v2/security-badges";
@@ -120,11 +120,12 @@ export default function CreatorProfilePage() {
         {profile.badges && profile.badges.length > 0 && (
           <SecurityBadges badges={profile.badges} size="md" className="mt-3" max={6} />
         )}
-        {profile.creatorStatus && (
-          <Badge variant="outline" className="mt-2 capitalize">
-            {profile.creatorStatus.toLowerCase()} Creator
-          </Badge>
-        )}
+        {profile.creatorStatus &&
+          (profile.creatorStatus === "VERIFIED" || profile.creatorStatus === "TRUSTED") && (
+            <Badge variant="outline" className="mt-2 capitalize">
+              {profile.creatorStatus.toLowerCase()} Creator
+            </Badge>
+          )}
       </header>
 
       <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -210,17 +211,7 @@ export default function CreatorProfilePage() {
 
       <section className="mb-8">
         <h2 className="mb-4 text-xl font-semibold">Tokens</h2>
-        {profile.tokens.length === 0 ? (
-          <p className="text-muted-foreground">No tokens created yet.</p>
-        ) : (
-          <div className={`${tokenCardGridClass} items-stretch`}>
-            {profile.tokens.map((t, i) => (
-              <div key={t.id} className="h-full">
-                <TokenCard token={t} index={i} />
-              </div>
-            ))}
-          </div>
-        )}
+        <CreatorTokenList tokens={profile.tokens} />
       </section>
 
       {announcements.length > 0 && (
