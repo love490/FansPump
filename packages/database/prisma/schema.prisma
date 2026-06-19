@@ -901,3 +901,17 @@ model WalletVerification {
 
   @@map("wallet_verifications")
 }
+
+/// Cached wallet intelligence scans from TrustScan.
+model WalletScan {
+  id        String   @id @default(cuid())
+  address   String   @unique
+  riskLevel String   @map("risk_level")
+  riskScore Float    @map("risk_score")
+  data      Json
+  scannedAt DateTime @default(now()) @map("scanned_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([scannedAt])
+  @@map("wallet_scans")
+}

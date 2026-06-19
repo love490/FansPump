@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { Sidebar } from "@/components/layout/sidebar";
 import { TopBar } from "@/components/layout/top-bar";
@@ -43,7 +43,16 @@ function MainColumn({ children }: { children: React.ReactNode }) {
 
 function ShellRouter({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const [trustScanStandalone, setTrustScanStandalone] = useState(false);
+
+  useEffect(() => {
+    setTrustScanStandalone(window.location.hostname.startsWith("trustscan."));
+  }, []);
+
   if (pathname?.startsWith("/admin")) {
+    return <>{children}</>;
+  }
+  if (pathname === "/trustscan" && trustScanStandalone) {
     return <>{children}</>;
   }
   return (

@@ -13,6 +13,7 @@ import {
   CircleDollarSign,
   Megaphone,
   LifeBuoy,
+  Shield,
 } from "lucide-react";
 import { isDexPath } from "@/lib/navigation/swap-nav";
 
@@ -29,6 +30,7 @@ export type SidebarNavId =
   | "analytics"
   | "staking"
   | "launchpool"
+  | "trustscan"
   | "support"
   | "how-it-works"
   | "docs"
@@ -49,6 +51,7 @@ export const platformLinks: SidebarNavItem[] = [
   { id: "home", href: "/", label: "Home", icon: Home },
   { id: "create", href: "/create", label: "Create Token", icon: Rocket },
   { id: "discover", href: "/discover?section=all", label: "Discover", icon: Compass },
+  { id: "trustscan", href: "/trustscan", label: "TrustScan", icon: Shield },
   { id: "earn", href: "/earn", label: "Earn", icon: CircleDollarSign },
   { id: "launchpool", href: "/launchpool", label: "Launchpool", icon: Megaphone },
   { id: "dex", href: "/swap", label: "DEX", icon: ArrowLeftRight },
@@ -85,6 +88,8 @@ export function isSidebarNavActive(
       return pathname === "/create";
     case "discover":
       return pathname === "/discover";
+    case "trustscan":
+      return pathname === "/trustscan";
     case "earn":
       return pathname === "/earn";
     case "how-it-works":
