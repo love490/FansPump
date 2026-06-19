@@ -29,16 +29,25 @@ function TrustScanPageContent() {
   return (
     <div className={cn(shell, !standalone && "mx-auto max-w-2xl px-4 py-8 sm:py-12")}>
       <div className={cn(standalone && "mx-auto max-w-2xl space-y-8 px-4 py-12")}>
-        <div className="space-y-2 text-center">
+        <div className="space-y-3 text-center">
           {!standalone && (
             <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10">
               <Shield className="h-6 w-6 text-primary" />
             </div>
           )}
-          <h1 className={cn("text-3xl font-bold", standalone && "text-white")}>TrustScan</h1>
-          <p className={cn("text-sm", standalone ? "text-zinc-500" : "text-muted-foreground")}>
-            On-chain intelligence for OPN Chain — analyze any token or wallet. No signup required.
-          </p>
+          <div className="space-y-1">
+            <h1 className={cn("text-3xl font-bold tracking-tight", standalone && "text-white")}>
+              TrustScan
+            </h1>
+            <p
+              className={cn(
+                "mx-auto max-w-md text-base font-normal leading-relaxed",
+                standalone ? "text-zinc-400" : "text-muted-foreground"
+              )}
+            >
+              On-chain intelligence for OPN Chain — analyze any token or wallet. No signup required.
+            </p>
+          </div>
         </div>
 
         <ScanInput onScan={scan} isLoading={state.status === "loading"} standalone={standalone} />

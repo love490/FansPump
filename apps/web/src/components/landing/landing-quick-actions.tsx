@@ -7,7 +7,7 @@ import {
   CircleDollarSign,
   Megaphone,
   Rocket,
-  ShieldCheck,
+  Shield,
   Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -39,11 +39,11 @@ const primaryActions: QuickAction[] = [
     ),
   },
   {
-    href: "/verify",
-    label: "Verify",
+    href: "/trustscan",
+    label: "TrustScore",
     icon: (
       <span className="flex h-11 w-11 items-center justify-center rounded-full border-2 border-primary/30 bg-primary/5 sm:h-12 sm:w-12 lg:h-14 lg:w-14">
-        <ShieldCheck className="h-5 w-5 text-primary sm:h-6 sm:w-6 lg:h-7 lg:w-7" strokeWidth={1.75} />
+        <Shield className="h-5 w-5 text-primary sm:h-6 sm:w-6 lg:h-7 lg:w-7" strokeWidth={1.75} />
       </span>
     ),
   },

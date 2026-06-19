@@ -181,7 +181,6 @@ export default function PoolsPage() {
       <DefiStatsOverview
         className="mb-8"
         showPersonal={false}
-        platformDescription="Platform-wide TVL and volume across indexed pools on FansPump."
         platformLoading={loading}
         platformStats={[
           {

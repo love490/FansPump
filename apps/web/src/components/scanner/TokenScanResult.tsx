@@ -4,8 +4,9 @@ import Link from "next/link";
 import { TrustBadge } from "@/components/trust/TrustBadge";
 import { TrustScoreBar } from "@/components/trust/TrustScoreBar";
 import { RiskFlag } from "@/components/scanner/RiskFlag";
+import { AddressCopyButton } from "@/components/ui/address-copy-button";
 import { riskLevelToTrustTier, type TokenScanResult } from "@/lib/scanner/types";
-import { cn } from "@/lib/utils";
+import { cn, shortenAddress } from "@/lib/utils";
 
 export function TokenScanResult({
   result,
@@ -35,7 +36,15 @@ export function TokenScanResult({
               </span>
             )}
           </div>
-          <p className={cn("break-all font-mono text-xs", muted)}>{result.address}</p>
+          <div className="flex min-w-0 items-center gap-0.5">
+            <span className={cn("truncate font-mono text-xs", muted)} title={result.address}>
+              {shortenAddress(result.address, 6)}
+            </span>
+            <AddressCopyButton
+              value={result.address}
+              className={cn("h-6 w-6", standalone && "hover:bg-zinc-800")}
+            />
+          </div>
         </div>
         <TrustBadge tier={tier} score={result.trustScore} size="lg" />
       </div>

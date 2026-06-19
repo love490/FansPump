@@ -4,6 +4,7 @@ import { apiUrl } from "@/lib/api";
 
 import { useEffect, useMemo, useState } from "react";
 import { useAccount, useBalance, useSignMessage } from "wagmi";
+import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { formatUnits, parseEther, parseUnits } from "viem";
 import { STAKING_TIER_LABELS, STAKING_TIERS, type SupportedLpPool } from "@iopn/shared";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -97,6 +98,7 @@ type PlatformStakingStats = {
 
 export default function StakingPage() {
   const { address, isConnected } = useAccount();
+  const { openConnectModal } = useConnectModal();
   const { signMessageAsync } = useSignMessage();
   const { data: nativeBalance } = useBalance({ address });
   const { positions: lpPositions, loading: lpLoading, refresh: refreshLp } = useMyLiquidityPositions(address);
@@ -427,7 +429,6 @@ export default function StakingPage() {
 
       <DefiStatsOverview
         className="mb-8"
-        platformDescription="Total OPN and LP recorded as staked on FansPump."
         personalTitle="Your totals"
         personalDescription="Combined OPN, LP, and tier from pool share and Launchpool stakes."
         platformLoading={platformStatsLoading}
@@ -447,14 +448,6 @@ export default function StakingPage() {
               ? formatReserve(platformStats.totalStakedLpAmount)
               : "0",
             hint: platformStats ? `${platformStats.lpStakeCount} LP stake(s)` : undefined,
-          },
-          {
-            label: "Active stakers",
-            value: platformStats ? String(platformStats.activeStakers) : "0",
-          },
-          {
-            label: "Active positions",
-            value: platformStats ? String(platformStats.activeStakePositions) : "0",
           },
         ]}
         personalStats={[
@@ -501,8 +494,7 @@ export default function StakingPage() {
         ))}
       </div>
 
-      {isConnected && (
-        <div className="mb-8 space-y-6">
+      <div className="mb-8 space-y-6">
           <Card>
             <CardHeader>
               <CardTitle>Stake OPN</CardTitle>
@@ -521,6 +513,8 @@ export default function StakingPage() {
                   setStakeMax();
                 }}
                 onStake={() => void stake({ kind: "opn" })}
+                onConnect={() => openConnectModal?.()}
+                isConnected={isConnected}
                 staking={loading && stakeTarget.kind === "opn"}
                 disabled={!opnEnabled || loading || !amount}
                 stakeLabel={loading && stakeTarget.kind === "opn" ? "Staking…" : "Stake OPN"}
@@ -607,12 +601,13 @@ export default function StakingPage() {
               const pool = basePoolPositions.find((p) => p.poolId === "opn-usdc");
               if (pool) void stake({ kind: "base", pool });
             }}
+            onConnect={() => openConnectModal?.()}
+            isConnected={isConnected}
             staking={loading && stakeTarget.kind !== "opn"}
             disabled={!lpEnabled}
             usdcConfigured={usdcConfigured}
           />
         </div>
-      )}
 
       <Card>
         <CardHeader>
@@ -717,6 +712,8 @@ function StakeAmountRow({
   onAmountChange,
   onMax,
   onStake,
+  onConnect,
+  isConnected = true,
   staking,
   disabled,
   stakeLabel,
@@ -727,6 +724,8 @@ function StakeAmountRow({
   onAmountChange: (value: string) => void;
   onMax: () => void;
   onStake: () => void;
+  onConnect?: () => void;
+  isConnected?: boolean;
   staking: boolean;
   disabled: boolean;
   stakeLabel: string;
@@ -737,7 +736,14 @@ function StakeAmountRow({
       <div>
         <div className="flex items-center justify-between gap-2">
           <Label>{label}</Label>
-          <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={onMax}>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-7 px-2 text-xs"
+            onClick={onMax}
+            disabled={!isConnected}
+          >
             Max
           </Button>
         </div>
@@ -748,13 +754,19 @@ function StakeAmountRow({
           onChange={(e) => onAmountChange(e.target.value)}
           placeholder="0.0"
           className="mt-1"
+          disabled={!isConnected}
         />
       </div>
-      {showStakeButton && (
-        <Button onClick={onStake} disabled={disabled || staking || !amount}>
-          {stakeLabel}
-        </Button>
-      )}
+      {showStakeButton &&
+        (!isConnected ? (
+          <Button type="button" onClick={onConnect}>
+            Connect wallet to stake
+          </Button>
+        ) : (
+          <Button onClick={onStake} disabled={disabled || staking || !amount}>
+            {stakeLabel}
+          </Button>
+        ))}
     </>
   );
 }
@@ -773,6 +785,8 @@ function LpStakeCard({
   onAmountChange,
   onMax,
   onStake,
+  onConnect,
+  isConnected = true,
   staking,
   disabled,
   usdcConfigured,
@@ -790,6 +804,8 @@ function LpStakeCard({
   onAmountChange: (value: string) => void;
   onMax: () => void;
   onStake: () => void;
+  onConnect?: () => void;
+  isConnected?: boolean;
   staking: boolean;
   disabled: boolean;
   usdcConfigured: boolean;
@@ -827,7 +843,28 @@ function LpStakeCard({
         <CardDescription>OPN/USDT, OPN/USDC, or project token pair LP.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        {basePoolLoading || lpLoading ? (
+        {!isConnected ? (
+          <>
+            <div className="space-y-2">
+              <Label htmlFor="lp-pool-choice">LP pool</Label>
+              <select
+                id="lp-pool-choice"
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                value={lpPoolChoice}
+                onChange={(e) => onLpPoolChoiceChange(e.target.value as LpPoolChoice)}
+              >
+                <option value="opn-usdt">OPN/USDT LP</option>
+                <option value="opn-usdc" disabled={!usdcConfigured}>
+                  OPN/USDC LP
+                </option>
+                <option value="project">Project pair LP</option>
+              </select>
+            </div>
+            <Button type="button" onClick={onConnect}>
+              Connect wallet to stake LP
+            </Button>
+          </>
+        ) : basePoolLoading || lpLoading ? (
           <p className="text-sm text-muted-foreground">Checking wallet LP balances…</p>
         ) : (
           <>
@@ -878,19 +915,21 @@ function LpStakeCard({
               </p>
             )}
 
-            {lpBalance && (
+            {lpBalance ? (
               <StakeAmountRow
                 label="Amount (LP)"
                 amount={amount}
                 onAmountChange={onAmountChange}
                 onMax={onMax}
                 onStake={onStake}
+                onConnect={onConnect}
+                isConnected={isConnected}
                 staking={staking}
                 disabled={disabled || staking || !amount}
                 stakeLabel={staking ? "Staking…" : "Stake LP"}
                 showStakeButton
               />
-            )}
+            ) : null}
           </>
         )}
       </CardContent>

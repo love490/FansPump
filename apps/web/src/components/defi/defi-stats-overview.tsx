@@ -61,8 +61,8 @@ export function StatGrid({
 }
 
 export function DefiStatsOverview({
-  platformTitle = "Platform total",
-  platformDescription = "Combined activity across all FansPump users on OPN Network.",
+  platformTitle,
+  platformDescription,
   personalTitle = "Your activity",
   personalDescription = "Your wallet on this page.",
   platformStats,
@@ -78,6 +78,8 @@ export function DefiStatsOverview({
 }: DefiStatsOverviewProps) {
   const platform = platformStats ?? [];
   const personal = personalStats ?? [];
+  const showPlatformHeader = Boolean(platformTitle || platformDescription);
+  const showPersonalHeader = Boolean(personalTitle || personalDescription);
 
   return (
     <div
@@ -89,11 +91,13 @@ export function DefiStatsOverview({
     >
       {showPlatform && (
       <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">{platformTitle}</CardTitle>
-          <CardDescription>{platformDescription}</CardDescription>
-        </CardHeader>
-        <CardContent>
+        {showPlatformHeader && (
+          <CardHeader className="pb-3">
+            {platformTitle ? <CardTitle className="text-base">{platformTitle}</CardTitle> : null}
+            {platformDescription ? <CardDescription>{platformDescription}</CardDescription> : null}
+          </CardHeader>
+        )}
+        <CardContent className={cn(!showPlatformHeader && "pt-6")}>
           <StatGrid stats={platform} loading={loading || platformLoading} />
         </CardContent>
       </Card>
@@ -101,11 +105,13 @@ export function DefiStatsOverview({
 
       {showPersonal && (
       <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">{personalTitle}</CardTitle>
-          <CardDescription>{personalDescription}</CardDescription>
-        </CardHeader>
-        <CardContent>
+        {showPersonalHeader && (
+          <CardHeader className="pb-3">
+            {personalTitle ? <CardTitle className="text-base">{personalTitle}</CardTitle> : null}
+            {personalDescription ? <CardDescription>{personalDescription}</CardDescription> : null}
+          </CardHeader>
+        )}
+        <CardContent className={cn(!showPersonalHeader && "pt-6")}>
           {!isConnected ? (
             <p className="rounded-lg border border-dashed px-4 py-6 text-center text-sm text-muted-foreground">
               {connectMessage}

@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { RiskFlag } from "@/components/scanner/RiskFlag";
+import { AddressCopyButton } from "@/components/ui/address-copy-button";
 import type { WalletScanResult } from "@/lib/scanner/types";
-import { cn } from "@/lib/utils";
+import { cn, shortenAddress } from "@/lib/utils";
 
 export function WalletScanResult({
   result,
@@ -29,7 +30,15 @@ export function WalletScanResult({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <p className={cn("mb-1 text-xs", muted)}>Wallet — OPN Chain</p>
-          <p className={cn("break-all font-mono text-sm", text)}>{result.address}</p>
+          <div className="flex min-w-0 items-center gap-0.5">
+            <span className={cn("truncate font-mono text-xs", text ?? muted)} title={result.address}>
+              {shortenAddress(result.address, 6)}
+            </span>
+            <AddressCopyButton
+              value={result.address}
+              className={cn("h-6 w-6", standalone && "hover:bg-zinc-800")}
+            />
+          </div>
           <div className={cn("mt-1.5 flex items-center gap-3 text-xs", muted)}>
             <span>{Number(result.nativeBalance).toFixed(4)} OPN</span>
             <span>{result.txCount.toLocaleString()} transactions</span>

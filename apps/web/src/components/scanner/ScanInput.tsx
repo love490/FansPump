@@ -37,11 +37,11 @@ export function ScanInput({
             value={address}
             onChange={(e) => setAddress(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && submit()}
-            placeholder="Paste any OPN Chain address — token or wallet"
+            placeholder="Paste an OPN Chain address"
             className={cn(
-              "pl-9 font-mono text-sm",
+              "pl-9 text-sm font-normal placeholder:text-xs placeholder:font-normal placeholder:text-muted-foreground/50",
               standalone &&
-                "border-zinc-700 bg-zinc-900 text-white placeholder:text-zinc-600 focus-visible:ring-zinc-600"
+                "border-zinc-700 bg-zinc-900 text-white placeholder:text-zinc-500 focus-visible:ring-zinc-600"
             )}
             disabled={isLoading}
           />

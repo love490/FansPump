@@ -17,6 +17,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { VoteButtons } from "@/components/tokens/vote-buttons";
 import { CreatorProfileLink } from "@/components/profile/creator-profile-link";
+import { SignInModal } from "@/components/auth/sign-in-modal";
+import { AddressCopyButton } from "@/components/ui/address-copy-button";
 import { useActiveWallet } from "@/hooks/useActiveWallet";
 import { shortenAddress, cn } from "@/lib/utils";
 import { OPN_EXPLORER_BASE } from "@/lib/wagmi";
@@ -52,6 +54,7 @@ export default function TokenPage() {
   const [loading, setLoading] = useState(true);
   const [isWatchlisted, setIsWatchlisted] = useState(false);
   const [watchlistBusy, setWatchlistBusy] = useState(false);
+  const [signInOpen, setSignInOpen] = useState(false);
 
   useEffect(() => {
     if (!address) return;
@@ -119,6 +122,15 @@ export default function TokenPage() {
   const featureFlags = Number(token.featureFlags);
   const isCreator = wallet?.toLowerCase() === token.creatorAddress?.toLowerCase();
 
+  async function handleFavoriteClick() {
+    if (watchlistBusy) return;
+    if (!hasWallet) {
+      setSignInOpen(true);
+      return;
+    }
+    await toggleWatchlist();
+  }
+
   async function toggleWatchlist() {
     if (!wallet || !token?.id || watchlistBusy) return;
     setWatchlistBusy(true);
@@ -149,7 +161,12 @@ export default function TokenPage() {
             <h1 className="text-3xl font-bold flex items-center gap-2">
               {token.name}
             </h1>
-            <p className="text-muted-foreground font-mono text-sm">{shortenAddress(address, 6)}</p>
+            <div className="flex min-w-0 items-center gap-0.5">
+              <span className="truncate font-mono text-xs text-muted-foreground" title={address}>
+                {shortenAddress(address, 6)}
+              </span>
+              <AddressCopyButton value={address} className="h-6 w-6" />
+            </div>
             {token.category && token.category !== "OTHER" && (
               <Badge variant="outline" className="mt-2">
                 {TOKEN_CATEGORY_LABELS[token.category as TokenCategoryId]}
@@ -198,8 +215,15 @@ export default function TokenPage() {
           <Button
             variant="outline"
             size="sm"
-            disabled={!hasWallet || watchlistBusy}
-            onClick={() => void toggleWatchlist()}
+            disabled={watchlistBusy}
+            onClick={() => void handleFavoriteClick()}
+            aria-label={
+              !hasWallet
+                ? "Sign in to add favorites"
+                : isWatchlisted
+                  ? "Remove from favorites"
+                  : "Add to favorites"
+            }
           >
             <Star className={cn("h-4 w-4", isWatchlisted && "fill-amber-400 text-amber-400")} />
             {isWatchlisted ? "Favorited" : "Favorite"}
@@ -218,6 +242,8 @@ export default function TokenPage() {
           )}
         </div>
       </div>
+
+      <SignInModal open={signInOpen} onOpenChange={setSignInOpen} />
 
       {token.description && <p className="mt-6 text-muted-foreground">{token.description}</p>}
 
