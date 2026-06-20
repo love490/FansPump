@@ -21,6 +21,7 @@ import {
 import { erc20Abi } from "@/lib/swap/abis";
 import { isValidTokenAddress } from "@/lib/swap/routerAdapter";
 import { SwapDropdownPortal } from "@/components/swap/swap-dropdown-portal";
+import { opnChain } from "@/lib/wagmi";
 
 type ListedToken = {
   contractAddress: string;
@@ -103,7 +104,7 @@ export function SwapPayTokenSelect({
   rowAnchorRef,
 }: SwapPayTokenSelectProps) {
   const { address } = useAccount();
-  const client = usePublicClient();
+  const client = usePublicClient({ chainId: opnChain.id });
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [listed, setListed] = useState<ListedToken[]>([]);
@@ -115,7 +116,7 @@ export function SwapPayTokenSelect({
   const panelRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
 
-  const { data: nativeBalance } = useBalance({ address });
+  const { data: nativeBalance } = useBalance({ address, chainId: opnChain.id });
 
   useEffect(() => {
     if (!open) return;

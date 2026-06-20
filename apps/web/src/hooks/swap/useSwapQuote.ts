@@ -5,6 +5,7 @@ import { usePublicClient } from "wagmi";
 import type { Address } from "viem";
 import { fetchSwapQuote, isValidTokenAddress, type SwapQuoteResult } from "@/lib/swap/routerAdapter";
 import type { PayToken, SwapMode } from "@/lib/swap/constants";
+import { opnChain } from "@/lib/wagmi";
 
 export function useSwapQuote(
   tokenAddress: string | undefined,
@@ -14,7 +15,7 @@ export function useSwapQuote(
   slippage: number,
   enabled = true
 ) {
-  const client = usePublicClient();
+  const client = usePublicClient({ chainId: opnChain.id });
   const [quote, setQuote] = useState<SwapQuoteResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

@@ -5,12 +5,13 @@ import { useAccount, usePublicClient, useWriteContract, useWaitForTransactionRec
 import { encodeFunctionData } from "viem";
 import { buildSwapTransaction, type SwapQuoteResult } from "@/lib/swap/routerAdapter";
 import type { SwapMode } from "@/lib/swap/constants";
+import { opnChain } from "@/lib/wagmi";
 
 export type SwapTxStatus = "idle" | "pending" | "confirming" | "success" | "failed";
 
 export function useSwapExecute() {
   const { address } = useAccount();
-  const client = usePublicClient();
+  const client = usePublicClient({ chainId: opnChain.id });
   const [status, setStatus] = useState<SwapTxStatus>("idle");
   const [error, setError] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);

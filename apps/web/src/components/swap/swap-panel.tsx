@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
-import { useAccount, useBalance, useChainId, useReadContract } from "wagmi";
+import { useAccount, useBalance, useReadContract } from "wagmi";
 import type { Address } from "viem";
 import { formatEther, formatUnits } from "viem";
 import { ArrowDownUp, Settings2, AlertTriangle } from "lucide-react";
@@ -34,6 +34,7 @@ import { cn } from "@/lib/utils";
 import { opnChain } from "@/lib/wagmi";
 import { resolveTokenByAddress } from "@/lib/token-resolve";
 import type { SwapTxStatus } from "@/hooks/swap/useSwapExecute";
+import { useSwitchToOpnNetwork } from "@/hooks/useEnsureOpnNetwork";
 
 interface SwapPanelProps {
   initialToken?: string;
@@ -71,8 +72,8 @@ function SwapAmountInput({
 
 export function SwapPanel({ initialToken = "", initialMode = "buy" }: SwapPanelProps) {
   const { address, isConnected } = useAccount();
-  const chainId = useChainId();
   const { openConnectModal } = useConnectModal();
+  const { wrongNetwork, switching, switchError, switchToOpn } = useSwitchToOpnNetwork();
   const wopnAddress = getWopnAddress();
 
   const [tokenAddress, setTokenAddress] = useState(initialToken);
@@ -86,7 +87,6 @@ export function SwapPanel({ initialToken = "", initialMode = "buy" }: SwapPanelP
   const settingsRef = useRef<HTMLDivElement>(null);
   const swapCardRef = useRef<HTMLDivElement>(null);
 
-  const wrongNetwork = isConnected && chainId !== opnChain.id;
   const validToken = isValidTokenAddress(tokenAddress);
 
   const isAutoWrap = mode === "buy" && payToken.isNative && validToken && isWopnToken(tokenAddress);
@@ -118,14 +118,15 @@ export function SwapPanel({ initialToken = "", initialMode = "buy" }: SwapPanelP
     isPending: wrapPending,
   } = useWrapOpn(wopnAddress);
 
-  const { data: nativeBalance } = useBalance({ address });
-  const { data: wopnBalance } = useBalance({ address, token: wopnAddress });
+  const { data: nativeBalance } = useBalance({ address, chainId: opnChain.id });
+  const { data: wopnBalance } = useBalance({ address, token: wopnAddress, chainId: opnChain.id });
 
   const { data: projectBalance } = useReadContract({
     address: validToken ? (tokenAddress as Address) : undefined,
     abi: erc20Abi,
     functionName: "balanceOf",
     args: address ? [address] : undefined,
+    chainId: opnChain.id,
   });
 
   const { data: payErc20Balance } = useReadContract({
@@ -134,6 +135,7 @@ export function SwapPanel({ initialToken = "", initialMode = "buy" }: SwapPanelP
     abi: erc20Abi,
     functionName: "balanceOf",
     args: address ? [address] : undefined,
+    chainId: opnChain.id,
   });
 
   const needsApproval =
@@ -307,9 +309,7 @@ export function SwapPanel({ initialToken = "", initialMode = "buy" }: SwapPanelP
           : "Approve Token"
         : !amountIn || Number(amountIn) <= 0
           ? "Enter Amount"
-          : mode === "buy"
-            ? "Buy Token"
-            : "Sell Token";
+          : "Swap";
 
   const activeStatus = isWrapOrUnwrap ? mapWrapStatus(wrapStatus) : status;
   const activeHash = isWrapOrUnwrap ? wrapHash ?? undefined : hash;
@@ -380,9 +380,15 @@ export function SwapPanel({ initialToken = "", initialMode = "buy" }: SwapPanelP
 
         <CardContent className="relative z-0 space-y-3 overflow-visible">
           {wrongNetwork && (
-            <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-              <span>Switch to {opnChain.name} (chain {opnChain.id}) to swap.</span>
+            <div className="flex flex-col gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                <span>
+                  Your wallet is on the wrong network. Swaps use {opnChain.nativeCurrency.symbol} on{" "}
+                  {opnChain.name}, not Ethereum (ETH).
+                </span>
+              </div>
+              {switchError && <p className="text-xs text-amber-950/80">{switchError}</p>}
             </div>
           )}
 
@@ -513,6 +519,15 @@ export function SwapPanel({ initialToken = "", initialMode = "buy" }: SwapPanelP
           {!isConnected ? (
             <Button className="w-full" size="lg" onClick={() => openConnectModal?.()}>
               Connect Wallet
+            </Button>
+          ) : wrongNetwork ? (
+            <Button
+              className="w-full"
+              size="lg"
+              disabled={switching}
+              onClick={() => void switchToOpn()}
+            >
+              {switching ? "Switching network…" : `Switch to ${opnChain.name}`}
             </Button>
           ) : needsApproval && !approved ? (
             <Button
