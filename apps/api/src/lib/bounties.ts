@@ -60,7 +60,7 @@ export type BountyListItem = {
   verificationMethod: BountyVerificationMethod;
   verificationConfig: unknown | null;
   isFeatured: boolean;
-  maxParticipants: number;
+  maxParticipants: number | null;
   participantCount: number;
   viewCount: number;
   status: BountyStatus;
@@ -69,7 +69,7 @@ export type BountyListItem = {
   endsAt: string | null;
   completedAt: string | null;
   createdAt: string;
-  spotsLeft: number;
+  spotsLeft: number | null;
   isFull: boolean;
   completionCount?: number;
 };
@@ -118,7 +118,10 @@ export function mapBountyRow(
 ): BountyListItem {
   const participantCount = b._count.participations;
   const effectiveStatus = resolveEffectiveStatus(b);
-  const spotsLeft = Math.max(0, b.maxParticipants - participantCount);
+  const maxParticipants = b.maxParticipants ?? null;
+  const spotsLeft =
+    maxParticipants !== null ? Math.max(0, maxParticipants - participantCount) : null;
+  const isFull = maxParticipants !== null && participantCount >= maxParticipants;
 
   return {
     id: b.id,
@@ -137,7 +140,7 @@ export function mapBountyRow(
     verificationMethod: b.verificationMethod,
     verificationConfig: b.verificationConfig,
     isFeatured: b.isFeatured,
-    maxParticipants: b.maxParticipants,
+    maxParticipants,
     participantCount,
     viewCount: b.viewCount,
     status: b.status,
@@ -147,7 +150,7 @@ export function mapBountyRow(
     completedAt: b.completedAt?.toISOString() ?? null,
     createdAt: b.createdAt.toISOString(),
     spotsLeft,
-    isFull: spotsLeft <= 0,
+    isFull,
   };
 }
 

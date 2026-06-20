@@ -85,7 +85,7 @@ const createSchema = z.object({
   rewardType: z.enum(["OPN", "TOKEN", "CUSTOM", "XP"]),
   rewardAmount: z.string().min(1).max(64),
   rewardDescription: z.string().max(200).optional().nullable(),
-  maxParticipants: z.number().int().min(1).max(10000),
+  maxParticipants: z.number().int().min(1).max(10000).optional().nullable(),
   endsAt: z.string().datetime().optional().nullable(),
   tokenAddress: z.string().optional().nullable(),
   verificationMethod: z.enum(["MANUAL", "ONCHAIN", "API"]).optional(),
@@ -307,7 +307,7 @@ router.post(
           rewardDescription: parsed.rewardDescription?.trim() || null,
           verificationMethod,
           verificationConfig: verificationConfig ?? undefined,
-          maxParticipants: parsed.maxParticipants,
+          maxParticipants: parsed.maxParticipants ?? null,
           endsAt,
         },
         include: bountyListInclude,
@@ -359,7 +359,7 @@ router.post(
         return;
       }
 
-      if (bounty._count.participations >= bounty.maxParticipants) {
+      if (bounty.maxParticipants != null && bounty._count.participations >= bounty.maxParticipants) {
         res.status(409).json({ error: "This quest is full" });
         return;
       }

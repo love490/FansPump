@@ -673,7 +673,7 @@ model Bounty {
   verificationMethod BountyVerificationMethod @default(MANUAL) @map("verification_method")
   verificationConfig Json?           @map("verification_config")
   isFeatured        Boolean          @default(false) @map("is_featured")
-  maxParticipants   Int              @map("max_participants")
+  maxParticipants   Int?             @map("max_participants")
   participantCount  Int              @default(0) @map("participant_count")
   viewCount         Int              @default(0) @map("view_count")
   status            BountyStatus     @default(ACTIVE)

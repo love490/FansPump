@@ -6,6 +6,7 @@ import { useAccount, useSignMessage } from "wagmi";
 import { apiUrl } from "@/lib/api";
 import {
   formatBountyReward,
+  formatBountyParticipantCount,
   participationStatusLabel,
   timeRemaining,
   type BountyListItem,
@@ -218,7 +219,7 @@ export function QuestDetailPage({ questId }: { questId: string }) {
             />
             <span className="inline-flex items-center gap-1">
               <Users className="h-4 w-4" />
-              {bounty.participantCount}/{bounty.maxParticipants} participants
+              {formatBountyParticipantCount(bounty.participantCount, bounty.maxParticipants, "participants")}
             </span>
             {bounty.endsAt && (
               <span className="inline-flex items-center gap-1">

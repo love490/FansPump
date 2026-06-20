@@ -38,7 +38,7 @@ const emptyForm = {
   rewardType: "OPN" as BountyRewardType,
   rewardAmount: "",
   rewardTokenSymbol: "",
-  maxParticipants: "100",
+  maxParticipants: "",
   tokenAddress: "",
   endsAt: "",
   isFeatured: false,
@@ -96,6 +96,15 @@ export function EarnAdminSection() {
       return;
     }
 
+    if (form.maxParticipants.trim()) {
+      const max = Number(form.maxParticipants);
+      if (!Number.isInteger(max) || max < 1 || max > 10000) {
+        setError("Max participants must be a whole number between 1 and 10000, or leave empty for unlimited");
+        setLoading(false);
+        return;
+      }
+    }
+
     const primaryTaskType = resolvePrimaryTaskType(form.taskTypes);
     const verificationConfig = mergeBountyVerificationConfig(null, form.taskTypes, form.socialActions);
 
@@ -115,7 +124,7 @@ export function EarnAdminSection() {
           rewardAmount: form.rewardAmount.trim(),
           rewardDescription:
             form.rewardType === "TOKEN" ? form.rewardTokenSymbol.trim().toUpperCase() || null : null,
-          maxParticipants: Number(form.maxParticipants),
+          maxParticipants: form.maxParticipants.trim() ? Number(form.maxParticipants) : null,
           tokenAddress: form.tokenAddress.trim() || null,
           endsAt: form.endsAt ? new Date(form.endsAt).toISOString() : null,
           isFeatured: form.isFeatured,
@@ -247,10 +256,12 @@ export function EarnAdminSection() {
               </div>
             )}
             <div className="space-y-2">
-              <Label>Max participants</Label>
+              <Label>Max participants (optional)</Label>
               <Input
                 type="number"
                 min={1}
+                max={10000}
+                placeholder="Leave empty for unlimited"
                 value={form.maxParticipants}
                 onChange={(e) => setForm({ ...form, maxParticipants: e.target.value })}
               />

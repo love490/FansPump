@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CreatorProfileLink } from "@/components/profile/creator-profile-link";
-import { formatBountyReward, timeRemaining, type BountyListItem } from "@/lib/bounties";
+import { formatBountyReward, formatBountyParticipantCount, timeRemaining, type BountyListItem } from "@/lib/bounties";
 import { BountyTaskBadges } from "@/components/bounties/bounty-task-badges";
 import { Calendar, Users, Gift } from "lucide-react";
 
@@ -82,7 +82,7 @@ export function BountyCard({
           />
           <span className="inline-flex items-center gap-1">
             <Users className="h-3.5 w-3.5" />
-            {bounty.participantCount}/{bounty.maxParticipants} joined
+            {formatBountyParticipantCount(bounty.participantCount, bounty.maxParticipants)}
           </span>
           {bounty.endsAt && (
             <span className="inline-flex items-center gap-1">

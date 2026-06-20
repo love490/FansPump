@@ -79,7 +79,7 @@ export type BountyListItem = {
   verificationMethod: BountyVerificationMethod;
   verificationConfig: unknown | null;
   isFeatured: boolean;
-  maxParticipants: number;
+  maxParticipants: number | null;
   participantCount: number;
   viewCount: number;
   status: BountyStatus;
@@ -88,7 +88,7 @@ export type BountyListItem = {
   endsAt: string | null;
   completedAt: string | null;
   createdAt: string;
-  spotsLeft: number;
+  spotsLeft: number | null;
   isFull: boolean;
   completionCount?: number;
 };
@@ -116,6 +116,17 @@ export function formatBountyReward(
     return `${bounty.rewardAmount} XP`;
   }
   return `${bounty.rewardAmount} ${bounty.rewardType}`;
+}
+
+export function formatBountyParticipantCount(
+  participantCount: number,
+  maxParticipants: number | null,
+  noun: "joined" | "participants" = "joined"
+): string {
+  if (maxParticipants == null) {
+    return `${participantCount} ${noun} · Unlimited`;
+  }
+  return `${participantCount}/${maxParticipants} ${noun}`;
 }
 
 export function participationStatusLabel(status: BountyParticipationStatus): string {

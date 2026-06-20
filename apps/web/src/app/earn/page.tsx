@@ -54,8 +54,10 @@ export default function EarnPage() {
             ? {
                 ...b,
                 participantCount: b.participantCount + 1,
-                spotsLeft: Math.max(0, b.spotsLeft - 1),
-                isFull: b.participantCount + 1 >= b.maxParticipants,
+                spotsLeft:
+                  b.maxParticipants != null ? Math.max(0, (b.spotsLeft ?? 0) - 1) : null,
+                isFull:
+                  b.maxParticipants != null && b.participantCount + 1 >= b.maxParticipants,
               }
             : b
         )

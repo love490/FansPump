@@ -60,7 +60,7 @@ export function CreatorBountySection({
   const [rewardAmount, setRewardAmount] = useState("");
   const [rewardDescription, setRewardDescription] = useState("");
   const [rewardTokenSymbol, setRewardTokenSymbol] = useState("");
-  const [maxParticipants, setMaxParticipants] = useState("50");
+  const [maxParticipants, setMaxParticipants] = useState("");
   const [endsAt, setEndsAt] = useState("");
   const [tokenAddress, setTokenAddress] = useState("");
   const [verificationMethod, setVerificationMethod] =
@@ -93,6 +93,14 @@ export function CreatorBountySection({
 
       if (rewardType === "TOKEN" && !rewardTokenSymbol.trim() && !tokenAddress.trim()) {
         throw new Error("Enter a token symbol (e.g. WIF, MAGO) or select a listed token");
+      }
+
+      let parsedMaxParticipants: number | null = null;
+      if (maxParticipants.trim()) {
+        parsedMaxParticipants = Number(maxParticipants);
+        if (!Number.isInteger(parsedMaxParticipants) || parsedMaxParticipants < 1 || parsedMaxParticipants > 10000) {
+          throw new Error("Max participants must be between 1 and 10000, or leave empty for unlimited");
+        }
       }
 
       const primaryTaskType = resolvePrimaryTaskType(taskTypes);
@@ -140,7 +148,7 @@ export function CreatorBountySection({
               : rewardType === "CUSTOM"
                 ? rewardDescription || null
                 : null,
-          maxParticipants: Number(maxParticipants),
+          maxParticipants: parsedMaxParticipants,
           endsAt: endsAt ? new Date(endsAt).toISOString() : null,
           tokenAddress: tokenAddress || null,
           verificationMethod,
@@ -159,7 +167,7 @@ export function CreatorBountySection({
       setRewardAmount("");
       setRewardDescription("");
       setRewardTokenSymbol("");
-      setMaxParticipants("50");
+      setMaxParticipants("");
       setEndsAt("");
       setTokenAddress("");
       setShowForm(false);
@@ -222,12 +230,13 @@ export function CreatorBountySection({
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="bounty-max">Max participants</Label>
+                <Label htmlFor="bounty-max">Max participants (optional)</Label>
                 <Input
                   id="bounty-max"
                   type="number"
                   min={1}
                   max={10000}
+                  placeholder="Leave empty for unlimited"
                   value={maxParticipants}
                   onChange={(e) => setMaxParticipants(e.target.value)}
                 />
