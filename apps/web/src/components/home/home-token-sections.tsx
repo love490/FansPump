@@ -102,10 +102,16 @@ export function HomeTokenSections() {
     [favoritesQuery.data]
   );
 
-  const activeTokens = tokensByTab.get(activeTab) ?? [];
-  const marketForPreview = tokensByTab.get("top-token") ?? [];
-  const trendingRaw = trendingQuery.data ?? [];
-  const newestRaw = newQuery.data ?? [];
+  const activeTokens = useMemo(
+    () => tokensByTab.get(activeTab) ?? [],
+    [tokensByTab, activeTab]
+  );
+  const marketForPreview = useMemo(
+    () => tokensByTab.get("top-token") ?? [],
+    [tokensByTab]
+  );
+  const trendingRaw = useMemo(() => trendingQuery.data ?? [], [trendingQuery.data]);
+  const newestRaw = useMemo(() => newQuery.data ?? [], [newQuery.data]);
 
   const { trending, newest } = useMemo(
     () =>

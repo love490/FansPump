@@ -2,7 +2,7 @@
 
 import { apiUrl } from "@/lib/api";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useAccount, useSignMessage } from "wagmi";
 import { ANNOUNCEMENT_TYPES, ANNOUNCEMENT_TYPE_LABELS, type AnnouncementTypeId } from "@iopn/shared";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -39,18 +39,18 @@ export function AnnouncementsSection({ tokenAddress, creatorAddress }: Announcem
 
   const isCreator = address?.toLowerCase() === creatorAddress.toLowerCase();
 
-  function load() {
+  const load = useCallback(() => {
     if (!creatorAddress) return;
     setLoading(true);
     fetch(apiUrl(`/api/announcements?creatorWallet=${creatorAddress}`))
       .then((r) => r.json())
       .then((d) => setAnnouncements(d.announcements ?? []))
       .finally(() => setLoading(false));
-  }
+  }, [creatorAddress]);
 
   useEffect(() => {
     load();
-  }, [creatorAddress]);
+  }, [load]);
 
   async function postAnnouncement() {
     if (!address || !title.trim() || !content.trim()) return;

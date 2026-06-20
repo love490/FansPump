@@ -59,11 +59,10 @@ export function DiscoverShuffleGrid({ filters }: { filters?: DiscoverFilters }) 
   const isLoading = queries.some((q) => q.isLoading);
   const merged = useMemo(() => mergeUniqueTokens(sectionLists), [sectionLists]);
 
-  const activeList = sectionLists[sortIndex % SORT_SECTIONS.length] ?? [];
-  const orderedTokens = useMemo(
-    () => orderBySectionRank(merged, activeList),
-    [merged, activeList]
-  );
+  const orderedTokens = useMemo(() => {
+    const activeList = sectionLists[sortIndex % SORT_SECTIONS.length] ?? [];
+    return orderBySectionRank(merged, activeList);
+  }, [merged, sectionLists, sortIndex]);
 
   useEffect(() => {
     if (merged.length <= 1) return;
