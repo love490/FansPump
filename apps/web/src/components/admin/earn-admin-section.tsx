@@ -8,6 +8,14 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { adminFetch } from "@/lib/admin-session";
 import { formatAdminApiError } from "@/lib/admin/api-error";
+import { BountyTaskPicker } from "@/components/bounties/bounty-task-picker";
+import {
+  mergeBountyVerificationConfig,
+  resolvePrimaryTaskType,
+  validateBountyTaskSelection,
+  type SocialBountyActionId,
+} from "@/lib/bounty-task-config";
+import type { BountyTaskType } from "@/lib/bounties";
 
 type BountyRow = {
   id: string;
@@ -25,9 +33,11 @@ const emptyForm = {
   creatorWallet: "",
   title: "",
   description: "",
-  taskType: "CUSTOM" as const,
+  taskTypes: ["CUSTOM"] as BountyTaskType[],
+  socialActions: [] as SocialBountyActionId[],
   rewardType: "OPN" as const,
   rewardAmount: "",
+  rewardTokenSymbol: "",
   maxParticipants: "100",
   tokenAddress: "",
   endsAt: "",
@@ -73,6 +83,22 @@ export function EarnAdminSection() {
       return;
     }
 
+    const taskError = validateBountyTaskSelection(form.taskTypes, form.socialActions);
+    if (taskError) {
+      setError(taskError);
+      setLoading(false);
+      return;
+    }
+
+    if (form.rewardType === "TOKEN" && !form.rewardTokenSymbol.trim() && !form.tokenAddress.trim()) {
+      setError("Enter a token symbol (e.g. WIF, MAGO) or a token contract address");
+      setLoading(false);
+      return;
+    }
+
+    const primaryTaskType = resolvePrimaryTaskType(form.taskTypes);
+    const verificationConfig = mergeBountyVerificationConfig(null, form.taskTypes, form.socialActions);
+
     try {
       const res = await adminFetch("/api/admin/bounties", {
         method: "POST",
@@ -81,9 +107,14 @@ export function EarnAdminSection() {
           creatorWallet: form.creatorWallet.trim(),
           title: form.title.trim(),
           description: form.description.trim(),
-          taskType: form.taskType,
+          taskType: primaryTaskType,
+          taskTypes: form.taskTypes,
+          socialActions: form.socialActions,
+          verificationConfig,
           rewardType: form.rewardType,
           rewardAmount: form.rewardAmount.trim(),
+          rewardDescription:
+            form.rewardType === "TOKEN" ? form.rewardTokenSymbol.trim().toUpperCase() || null : null,
           maxParticipants: Number(form.maxParticipants),
           tokenAddress: form.tokenAddress.trim() || null,
           endsAt: form.endsAt ? new Date(form.endsAt).toISOString() : null,
@@ -169,17 +200,13 @@ export function EarnAdminSection() {
                 className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
               />
             </div>
-            <div className="space-y-2">
-              <Label>Task type</Label>
-              <select
-                value={form.taskType}
-                onChange={(e) => setForm({ ...form, taskType: e.target.value as typeof form.taskType })}
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-              >
-                {["SOCIAL", "ENGAGEMENT", "GROWTH", "CONTENT", "REFERRAL", "COMMUNITY", "CUSTOM"].map((t) => (
-                  <option key={t} value={t}>{t}</option>
-                ))}
-              </select>
+            <div className="space-y-2 sm:col-span-2">
+              <BountyTaskPicker
+                taskTypes={form.taskTypes}
+                socialActions={form.socialActions}
+                onTaskTypesChange={(taskTypes) => setForm({ ...form, taskTypes })}
+                onSocialActionsChange={(socialActions) => setForm({ ...form, socialActions })}
+              />
             </div>
             <div className="space-y-2">
               <Label>Reward type</Label>
@@ -201,6 +228,22 @@ export function EarnAdminSection() {
                 placeholder="e.g. 100 or wei amount"
               />
             </div>
+            {form.rewardType === "TOKEN" && (
+              <div className="space-y-2 sm:col-span-2">
+                <Label>Token symbol</Label>
+                <Input
+                  value={form.rewardTokenSymbol}
+                  onChange={(e) =>
+                    setForm({ ...form, rewardTokenSymbol: e.target.value.toUpperCase() })
+                  }
+                  placeholder="WIF, MAGO, PEPE…"
+                  maxLength={20}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Displayed on Earn (e.g. 100 MAGO). Optional contract address below if listed on platform.
+                </p>
+              </div>
+            )}
             <div className="space-y-2">
               <Label>Max participants</Label>
               <Input
@@ -211,11 +254,12 @@ export function EarnAdminSection() {
               />
             </div>
             <div className="space-y-2">
-              <Label>Token address (optional)</Label>
+              <Label>Token contract (optional)</Label>
               <Input
                 className="font-mono text-xs"
                 value={form.tokenAddress}
                 onChange={(e) => setForm({ ...form, tokenAddress: e.target.value })}
+                placeholder="0x… if linked to a platform token"
               />
             </div>
             <div className="space-y-2">

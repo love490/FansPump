@@ -207,8 +207,10 @@ export function formatBountyReward(
   if (bounty.rewardType === "CUSTOM" && bounty.rewardDescription) {
     return bounty.rewardDescription;
   }
-  if (bounty.rewardType === "TOKEN" && bounty.tokenSymbol) {
-    return `${bounty.rewardAmount} ${bounty.tokenSymbol}`;
+  if (bounty.rewardType === "TOKEN") {
+    const symbol = bounty.tokenSymbol ?? bounty.rewardDescription?.trim();
+    if (symbol) return `${bounty.rewardAmount} ${symbol.toUpperCase()}`;
+    return `${bounty.rewardAmount} tokens`;
   }
   if (bounty.rewardType === "XP") {
     return `${bounty.rewardAmount} XP`;

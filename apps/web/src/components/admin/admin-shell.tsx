@@ -56,10 +56,12 @@ function AdminNavLinks({
 }) {
   return (
     <>
-      <Link href="/admin/login" className={navLinkClass(onSignInPage)} onClick={onNavigate}>
-        <LogIn className="h-4 w-4 shrink-0" />
-        Sign in
-      </Link>
+      {!authorized && (
+        <Link href="/admin/login" className={navLinkClass(onSignInPage)} onClick={onNavigate}>
+          <LogIn className="h-4 w-4 shrink-0" />
+          Sign in
+        </Link>
+      )}
 
       {authorized &&
         NAV.filter((n) => can(n.perm)).map((item) => (

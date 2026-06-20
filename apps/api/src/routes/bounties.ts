@@ -13,6 +13,12 @@ import {
   resolveEffectiveStatus,
   type BountyTab,
 } from "@/lib/bounties";
+import {
+  mergeBountyVerificationConfig,
+  resolvePrimaryTaskType,
+  validateBountyTaskSelection,
+  type SocialBountyActionId,
+} from "@/lib/bounty-task-config";
 import { getPublicClient } from "@/lib/rpc-client";
 import { verifyOnchainRequirement } from "@/lib/quests/onchain-verify";
 import {
@@ -34,9 +40,30 @@ const TAB_IDS = [
   "ending_soon",
 ] as const;
 
+const taskTypeEnum = z.enum([
+  "SOCIAL",
+  "ENGAGEMENT",
+  "GROWTH",
+  "CONTENT",
+  "REFERRAL",
+  "COMMUNITY",
+  "CUSTOM",
+]);
+
+const socialActionEnum = z.enum([
+  "X_FOLLOW",
+  "X_LIKE",
+  "X_COMMENT",
+  "X_QUOTE",
+  "TELEGRAM_JOIN",
+  "DISCORD_JOIN",
+]);
+
 const onchainConfigSchema = z
   .object({
-    requirementType: z.enum(["HOLD_TOKEN", "ADD_LIQUIDITY", "SWAP", "STAKE"]),
+    taskTypes: z.array(taskTypeEnum).optional(),
+    socialActions: z.array(socialActionEnum).optional(),
+    requirementType: z.enum(["HOLD_TOKEN", "ADD_LIQUIDITY", "SWAP", "STAKE"]).optional(),
     tokenAddress: z.string().optional(),
     minAmount: z.string().optional(),
     pairId: z.enum(["OPN", "WOPN", "USDT"]).optional(),
@@ -51,15 +78,9 @@ const createSchema = z.object({
   signature: z.string(),
   title: z.string().min(3).max(120),
   description: z.string().min(10).max(4000),
-  taskType: z.enum([
-    "SOCIAL",
-    "ENGAGEMENT",
-    "GROWTH",
-    "CONTENT",
-    "REFERRAL",
-    "COMMUNITY",
-    "CUSTOM",
-  ]),
+  taskType: taskTypeEnum,
+  taskTypes: z.array(taskTypeEnum).min(1).optional(),
+  socialActions: z.array(socialActionEnum).optional(),
   requirements: z.string().max(2000).optional().nullable(),
   rewardType: z.enum(["OPN", "TOKEN", "CUSTOM", "XP"]),
   rewardAmount: z.string().min(1).max(64),
@@ -237,9 +258,12 @@ router.post(
         tokenAddress = token.contractAddress;
       }
 
-      if (parsed.rewardType === "TOKEN" && !tokenAddress) {
-        res.status(400).json({ error: "Select a token for token rewards" });
-        return;
+      if (parsed.rewardType === "TOKEN") {
+        const symbol = parsed.rewardDescription?.trim();
+        if (!tokenAddress && !symbol) {
+          res.status(400).json({ error: "Enter a token symbol (e.g. WIF, MAGO) or link a token" });
+          return;
+        }
       }
 
       const verificationMethod = parsed.verificationMethod ?? "MANUAL";
@@ -247,6 +271,21 @@ router.post(
         res.status(400).json({ error: "On-chain quests require a requirement type" });
         return;
       }
+
+      const taskTypes = parsed.taskTypes?.length ? parsed.taskTypes : [parsed.taskType];
+      const socialActions = (parsed.socialActions ?? []) as SocialBountyActionId[];
+      const taskError = validateBountyTaskSelection(taskTypes, socialActions);
+      if (taskError) {
+        res.status(400).json({ error: taskError });
+        return;
+      }
+
+      const primaryTaskType = resolvePrimaryTaskType(taskTypes);
+      const verificationConfig = mergeBountyVerificationConfig(
+        parsed.verificationConfig,
+        taskTypes,
+        socialActions
+      );
 
       const endsAt = parsed.endsAt ? new Date(parsed.endsAt) : null;
       if (endsAt && Number.isNaN(endsAt.getTime())) {
@@ -261,13 +300,13 @@ router.post(
           tokenAddress,
           title: parsed.title.trim(),
           description: parsed.description.trim(),
-          taskType: parsed.taskType,
+          taskType: primaryTaskType,
           requirements: parsed.requirements?.trim() || null,
           rewardType: parsed.rewardType,
           rewardAmount: parsed.rewardAmount.trim(),
           rewardDescription: parsed.rewardDescription?.trim() || null,
           verificationMethod,
-          verificationConfig: parsed.verificationConfig ?? undefined,
+          verificationConfig: verificationConfig ?? undefined,
           maxParticipants: parsed.maxParticipants,
           endsAt,
         },

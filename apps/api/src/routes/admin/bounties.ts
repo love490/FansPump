@@ -5,6 +5,12 @@ import {
   bountyListInclude,
   mapBountyRow,
 } from "../../lib/bounties";
+import {
+  mergeBountyVerificationConfig,
+  resolvePrimaryTaskType,
+  validateBountyTaskSelection,
+  type SocialBountyActionId,
+} from "../../lib/bounty-task-config";
 import { ensureCreatorProfile } from "../../lib/v2/reputation";
 import { AdminAuthError } from "../../lib/admin-auth";
 import { roleHasPermission } from "../../lib/admin/roles";
@@ -15,19 +21,32 @@ import { logAdminAction } from "../../lib/admin/express-audit";
 import { handleAdminError } from "../../lib/admin/handle-error";
 import { zodErrorMessage } from "../../lib/admin/zod-error";
 
+const taskTypeEnum = z.enum([
+  "SOCIAL",
+  "ENGAGEMENT",
+  "GROWTH",
+  "CONTENT",
+  "REFERRAL",
+  "COMMUNITY",
+  "CUSTOM",
+]);
+
+const socialActionEnum = z.enum([
+  "X_FOLLOW",
+  "X_LIKE",
+  "X_COMMENT",
+  "X_QUOTE",
+  "TELEGRAM_JOIN",
+  "DISCORD_JOIN",
+]);
+
 const createSchema = z.object({
   creatorWallet: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
   title: z.string().min(3).max(120),
   description: z.string().min(10).max(4000),
-  taskType: z.enum([
-    "SOCIAL",
-    "ENGAGEMENT",
-    "GROWTH",
-    "CONTENT",
-    "REFERRAL",
-    "COMMUNITY",
-    "CUSTOM",
-  ]),
+  taskType: taskTypeEnum,
+  taskTypes: z.array(taskTypeEnum).min(1).optional(),
+  socialActions: z.array(socialActionEnum).optional(),
   requirements: z.string().max(2000).optional().nullable(),
   rewardType: z.enum(["OPN", "TOKEN", "CUSTOM", "XP"]),
   rewardAmount: z.string().min(1).max(64),
@@ -106,10 +125,24 @@ router.post(
         tokenAddress = token.contractAddress;
       }
 
-      if (body.rewardType === "TOKEN" && !tokenAddress) {
-        res.status(400).json({ error: "Token rewards require a linked token address" });
+      if (body.rewardType === "TOKEN") {
+        const symbol = body.rewardDescription?.trim();
+        if (!tokenAddress && !symbol) {
+          res.status(400).json({ error: "Enter a token symbol (e.g. WIF, MAGO) or a token address" });
+          return;
+        }
+      }
+
+      const taskTypes = body.taskTypes?.length ? body.taskTypes : [body.taskType];
+      const socialActions = (body.socialActions ?? []) as SocialBountyActionId[];
+      const taskError = validateBountyTaskSelection(taskTypes, socialActions);
+      if (taskError) {
+        res.status(400).json({ error: taskError });
         return;
       }
+
+      const primaryTaskType = resolvePrimaryTaskType(taskTypes);
+      const verificationConfig = mergeBountyVerificationConfig(null, taskTypes, socialActions);
 
       const endsAt = body.endsAt ? new Date(body.endsAt) : null;
 
@@ -120,11 +153,12 @@ router.post(
           tokenAddress,
           title: body.title.trim(),
           description: body.description.trim(),
-          taskType: body.taskType,
+          taskType: primaryTaskType,
           requirements: body.requirements?.trim() || null,
           rewardType: body.rewardType,
           rewardAmount: body.rewardAmount.trim(),
           rewardDescription: body.rewardDescription?.trim() || null,
+          verificationConfig: verificationConfig ?? undefined,
           maxParticipants: body.maxParticipants,
           isFeatured: body.isFeatured ?? false,
           endsAt,

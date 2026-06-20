@@ -84,8 +84,8 @@ function providerConfig(provider: OAuthProvider): ProviderConfig {
       };
     case "twitter":
       return {
-        clientId: process.env.TWITTER_CLIENT_ID,
-        clientSecret: process.env.TWITTER_CLIENT_SECRET,
+        clientId: process.env.X_CLIENT_ID ?? process.env.TWITTER_CLIENT_ID,
+        clientSecret: process.env.X_CLIENT_SECRET ?? process.env.TWITTER_CLIENT_SECRET,
       };
     case "apple":
       return {

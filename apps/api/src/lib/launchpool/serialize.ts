@@ -16,6 +16,8 @@ export type SerializedLaunchpool = {
   rewardTokenAddress: string | null;
   totalRewardUsd: number;
   totalRewardAmount: string;
+  minStakeAmount: string;
+  maxStakeAmount: string | null;
   startAt: string;
   endAt: string;
   durationLabel: string | null;
@@ -34,9 +36,12 @@ export function stakeAssetsLabel(assets: LaunchpoolStakeAssetInput[]): string {
 }
 
 export function launchpoolHeadline(
-  pool: Pick<SerializedLaunchpool, "totalRewardUsd" | "stakeAssets">
+  pool: Pick<SerializedLaunchpool, "totalRewardUsd" | "stakeAssets" | "rewardTokenSymbol">
 ): string {
-  return `Get a share of $${pool.totalRewardUsd.toLocaleString(undefined, { maximumFractionDigits: 0 })} by staking ${stakeAssetsLabel(pool.stakeAssets)}`;
+  if (pool.totalRewardUsd > 0) {
+    return `Get a share of $${pool.totalRewardUsd.toLocaleString(undefined, { maximumFractionDigits: 0 })} by staking ${stakeAssetsLabel(pool.stakeAssets)}`;
+  }
+  return `Stake ${stakeAssetsLabel(pool.stakeAssets)} to earn ${pool.rewardTokenSymbol}`;
 }
 
 export const LAUNCHPOOL_STAKE_PREFIX = "FansPump Launchpool Stake";
@@ -52,6 +57,8 @@ type LaunchpoolRecord = {
   rewardTokenAddress: string | null;
   totalRewardUsd: number;
   totalRewardAmount: string;
+  minStakeAmount: string;
+  maxStakeAmount: string | null;
   startAt: Date;
   endAt: Date;
   durationLabel: string | null;
@@ -79,6 +86,8 @@ export function serializeLaunchpool(
     rewardTokenAddress: pool.rewardTokenAddress,
     totalRewardUsd: pool.totalRewardUsd,
     totalRewardAmount: pool.totalRewardAmount,
+    minStakeAmount: pool.minStakeAmount,
+    maxStakeAmount: pool.maxStakeAmount ?? null,
     startAt: pool.startAt.toISOString(),
     endAt: pool.endAt.toISOString(),
     durationLabel: pool.durationLabel,

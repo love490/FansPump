@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { parseEther } from "viem";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,6 +20,8 @@ const emptyForm = {
   rewardTokenAddress: "",
   totalRewardUsd: "",
   totalRewardAmount: "",
+  minStakeAmount: "",
+  maxStakeAmount: "",
   startAt: "",
   endAt: "",
   durationLabel: "",
@@ -55,6 +58,25 @@ export function LaunchpoolAdminSection() {
       }));
   }
 
+  const rewardAmountValid =
+    form.totalRewardAmount.trim() === "" || /^\d+$/.test(form.totalRewardAmount.trim());
+  const minStakeValid =
+    form.minStakeAmount.trim() === "" || /^\d+(\.\d+)?$/.test(form.minStakeAmount.trim());
+  const maxStakeValid =
+    form.maxStakeAmount.trim() === "" || /^\d+(\.\d+)?$/.test(form.maxStakeAmount.trim());
+
+  const canCreate =
+    form.title.trim().length >= 3 &&
+    form.description.trim().length >= 10 &&
+    form.detailInfo.trim().length >= 10 &&
+    form.rewardTokenSymbol.trim().length > 0 &&
+    rewardAmountValid &&
+    minStakeValid &&
+    maxStakeValid &&
+    form.startAt &&
+    form.endAt &&
+    parseStakeAssets(form.stakeAssetsText).length > 0;
+
   async function createPool() {
     setLoading(true);
     setMessage(null);
@@ -80,13 +102,23 @@ export function LaunchpoolAdminSection() {
       setLoading(false);
       return;
     }
-    if (!form.totalRewardUsd || Number(form.totalRewardUsd) <= 0) {
-      setError("Total reward USD must be greater than 0");
+    if (form.totalRewardUsd.trim() && (Number.isNaN(Number(form.totalRewardUsd)) || Number(form.totalRewardUsd) < 0)) {
+      setError("Total reward USD must be a valid number");
       setLoading(false);
       return;
     }
-    if (!/^\d+$/.test(form.totalRewardAmount.trim())) {
+    if (form.totalRewardAmount.trim() && !/^\d+$/.test(form.totalRewardAmount.trim())) {
       setError("Total reward amount must be digits only (wei, no decimals)");
+      setLoading(false);
+      return;
+    }
+    if (form.minStakeAmount.trim() && !/^\d+(\.\d+)?$/.test(form.minStakeAmount.trim())) {
+      setError("Minimum stake must be a valid number");
+      setLoading(false);
+      return;
+    }
+    if (form.maxStakeAmount.trim() && !/^\d+(\.\d+)?$/.test(form.maxStakeAmount.trim())) {
+      setError("Maximum stake must be a valid number");
       setLoading(false);
       return;
     }
@@ -121,6 +153,13 @@ export function LaunchpoolAdminSection() {
     }
 
     try {
+      const minWei = form.minStakeAmount.trim()
+        ? parseEther(form.minStakeAmount.trim()).toString()
+        : "0";
+      const maxWei = form.maxStakeAmount.trim()
+        ? parseEther(form.maxStakeAmount.trim()).toString()
+        : null;
+
       const res = await adminFetch("/api/admin/launchpool", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -131,8 +170,10 @@ export function LaunchpoolAdminSection() {
           status: form.status,
           rewardTokenSymbol: form.rewardTokenSymbol.trim(),
           rewardTokenAddress: rewardTokenAddress || null,
-          totalRewardUsd: Number(form.totalRewardUsd),
-          totalRewardAmount: form.totalRewardAmount.trim(),
+          totalRewardUsd: form.totalRewardUsd.trim() ? Number(form.totalRewardUsd) : 0,
+          totalRewardAmount: form.totalRewardAmount.trim() || "0",
+          minStakeAmount: minWei,
+          maxStakeAmount: maxWei,
           startAt: startDate.toISOString(),
           endAt: endDate.toISOString(),
           durationLabel: form.durationLabel.trim() || null,
@@ -253,18 +294,53 @@ export function LaunchpoolAdminSection() {
               />
             </div>
             <div className="space-y-2">
-              <Label>Total reward USD (display)</Label>
+              <Label htmlFor="launchpool-reward-usd">Total reward USD (display, optional)</Label>
               <Input
+                id="launchpool-reward-usd"
+                type="number"
+                min={0}
+                step="any"
+                placeholder="e.g. 50000"
                 value={form.totalRewardUsd}
                 onChange={(e) => setForm({ ...form, totalRewardUsd: e.target.value })}
               />
+              <p className="text-xs text-muted-foreground">Optional. Shown on the launchpool card when set.</p>
             </div>
             <div className="space-y-2">
-              <Label>Total reward amount (wei)</Label>
+              <Label htmlFor="launchpool-reward-wei">Total reward amount (wei, optional)</Label>
               <Input
+                id="launchpool-reward-wei"
+                inputMode="numeric"
+                pattern="\d+"
+                placeholder="e.g. 1000000000000000000000"
                 value={form.totalRewardAmount}
-                onChange={(e) => setForm({ ...form, totalRewardAmount: e.target.value })}
+                onChange={(e) =>
+                  setForm({ ...form, totalRewardAmount: e.target.value.replace(/\D/g, "") })
+                }
               />
+              <p className="text-xs text-muted-foreground">
+                Optional. Digits only — whole wei amount used for reward distribution.
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="launchpool-min-stake">Minimum stake (optional)</Label>
+              <Input
+                id="launchpool-min-stake"
+                placeholder="e.g. 1"
+                value={form.minStakeAmount}
+                onChange={(e) => setForm({ ...form, minStakeAmount: e.target.value })}
+              />
+              <p className="text-xs text-muted-foreground">Token amount per stake (converted to wei).</p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="launchpool-max-stake">Maximum stake (optional)</Label>
+              <Input
+                id="launchpool-max-stake"
+                placeholder="e.g. 10000"
+                value={form.maxStakeAmount}
+                onChange={(e) => setForm({ ...form, maxStakeAmount: e.target.value })}
+              />
+              <p className="text-xs text-muted-foreground">Max total stake per wallet per asset.</p>
             </div>
             <div className="space-y-2">
               <Label>Start</Label>
@@ -293,7 +369,7 @@ export function LaunchpoolAdminSection() {
           </div>
           {message && <p className="text-sm text-emerald-600">{message}</p>}
           {error && <p className="text-sm text-red-600">{error}</p>}
-          <Button type="button" disabled={loading} onClick={() => void createPool()}>
+          <Button type="button" disabled={loading || !canCreate} onClick={() => void createPool()}>
             Create launchpool
           </Button>
         </CardContent>
@@ -306,7 +382,10 @@ export function LaunchpoolAdminSection() {
               <div>
                 <p className="font-semibold">{pool.title}</p>
                 <p className="text-sm text-muted-foreground">
-                  ${pool.totalRewardUsd.toLocaleString()} · {pool.participantCount} participants
+                  {pool.totalRewardUsd > 0
+                    ? `$${pool.totalRewardUsd.toLocaleString()} · `
+                    : ""}
+                  {pool.participantCount} participants
                 </p>
                 <Badge className="mt-2" variant="secondary">
                   {pool.status}

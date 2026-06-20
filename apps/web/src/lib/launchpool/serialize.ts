@@ -1,3 +1,5 @@
+import { formatUnits } from "viem";
+
 export type LaunchpoolStatus = "ACTIVE" | "ONGOING" | "ENDED";
 
 export type LaunchpoolStakeAssetInput = {
@@ -16,6 +18,8 @@ export type SerializedLaunchpool = {
   rewardTokenAddress: string | null;
   totalRewardUsd: number;
   totalRewardAmount: string;
+  minStakeAmount: string;
+  maxStakeAmount: string | null;
   startAt: string;
   endAt: string;
   durationLabel: string | null;
@@ -34,9 +38,42 @@ export function stakeAssetsLabel(assets: LaunchpoolStakeAssetInput[]): string {
 }
 
 export function launchpoolHeadline(
-  pool: Pick<SerializedLaunchpool, "totalRewardUsd" | "stakeAssets">
+  pool: Pick<SerializedLaunchpool, "totalRewardUsd" | "stakeAssets" | "rewardTokenSymbol">
 ): string {
-  return `Get a share of $${pool.totalRewardUsd.toLocaleString(undefined, { maximumFractionDigits: 0 })} by staking ${stakeAssetsLabel(pool.stakeAssets)}`;
+  if (pool.totalRewardUsd > 0) {
+    return `Get a share of $${pool.totalRewardUsd.toLocaleString(undefined, { maximumFractionDigits: 0 })} by staking ${stakeAssetsLabel(pool.stakeAssets)}`;
+  }
+  return `Stake ${stakeAssetsLabel(pool.stakeAssets)} to earn ${pool.rewardTokenSymbol}`;
+}
+
+export function formatLaunchpoolPrize(pool: Pick<SerializedLaunchpool, "totalRewardUsd" | "totalRewardAmount" | "rewardTokenSymbol">): string {
+  if (BigInt(pool.totalRewardAmount || "0") > 0n) {
+    try {
+      const formatted = Number(formatUnits(BigInt(pool.totalRewardAmount), 18));
+      return `${formatted.toLocaleString(undefined, { maximumFractionDigits: 0 })} ${pool.rewardTokenSymbol}`;
+    } catch {
+      return `${pool.totalRewardAmount} ${pool.rewardTokenSymbol}`;
+    }
+  }
+  if (pool.totalRewardUsd > 0) {
+    return `$${pool.totalRewardUsd.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+  }
+  return "TBA";
+}
+
+export function formatUtcRange(start: string, end: string): string {
+  const fmt = (d: Date) => {
+    const mm = String(d.getUTCMonth() + 1).padStart(2, "0");
+    const dd = String(d.getUTCDate()).padStart(2, "0");
+    const hh = String(d.getUTCHours()).padStart(2, "0");
+    const min = String(d.getUTCMinutes()).padStart(2, "0");
+    return `${mm}-${dd} ${hh}:${min}`;
+  };
+  return `${fmt(new Date(start))} ~ ${fmt(new Date(end))} UTC`;
+}
+
+export function assetKey(asset: LaunchpoolStakeAssetInput): string {
+  return `${asset.assetSymbol}-${asset.assetAddress ?? "native"}`;
 }
 
 export const LAUNCHPOOL_STAKE_PREFIX = "FansPump Launchpool Stake";
@@ -52,6 +89,8 @@ type LaunchpoolRecord = {
   rewardTokenAddress: string | null;
   totalRewardUsd: number;
   totalRewardAmount: string;
+  minStakeAmount: string;
+  maxStakeAmount: string | null;
   startAt: Date;
   endAt: Date;
   durationLabel: string | null;
@@ -79,6 +118,8 @@ export function serializeLaunchpool(
     rewardTokenAddress: pool.rewardTokenAddress,
     totalRewardUsd: pool.totalRewardUsd,
     totalRewardAmount: pool.totalRewardAmount,
+    minStakeAmount: pool.minStakeAmount,
+    maxStakeAmount: pool.maxStakeAmount ?? null,
     startAt: pool.startAt.toISOString(),
     endAt: pool.endAt.toISOString(),
     durationLabel: pool.durationLabel,

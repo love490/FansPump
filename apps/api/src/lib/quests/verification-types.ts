@@ -1,6 +1,8 @@
 export type OnchainRequirementType = "HOLD_TOKEN" | "ADD_LIQUIDITY" | "SWAP" | "STAKE";
 
 export type VerificationConfig = {
+  taskTypes?: string[];
+  socialActions?: string[];
   requirementType?: OnchainRequirementType;
   /** ERC20 or native (use "native" for OPN) */
   tokenAddress?: string;

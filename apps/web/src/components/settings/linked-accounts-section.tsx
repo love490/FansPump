@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useAuth, oauthLinkUrl, oauthSignInUrl } from "@/components/auth/auth-provider";
-import { apiFetch, apiUrl } from "@/lib/api";
+import { apiFetch } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 type LinkedRow = {
@@ -42,24 +42,10 @@ export function LinkedAccountsSection() {
   const [telegramLoading, setTelegramLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [oauthConfigured, setOauthConfigured] = useState<Record<string, boolean>>({});
   const [linked, setLinked] = useState<{
     identities: { provider: string; label: string }[];
     oauth: Record<string, boolean>;
   } | null>(null);
-
-  useEffect(() => {
-    void (async () => {
-      try {
-        const res = await fetch(apiUrl("/api/auth/providers"), { credentials: "include" });
-        if (!res.ok) return;
-        const data = (await res.json()) as { oauth?: Record<string, boolean> };
-        if (data.oauth) setOauthConfigured(data.oauth);
-      } catch {
-        // ignore — buttons fall back to "Not configured"
-      }
-    })();
-  }, []);
 
   const load = useCallback(async () => {
     if (!isSignedIn) {
@@ -182,22 +168,11 @@ export function LinkedAccountsSection() {
 
   function oauthAction(
     provider: "google" | "github" | "twitter" | "discord",
-    providerKey: string,
+    _providerKey: string,
     linkedIdentity: { provider: string; label: string } | undefined
   ) {
-    const configured =
-      oauthConfigured[providerKey] ?? linked?.oauth?.[providerKey] ?? false;
-
     if (linkedIdentity) {
       return <Badge variant="secondary">Linked</Badge>;
-    }
-
-    if (!configured) {
-      return (
-        <Button size="sm" variant="outline" disabled>
-          Not configured
-        </Button>
-      );
     }
 
     const href = isSignedIn

@@ -17,6 +17,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CreatorProfileLink } from "@/components/profile/creator-profile-link";
+import { BountyTaskBadges } from "@/components/bounties/bounty-task-badges";
+import { getBountyTaskDisplayLabels } from "@/lib/bounty-task-config";
 import { Calendar, Clock, Gift, Users, ArrowLeft } from "lucide-react";
 
 export function QuestDetailPage({ questId }: { questId: string }) {
@@ -162,7 +164,7 @@ export function QuestDetailPage({ questId }: { questId: string }) {
             <div className="min-w-0 flex-1">
               <CardTitle className="text-xl sm:text-2xl">{bounty.title}</CardTitle>
               <div className="mt-2 flex flex-wrap gap-2">
-                <Badge variant="outline">{bounty.taskType}</Badge>
+                <BountyTaskBadges bounty={bounty} />
                 {bounty.isFeatured && <Badge>Featured</Badge>}
                 {bounty.tokenSymbol && <Badge variant="secondary">${bounty.tokenSymbol}</Badge>}
                 <Badge variant="secondary">{bounty.verificationMethod}</Badge>
@@ -179,6 +181,17 @@ export function QuestDetailPage({ questId }: { questId: string }) {
 
         <CardContent className="space-y-6">
           <p className="text-sm text-muted-foreground">{bounty.description}</p>
+
+          {getBountyTaskDisplayLabels(bounty).length > 0 && (
+            <div className="rounded-lg border bg-muted/30 p-4 text-sm">
+              <p className="font-medium">Tasks to complete</p>
+              <ul className="mt-2 list-inside list-disc space-y-1 text-muted-foreground">
+                {getBountyTaskDisplayLabels(bounty).map((label) => (
+                  <li key={label}>{label}</li>
+                ))}
+              </ul>
+            </div>
+          )}
 
           {bounty.requirements && (
             <div className="rounded-lg border bg-muted/30 p-4 text-sm">

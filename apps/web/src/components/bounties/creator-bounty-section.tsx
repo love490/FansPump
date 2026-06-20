@@ -10,12 +10,19 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   BOUNTY_REWARD_TYPES,
-  BOUNTY_TASK_TYPES,
   ONCHAIN_REQUIREMENTS,
   VERIFICATION_METHODS,
   type BountyListItem,
+  type BountyTaskType,
 } from "@/lib/bounties";
 import { BountyCard } from "@/components/bounties/bounty-card";
+import { BountyTaskPicker } from "@/components/bounties/bounty-task-picker";
+import {
+  mergeBountyVerificationConfig,
+  resolvePrimaryTaskType,
+  validateBountyTaskSelection,
+  type SocialBountyActionId,
+} from "@/lib/bounty-task-config";
 import { CircleDollarSign } from "lucide-react";
 
 type CreatorToken = {
@@ -46,11 +53,13 @@ export function CreatorBountySection({
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [taskType, setTaskType] = useState<(typeof BOUNTY_TASK_TYPES)[number]["id"]>("CUSTOM");
+  const [taskTypes, setTaskTypes] = useState<BountyTaskType[]>(["CUSTOM"]);
+  const [socialActions, setSocialActions] = useState<SocialBountyActionId[]>([]);
   const [requirements, setRequirements] = useState("");
   const [rewardType, setRewardType] = useState<(typeof BOUNTY_REWARD_TYPES)[number]["id"]>("OPN");
   const [rewardAmount, setRewardAmount] = useState("");
   const [rewardDescription, setRewardDescription] = useState("");
+  const [rewardTokenSymbol, setRewardTokenSymbol] = useState("");
   const [maxParticipants, setMaxParticipants] = useState("50");
   const [endsAt, setEndsAt] = useState("");
   const [tokenAddress, setTokenAddress] = useState("");
@@ -79,6 +88,33 @@ export function CreatorBountySection({
     setError(null);
     setMessage(null);
     try {
+      const taskError = validateBountyTaskSelection(taskTypes, socialActions);
+      if (taskError) throw new Error(taskError);
+
+      if (rewardType === "TOKEN" && !rewardTokenSymbol.trim() && !tokenAddress.trim()) {
+        throw new Error("Enter a token symbol (e.g. WIF, MAGO) or select a listed token");
+      }
+
+      const primaryTaskType = resolvePrimaryTaskType(taskTypes);
+      const onchainConfig =
+        verificationMethod === "ONCHAIN"
+          ? {
+              requirementType: onchainRequirement,
+              tokenAddress: onchainRequirement === "HOLD_TOKEN" && tokenAddress ? tokenAddress : undefined,
+              minAmount:
+                onchainRequirement === "HOLD_TOKEN" || onchainRequirement === "STAKE"
+                  ? String(Number(onchainMinAmount) * 1e18)
+                  : undefined,
+              pairId: onchainRequirement === "ADD_LIQUIDITY" ? "OPN" : undefined,
+              minLpAmount: onchainRequirement === "ADD_LIQUIDITY" ? "1" : undefined,
+            }
+          : null;
+      const verificationConfig = mergeBountyVerificationConfig(
+        onchainConfig,
+        taskTypes,
+        socialActions
+      );
+
       const prefix = process.env.NEXT_PUBLIC_CREATOR_ACTION_MESSAGE_PREFIX ?? "FansPump Creator Action";
       const msg = `${prefix}\nCreate bounty\nWallet: ${address.toLowerCase()}\nTime: ${Date.now()}`;
       const signature = await signMessageAsync({ message: msg });
@@ -92,28 +128,23 @@ export function CreatorBountySection({
           signature,
           title,
           description,
-          taskType,
+          taskType: primaryTaskType,
+          taskTypes,
+          socialActions,
           requirements: requirements || null,
           rewardType,
           rewardAmount,
-          rewardDescription: rewardDescription || null,
+          rewardDescription:
+            rewardType === "TOKEN"
+              ? rewardTokenSymbol.trim().toUpperCase() || null
+              : rewardType === "CUSTOM"
+                ? rewardDescription || null
+                : null,
           maxParticipants: Number(maxParticipants),
           endsAt: endsAt ? new Date(endsAt).toISOString() : null,
           tokenAddress: tokenAddress || null,
           verificationMethod,
-          verificationConfig:
-            verificationMethod === "ONCHAIN"
-              ? {
-                  requirementType: onchainRequirement,
-                  tokenAddress: onchainRequirement === "HOLD_TOKEN" && tokenAddress ? tokenAddress : undefined,
-                  minAmount:
-                    onchainRequirement === "HOLD_TOKEN" || onchainRequirement === "STAKE"
-                      ? String(Number(onchainMinAmount) * 1e18)
-                      : undefined,
-                  pairId: onchainRequirement === "ADD_LIQUIDITY" ? "OPN" : undefined,
-                  minLpAmount: onchainRequirement === "ADD_LIQUIDITY" ? "1" : undefined,
-                }
-              : null,
+          verificationConfig,
         }),
       });
       const data = await res.json();
@@ -122,9 +153,12 @@ export function CreatorBountySection({
       setMessage("Bounty created.");
       setTitle("");
       setDescription("");
+      setTaskTypes(["CUSTOM"]);
+      setSocialActions([]);
       setRequirements("");
       setRewardAmount("");
       setRewardDescription("");
+      setRewardTokenSymbol("");
       setMaxParticipants("50");
       setEndsAt("");
       setTokenAddress("");
@@ -179,20 +213,13 @@ export function CreatorBountySection({
                   className="flex min-h-[100px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="bounty-task-type">Task type</Label>
-                <select
-                  id="bounty-task-type"
-                  value={taskType}
-                  onChange={(e) => setTaskType(e.target.value as typeof taskType)}
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                >
-                  {BOUNTY_TASK_TYPES.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.label}
-                    </option>
-                  ))}
-                </select>
+              <div className="space-y-2 sm:col-span-2">
+                <BountyTaskPicker
+                  taskTypes={taskTypes}
+                  socialActions={socialActions}
+                  onTaskTypesChange={setTaskTypes}
+                  onSocialActionsChange={setSocialActions}
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="bounty-max">Max participants</Label>
@@ -240,22 +267,44 @@ export function CreatorBountySection({
                   />
                 </div>
               )}
-              {rewardType === "TOKEN" && creatorTokens.length > 0 && (
-                <div className="space-y-2 sm:col-span-2">
-                  <Label htmlFor="bounty-token">Linked token</Label>
-                  <select
-                    id="bounty-token"
-                    value={tokenAddress}
-                    onChange={(e) => setTokenAddress(e.target.value)}
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  >
-                    <option value="">Select token</option>
-                    {creatorTokens.map((t) => (
-                      <option key={t.contractAddress} value={t.contractAddress}>
-                        {t.name} (${t.symbol})
-                      </option>
-                    ))}
-                  </select>
+              {rewardType === "TOKEN" && (
+                <div className="space-y-3 sm:col-span-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="bounty-token-symbol">Token symbol</Label>
+                    <Input
+                      id="bounty-token-symbol"
+                      value={rewardTokenSymbol}
+                      onChange={(e) => setRewardTokenSymbol(e.target.value.toUpperCase())}
+                      placeholder="WIF, MAGO, PEPE…"
+                      maxLength={20}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Shown on Earn as the reward token (e.g. 100 MAGO).
+                    </p>
+                  </div>
+                  {creatorTokens.length > 0 && (
+                    <div className="space-y-2">
+                      <Label htmlFor="bounty-token">Or pick your listed token (optional)</Label>
+                      <select
+                        id="bounty-token"
+                        value={tokenAddress}
+                        onChange={(e) => {
+                          const addr = e.target.value;
+                          setTokenAddress(addr);
+                          const picked = creatorTokens.find((t) => t.contractAddress === addr);
+                          if (picked) setRewardTokenSymbol(picked.symbol.toUpperCase());
+                        }}
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                      >
+                        <option value="">None — use symbol only</option>
+                        {creatorTokens.map((t) => (
+                          <option key={t.contractAddress} value={t.contractAddress}>
+                            {t.name} (${t.symbol})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
                 </div>
               )}
               <div className="space-y-2">

@@ -123,6 +123,14 @@ router.post(
         return;
       }
 
+      const minStake = BigInt(pool.minStakeAmount || "0");
+      const maxStake = pool.maxStakeAmount ? BigInt(pool.maxStakeAmount) : null;
+
+      if (minStake > 0n && BigInt(body.amount) < minStake) {
+        res.status(400).json({ error: "Stake amount is below the minimum" });
+        return;
+      }
+
       const existing = await prisma.launchpoolStake.findFirst({
         where: {
           launchpoolId,
@@ -135,11 +143,20 @@ router.post(
 
       if (existing) {
         const merged = (BigInt(existing.amount) + BigInt(body.amount)).toString();
+        if (maxStake !== null && BigInt(merged) > maxStake) {
+          res.status(400).json({ error: "Total stake would exceed the maximum" });
+          return;
+        }
         const stake = await prisma.launchpoolStake.update({
           where: { id: existing.id },
           data: { amount: merged, stakedAt: new Date() },
         });
         res.json({ stake });
+        return;
+      }
+
+      if (maxStake !== null && BigInt(body.amount) > maxStake) {
+        res.status(400).json({ error: "Stake amount exceeds the maximum" });
         return;
       }
 

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CreatorProfileLink } from "@/components/profile/creator-profile-link";
 import { formatBountyReward, timeRemaining, type BountyListItem } from "@/lib/bounties";
+import { BountyTaskBadges } from "@/components/bounties/bounty-task-badges";
 import { Calendar, Users, Gift } from "lucide-react";
 
 function statusBadge(status: BountyListItem["effectiveStatus"]) {
@@ -50,7 +51,7 @@ export function BountyCard({
             </CardTitle>
             <div className="mt-2 flex flex-wrap items-center gap-2">
               {statusBadge(bounty.effectiveStatus)}
-              <Badge variant="outline">{bounty.taskType}</Badge>
+              <BountyTaskBadges bounty={bounty} />
               {bounty.tokenSymbol && (
                 <Badge variant="secondary">${bounty.tokenSymbol}</Badge>
               )}

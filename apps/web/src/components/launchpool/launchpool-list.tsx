@@ -17,12 +17,10 @@ const TABS: { id: LaunchpoolTab; label: string }[] = [
 
 export function LaunchpoolList({
   initialTab = "ACTIVE",
-  compactCards = false,
   showTabs = true,
   limit,
 }: {
   initialTab?: LaunchpoolTab;
-  compactCards?: boolean;
   showTabs?: boolean;
   limit?: number;
 }) {
@@ -81,7 +79,7 @@ export function LaunchpoolList({
       ) : (
         <div className="space-y-4">
           {pools.map((pool) => (
-            <LaunchpoolCard key={pool.id} pool={pool} compact={compactCards} onUpdated={load} />
+            <LaunchpoolCard key={pool.id} pool={pool} />
           ))}
         </div>
       )}
