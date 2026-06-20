@@ -15,7 +15,7 @@ import {
   validateBountyTaskSelection,
   type SocialBountyActionId,
 } from "@/lib/bounty-task-config";
-import type { BountyTaskType } from "@/lib/bounties";
+import type { BountyRewardType, BountyTaskType } from "@/lib/bounties";
 
 type BountyRow = {
   id: string;
@@ -35,7 +35,7 @@ const emptyForm = {
   description: "",
   taskTypes: ["CUSTOM"] as BountyTaskType[],
   socialActions: [] as SocialBountyActionId[],
-  rewardType: "OPN" as const,
+  rewardType: "OPN" as BountyRewardType,
   rewardAmount: "",
   rewardTokenSymbol: "",
   maxParticipants: "100",
@@ -212,7 +212,9 @@ export function EarnAdminSection() {
               <Label>Reward type</Label>
               <select
                 value={form.rewardType}
-                onChange={(e) => setForm({ ...form, rewardType: e.target.value as typeof form.rewardType })}
+                onChange={(e) =>
+                  setForm({ ...form, rewardType: e.target.value as BountyRewardType })
+                }
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
               >
                 {["OPN", "TOKEN", "CUSTOM", "XP"].map((t) => (
