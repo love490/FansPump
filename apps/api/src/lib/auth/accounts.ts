@@ -133,6 +133,54 @@ export async function linkOAuthIdentityToAccount(
   });
 }
 
+export async function linkEmailToAccount(accountId: string, email: string) {
+  const normalized = email.trim().toLowerCase();
+
+  const account = await prisma.appAccount.findUniqueOrThrow({ where: { id: accountId } });
+  if (account.email === normalized) {
+    return account;
+  }
+
+  const taken = await prisma.appAccount.findUnique({ where: { email: normalized } });
+  if (taken && taken.id !== accountId) {
+    throw new Error("Email is linked to another account");
+  }
+
+  const existingIdentity = await prisma.appIdentity.findFirst({
+    where: { accountId, provider: "email" },
+  });
+
+  if (existingIdentity) {
+    await prisma.appIdentity.update({
+      where: { id: existingIdentity.id },
+      data: { providerUserId: normalized, email: normalized },
+    });
+  } else {
+    const identityTaken = await prisma.appIdentity.findUnique({
+      where: {
+        provider_providerUserId: { provider: "email", providerUserId: normalized },
+      },
+    });
+    if (identityTaken && identityTaken.accountId !== accountId) {
+      throw new Error("Email is linked to another account");
+    }
+
+    await prisma.appIdentity.create({
+      data: {
+        accountId,
+        provider: "email",
+        providerUserId: normalized,
+        email: normalized,
+      },
+    });
+  }
+
+  return prisma.appAccount.update({
+    where: { id: accountId },
+    data: { email: normalized },
+  });
+}
+
 export async function linkTelegramIdentity(accountId: string, username: string) {
   const normalized = username.trim().replace(/^@/, "").toLowerCase();
   if (!/^[a-z0-9_]{5,32}$/i.test(normalized)) {

@@ -29,6 +29,7 @@ import {
 import {
   findOrCreateAccountFromEmail,
   findOrCreateAccountFromOAuth,
+  linkEmailToAccount,
   linkOAuthIdentityToAccount,
   linkTelegramIdentity,
   linkWalletToAccount,
@@ -39,6 +40,23 @@ const router = Router();
 const OAUTH_STATE_COOKIE = "oauth_state";
 const OAUTH_PKCE_COOKIE = "oauth_pkce";
 const OAUTH_LINK_ACCOUNT_COOKIE = "oauth_link_account";
+const OAUTH_RETURN_COOKIE = "oauth_return_to";
+
+function safeReturnPath(value: unknown): string | null {
+  if (typeof value !== "string" || !value.startsWith("/") || value.startsWith("//")) {
+    return null;
+  }
+  return value;
+}
+
+function appendSignedInParam(path: string): string {
+  const hashIndex = path.indexOf("#");
+  const base = hashIndex >= 0 ? path.slice(0, hashIndex) : path;
+  const hash = hashIndex >= 0 ? path.slice(hashIndex) : "";
+  if (base.includes("signed_in=1")) return path;
+  const withParam = base.includes("?") ? `${base}&signed_in=1` : `${base}?signed_in=1`;
+  return `${withParam}${hash}`;
+}
 
 const emailSendSchema = z.object({
   email: z.string().email(),
@@ -137,6 +155,16 @@ router.post(
 
     await prisma.emailOtp.deleteMany({ where: { email: normalized } });
 
+    const session = await getAppSessionFromRequest(req.cookies);
+    if (session) {
+      const account = await linkEmailToAccount(session.account.id, normalized);
+      res.json({
+        ok: true,
+        account: serializeAppAccount(account),
+      });
+      return;
+    }
+
     const account = await findOrCreateAccountFromEmail(normalized);
     const { token, expiresAt } = await createAppSession(account.id);
     attachAppSessionCookie(res, token, expiresAt);
@@ -166,6 +194,14 @@ router.get(
 
     const linkMode = req.query.link === "1";
     const session = await getAppSessionFromRequest(req.cookies);
+    const returnTo = safeReturnPath(req.query.returnTo);
+
+    if (returnTo) {
+      res.cookie(OAUTH_RETURN_COOKIE, returnTo, oauthStateCookieOptions(10 * 60 * 1000));
+    } else {
+      res.clearCookie(OAUTH_RETURN_COOKIE, { path: "/" });
+    }
+
     if (linkMode) {
       if (!session) {
         res.status(401).json({ error: "Sign in required to link accounts" });
@@ -212,9 +248,11 @@ async function handleOAuthCallback(
   res.clearCookie(OAUTH_STATE_COOKIE, { path: "/" });
 
   const linkAccountId = req.cookies?.[OAUTH_LINK_ACCOUNT_COOKIE] as string | undefined;
+  const returnTo = safeReturnPath(req.cookies?.[OAUTH_RETURN_COOKIE]);
   if (linkAccountId) {
     res.clearCookie(OAUTH_LINK_ACCOUNT_COOKIE, { path: "/" });
   }
+  res.clearCookie(OAUTH_RETURN_COOKIE, { path: "/" });
 
   try {
     const pkceVerifier = provider === "twitter" ? req.cookies?.[OAUTH_PKCE_COOKIE] : undefined;
@@ -237,10 +275,11 @@ async function handleOAuthCallback(
     const account = await findOrCreateAccountFromOAuth(provider, profile);
     const { token, expiresAt } = await createAppSession(account.id);
     attachAppSessionCookie(res, token, expiresAt);
-    res.redirect(oauthSuccessRedirect());
+    res.redirect(oauthSuccessRedirect(appendSignedInParam(returnTo ?? "/")));
   } catch (error) {
     const message = error instanceof Error ? error.message : "OAuth failed";
-    res.redirect(oauthErrorRedirect(message, linkAccountId ? "/settings" : "/"));
+    const errorPath = linkAccountId || returnTo ? "/settings#linked-accounts" : "/";
+    res.redirect(oauthErrorRedirect(message, errorPath));
   }
 }
 

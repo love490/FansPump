@@ -107,10 +107,21 @@ export function useAuth() {
   return ctx;
 }
 
-export function oauthSignInUrl(provider: "google" | "github" | "twitter" | "apple" | "discord") {
-  return apiUrl(`/api/auth/oauth/${provider}`);
+export function oauthSignInUrl(
+  provider: "google" | "github" | "twitter" | "apple" | "discord",
+  options?: { returnTo?: string }
+) {
+  const params = new URLSearchParams();
+  if (options?.returnTo) params.set("returnTo", options.returnTo);
+  const qs = params.toString();
+  return apiUrl(`/api/auth/oauth/${provider}${qs ? `?${qs}` : ""}`);
 }
 
-export function oauthLinkUrl(provider: "google" | "github" | "twitter" | "apple" | "discord") {
-  return apiUrl(`/api/auth/oauth/${provider}?link=1`);
+export function oauthLinkUrl(
+  provider: "google" | "github" | "twitter" | "apple" | "discord",
+  options?: { returnTo?: string }
+) {
+  const params = new URLSearchParams({ link: "1" });
+  if (options?.returnTo) params.set("returnTo", options.returnTo);
+  return apiUrl(`/api/auth/oauth/${provider}?${params.toString()}`);
 }
