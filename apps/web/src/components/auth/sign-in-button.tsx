@@ -2,6 +2,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { useAccount, useDisconnect } from "wagmi";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
@@ -26,6 +27,7 @@ export function SignInButton({
   showBalance = false,
   accountStatus = "address",
 }: SignInButtonProps) {
+  const router = useRouter();
   const [modalOpen, setModalOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuPos, setMenuPos] = useState<{ top: number; right: number } | null>(null);
@@ -192,7 +194,7 @@ export function SignInButton({
                 className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-muted"
                 onClick={() => {
                   setMenuOpen(false);
-                  setModalOpen(true);
+                  router.push("/settings#linked-accounts");
                 }}
               >
                 <User className="h-4 w-4" />

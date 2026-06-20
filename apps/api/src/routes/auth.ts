@@ -29,6 +29,8 @@ import {
 import {
   findOrCreateAccountFromEmail,
   findOrCreateAccountFromOAuth,
+  linkOAuthIdentityToAccount,
+  linkTelegramIdentity,
   linkWalletToAccount,
 } from "../lib/auth/accounts";
 
@@ -36,6 +38,7 @@ const router = Router();
 
 const OAUTH_STATE_COOKIE = "oauth_state";
 const OAUTH_PKCE_COOKIE = "oauth_pkce";
+const OAUTH_LINK_ACCOUNT_COOKIE = "oauth_link_account";
 
 const emailSendSchema = z.object({
   email: z.string().email(),
@@ -161,6 +164,22 @@ router.get(
       return;
     }
 
+    const linkMode = req.query.link === "1";
+    const session = await getAppSessionFromRequest(req.cookies);
+    if (linkMode) {
+      if (!session) {
+        res.status(401).json({ error: "Sign in required to link accounts" });
+        return;
+      }
+      res.cookie(
+        OAUTH_LINK_ACCOUNT_COOKIE,
+        session.account.id,
+        oauthStateCookieOptions(10 * 60 * 1000)
+      );
+    } else {
+      res.clearCookie(OAUTH_LINK_ACCOUNT_COOKIE, { path: "/" });
+    }
+
     const state = createOAuthState();
     res.cookie(OAUTH_STATE_COOKIE, state, oauthStateCookieOptions(10 * 60 * 1000));
 
@@ -192,6 +211,11 @@ async function handleOAuthCallback(
 
   res.clearCookie(OAUTH_STATE_COOKIE, { path: "/" });
 
+  const linkAccountId = req.cookies?.[OAUTH_LINK_ACCOUNT_COOKIE] as string | undefined;
+  if (linkAccountId) {
+    res.clearCookie(OAUTH_LINK_ACCOUNT_COOKIE, { path: "/" });
+  }
+
   try {
     const pkceVerifier = provider === "twitter" ? req.cookies?.[OAUTH_PKCE_COOKIE] : undefined;
     if (provider === "twitter") {
@@ -200,7 +224,13 @@ async function handleOAuthCallback(
 
     const profile = await exchangeOAuthCode(provider, code, pkceVerifier);
     if (!profile.providerUserId) {
-      res.redirect(oauthErrorRedirect("Could not read provider profile"));
+      res.redirect(oauthErrorRedirect("Could not read provider profile", "/settings"));
+      return;
+    }
+
+    if (linkAccountId) {
+      await linkOAuthIdentityToAccount(linkAccountId, provider, profile);
+      res.redirect(oauthSuccessRedirect("/settings?linked=1#linked-accounts"));
       return;
     }
 
@@ -210,7 +240,7 @@ async function handleOAuthCallback(
     res.redirect(oauthSuccessRedirect());
   } catch (error) {
     const message = error instanceof Error ? error.message : "OAuth failed";
-    res.redirect(oauthErrorRedirect(message));
+    res.redirect(oauthErrorRedirect(message, linkAccountId ? "/settings" : "/"));
   }
 }
 
@@ -270,6 +300,74 @@ router.post(
       const message = error instanceof Error ? error.message : "Failed to link wallet";
       res.status(409).json({ error: message });
     }
+  })
+);
+
+router.get(
+  "/linked-accounts",
+  asyncHandler(async (req, res) => {
+    const session = await getAppSessionFromRequest(req.cookies);
+    if (!session) {
+      res.status(401).json({ error: "Sign in required" });
+      return;
+    }
+
+    const identities = await prisma.appIdentity.findMany({
+      where: { accountId: session.account.id },
+      select: { provider: true, providerUserId: true, email: true, createdAt: true },
+    });
+
+    const wallet = session.account.walletAddress?.toLowerCase();
+    let walletSocial: { x?: { connected: boolean; username?: string }; discord?: { connected: boolean; username?: string } } = {};
+    if (wallet) {
+      const verification = await prisma.walletVerification.findUnique({
+        where: { walletAddress: wallet },
+      });
+      if (verification) {
+        walletSocial = {
+          x: {
+            connected: verification.xConnected,
+            username: verification.xUsername ?? undefined,
+          },
+          discord: {
+            connected: verification.discordConnected,
+            username: verification.discordUsername ?? undefined,
+          },
+        };
+      }
+    }
+
+    const providers: OAuthProvider[] = ["google", "github", "twitter", "apple", "discord"];
+    res.json({
+      account: serializeAppAccount(session.account),
+      identities: identities.map((row) => ({
+        provider: row.provider,
+        label: row.email ?? row.providerUserId,
+        linkedAt: row.createdAt.toISOString(),
+      })),
+      walletSocial,
+      oauth: Object.fromEntries(providers.map((p) => [p, isOAuthConfigured(p)])),
+    });
+  })
+);
+
+const telegramLinkSchema = z.object({
+  username: z.string().min(5).max(32),
+});
+
+router.post(
+  "/link-telegram",
+  authRateLimit,
+  asyncHandler(async (req, res) => {
+    const session = await getAppSessionFromRequest(req.cookies);
+    if (!session) {
+      res.status(401).json({ error: "Sign in required" });
+      return;
+    }
+
+    const { username } = telegramLinkSchema.parse(req.body);
+    await linkTelegramIdentity(session.account.id, username);
+    res.json({ ok: true });
   })
 );
 

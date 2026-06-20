@@ -16,7 +16,9 @@ import { Badge } from "@/components/ui/badge";
 import { Star, Download, AlertTriangle } from "lucide-react";
 import { useAccount } from "wagmi";
 import { LaunchpoolAdminSection } from "@/components/admin/launchpool-admin-section";
+import { EarnAdminSection } from "@/components/admin/earn-admin-section";
 import { invalidatePlatformBrandingCache } from "@/hooks/usePlatformBranding";
+import { formatAdminApiError } from "@/lib/admin/api-error";
 import Image from "next/image";
 import { Loader2, Upload } from "lucide-react";
 
@@ -477,20 +479,51 @@ export function PoolShareSection() {
 
 export function BridgeSection() {
   const [bridge, setBridge] = useState<Record<string, unknown> | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
   useEffect(() => {
     adminFetch("/api/admin/settings/bridge").then((r) => r.json()).then((d) => setBridge(d.bridge));
   }, []);
   if (!bridge) return null;
   return (
-    <div className="space-y-4 opacity-60">
+    <div className="space-y-4">
       <h2 className="text-2xl font-bold">Bridge Settings (Future)</h2>
       <Card>
         <CardHeader><CardDescription>Configuration only — execution disabled until bridge is implemented.</CardDescription></CardHeader>
         <CardContent className="space-y-4 pt-0">
           <FeeInput label="Bridge Fee (bps)" value={Number(bridge.bridgeFeeBps)} onChange={(v) => setBridge({ ...bridge, bridgeFeeBps: v })} />
-          <div><Label>Bridge Treasury Wallet</Label><Input className="mt-1 font-mono" value={String(bridge.bridgeTreasuryWallet ?? "")} disabled /></div>
+          <div>
+            <Label>Bridge Treasury Wallet</Label>
+            <Input
+              className="mt-1 font-mono"
+              value={String(bridge.bridgeTreasuryWallet ?? "")}
+              onChange={(e) => setBridge({ ...bridge, bridgeTreasuryWallet: e.target.value })}
+            />
+          </div>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={!!bridge.enabled}
+              onChange={(e) => setBridge({ ...bridge, enabled: e.target.checked })}
+            />
+            Bridge enabled (future)
+          </label>
+          {message && <p className="text-sm text-emerald-600">{message}</p>}
         </CardContent>
       </Card>
+      <SaveButton
+        saving={saving}
+        onClick={async () => {
+          setSaving(true);
+          setMessage(null);
+          const res = await adminFetch("/api/admin/settings/bridge", {
+            method: "PATCH",
+            body: JSON.stringify({ bridge }),
+          });
+          setSaving(false);
+          if (res.ok) setMessage("Bridge settings saved.");
+        }}
+      />
     </div>
   );
 }
@@ -651,6 +684,44 @@ export function SystemSection() {
         {["platformName", "platformDescription", "announcementBanner", "supportEmail", "supportUrl"].map((key) => (
           <div key={key}><Label>{key}</Label><Input className="mt-1" value={String(system[key] ?? "")} onChange={(e) => setSystem({ ...system, [key]: e.target.value })} /></div>
         ))}
+        <div>
+          <Label>Brand color</Label>
+          <div className="mt-1 flex flex-wrap items-center gap-3">
+            <Input
+              type="color"
+              className="h-10 w-16 cursor-pointer p-1"
+              value={String(system.brandColor ?? "#2563eb")}
+              onChange={(e) => setSystem({ ...system, brandColor: e.target.value })}
+            />
+            <Input
+              className="max-w-[8rem] font-mono text-xs"
+              value={String(system.brandColor ?? "#2563eb")}
+              onChange={(e) => setSystem({ ...system, brandColor: e.target.value })}
+              placeholder="#2563eb"
+            />
+            <span className="text-xs text-muted-foreground">Applied to buttons and accents site-wide</span>
+          </div>
+        </div>
+        <div className="space-y-2">
+          <Label>Social links</Label>
+          {(["twitter", "telegram", "discord"] as const).map((key) => (
+            <Input
+              key={key}
+              className="font-mono text-xs"
+              placeholder={`${key} URL`}
+              value={String((system.socialLinks as Record<string, string> | undefined)?.[key] ?? "")}
+              onChange={(e) =>
+                setSystem({
+                  ...system,
+                  socialLinks: {
+                    ...((system.socialLinks as Record<string, string>) ?? {}),
+                    [key]: e.target.value,
+                  },
+                })
+              }
+            />
+          ))}
+        </div>
         <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={!!system.maintenanceMode} onChange={(e) => setSystem({ ...system, maintenanceMode: e.target.checked })} /> Maintenance Mode</label>
       </CardContent></Card>
       <SaveButton saving={saving} onClick={async () => {
@@ -714,15 +785,81 @@ export function RolesSection() {
   const [admins, setAdmins] = useState<
     { id: string; email: string; role: string; twoFactorEnabled: boolean; lastLogin: string | null }[]
   >([]);
-  useEffect(() => {
+  const [createEmail, setCreateEmail] = useState("");
+  const [createPassword, setCreatePassword] = useState("");
+  const [createRole, setCreateRole] = useState("MODERATOR");
+  const [creating, setCreating] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(() => {
     if (role === "SUPER_ADMIN") {
       adminFetch("/api/admin/roles").then((r) => r.json()).then((d) => setAdmins(d.admins ?? []));
     }
   }, [role]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  async function createAdmin() {
+    setCreating(true);
+    setMessage(null);
+    setError(null);
+    try {
+      const res = await adminFetch("/api/admin/admins", {
+        method: "POST",
+        body: JSON.stringify({ email: createEmail.trim(), password: createPassword, role: createRole }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(formatAdminApiError(data, "Create failed"));
+      setCreateEmail("");
+      setCreatePassword("");
+      setMessage("Admin account created.");
+      load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Create failed");
+    } finally {
+      setCreating(false);
+    }
+  }
+
   if (role !== "SUPER_ADMIN") return <p className="text-muted-foreground">Super admin access required.</p>;
   return (
     <div className="space-y-4">
       <h2 className="text-2xl font-bold">Platform Admins</h2>
+      <Card>
+        <CardHeader><CardTitle className="text-base">Add admin</CardTitle></CardHeader>
+        <CardContent className="grid gap-3 sm:grid-cols-2">
+          <div className="space-y-2 sm:col-span-2">
+            <Label>Email</Label>
+            <Input value={createEmail} onChange={(e) => setCreateEmail(e.target.value)} />
+          </div>
+          <div className="space-y-2">
+            <Label>Password</Label>
+            <Input type="password" value={createPassword} onChange={(e) => setCreatePassword(e.target.value)} />
+          </div>
+          <div className="space-y-2">
+            <Label>Role</Label>
+            <select
+              value={createRole}
+              onChange={(e) => setCreateRole(e.target.value)}
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+            >
+              <option value="SUPER_ADMIN">Super Admin</option>
+              <option value="ADMIN">Admin</option>
+              <option value="MODERATOR">Moderator</option>
+            </select>
+          </div>
+          {message && <p className="text-sm text-emerald-600 sm:col-span-2">{message}</p>}
+          {error && <p className="text-sm text-red-600 sm:col-span-2">{error}</p>}
+          <div className="sm:col-span-2">
+            <Button type="button" disabled={creating} onClick={() => void createAdmin()}>
+              Create admin
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
       <div className="overflow-x-auto rounded-lg border">
         <table className="w-full text-sm">
           <thead className="border-b bg-muted/50">
@@ -747,9 +884,164 @@ export function RolesSection() {
           </tbody>
         </table>
       </div>
-      <p className="text-xs text-muted-foreground">
-        Super admins can create additional admins via POST /api/admin/admins. Roles: Super Admin, Admin, Moderator.
-      </p>
+    </div>
+  );
+}
+
+export function AnnouncementsModerationSection() {
+  const [rows, setRows] = useState<{ id: string; title: string; tokenSymbol: string; creatorWallet: string; isHidden: boolean; createdAt: string }[]>([]);
+  const [form, setForm] = useState({ tokenAddress: "", title: "", content: "", type: "GENERAL" });
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(() => {
+    adminFetch("/api/admin/announcements").then((r) => r.json()).then((d) => setRows(d.announcements ?? []));
+  }, []);
+  useEffect(() => { load(); }, [load]);
+
+  const toggle = async (id: string, isHidden: boolean) => {
+    await adminFetch("/api/admin/announcements", { method: "PATCH", body: JSON.stringify({ id, isHidden }) });
+    load();
+  };
+
+  async function createAnnouncement() {
+    setLoading(true);
+    setMessage(null);
+    setError(null);
+    try {
+      const res = await adminFetch("/api/admin/announcements", {
+        method: "POST",
+        body: JSON.stringify(form),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(formatAdminApiError(data, "Create failed"));
+      setForm({ tokenAddress: "", title: "", content: "", type: "GENERAL" });
+      setMessage("Announcement created.");
+      load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Create failed");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function removeAnnouncement(id: string) {
+    if (!confirm("Delete this announcement permanently?")) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await adminFetch("/api/admin/announcements", {
+        method: "DELETE",
+        body: JSON.stringify({ id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(formatAdminApiError(data, "Delete failed"));
+      load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Delete failed");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <h2 className="text-2xl font-bold">Announcement Moderation</h2>
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Create token announcement</CardTitle>
+          <CardDescription>
+            Platform-wide banner text is edited under System → announcementBanner.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-3 sm:grid-cols-2">
+          <div className="space-y-2 sm:col-span-2">
+            <Label>Token contract address</Label>
+            <Input
+              className="font-mono text-xs"
+              value={form.tokenAddress}
+              onChange={(e) => setForm({ ...form, tokenAddress: e.target.value })}
+            />
+          </div>
+          <div className="space-y-2 sm:col-span-2">
+            <Label>Title</Label>
+            <Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
+          </div>
+          <div className="space-y-2 sm:col-span-2">
+            <Label>Content</Label>
+            <textarea
+              value={form.content}
+              onChange={(e) => setForm({ ...form, content: e.target.value })}
+              rows={4}
+              className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Type</Label>
+            <select
+              value={form.type}
+              onChange={(e) => setForm({ ...form, type: e.target.value })}
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+            >
+              {["GENERAL", "VERSION_RELEASE", "PARTNERSHIP", "LIQUIDITY_ADDED", "EXCHANGE_LISTING", "MARKETING_UPDATE", "COMMUNITY_UPDATE"].map((t) => (
+                <option key={t} value={t}>{t.replace(/_/g, " ")}</option>
+              ))}
+            </select>
+          </div>
+          {message && <p className="text-sm text-emerald-600 sm:col-span-2">{message}</p>}
+          {error && <p className="text-sm text-red-600 sm:col-span-2">{error}</p>}
+          <div className="sm:col-span-2">
+            <Button type="button" disabled={loading} onClick={() => void createAnnouncement()}>
+              Post announcement
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+      <div className="overflow-x-auto rounded-lg border">
+        <table className="w-full text-sm">
+          <thead className="border-b bg-muted/50">
+            <tr>
+              <th className="p-3 text-left">Title</th>
+              <th className="p-3 text-left">Token</th>
+              <th className="p-3 text-left">Creator</th>
+              <th className="p-3 text-left">Status</th>
+              <th className="p-3 text-left">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.length === 0 && (
+              <tr>
+                <td colSpan={5} className="p-6 text-center text-muted-foreground">
+                  No announcements yet.
+                </td>
+              </tr>
+            )}
+            {rows.map((r) => (
+              <tr key={r.id} className="border-b">
+                <td className="p-3">{r.title}</td>
+                <td className="p-3">{r.tokenSymbol}</td>
+                <td className="p-3 font-mono text-xs">{r.creatorWallet.slice(0, 10)}…</td>
+                <td className="p-3">
+                  <Badge variant={r.isHidden ? "secondary" : "default"}>
+                    {r.isHidden ? "Hidden" : "Visible"}
+                  </Badge>
+                </td>
+                <td className="p-3">
+                  <div className="flex flex-wrap gap-2">
+                    <Button size="sm" variant="outline" disabled={loading} onClick={() => toggle(r.id, !r.isHidden)}>
+                      {r.isHidden ? "Restore" : "Hide"}
+                    </Button>
+                    <Button size="sm" variant="destructive" disabled={loading} onClick={() => void removeAnnouncement(r.id)}>
+                      Delete
+                    </Button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
@@ -775,51 +1067,6 @@ export function CategoriesSection() {
               <tr key={s.category} className="border-b">
                 <td className="p-3">{s.category}</td>
                 <td className="p-3 font-medium">{s.count}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
-
-export function AnnouncementsModerationSection() {
-  const [rows, setRows] = useState<{ id: string; title: string; tokenSymbol: string; creatorWallet: string; isHidden: boolean; createdAt: string }[]>([]);
-  const load = useCallback(() => {
-    adminFetch("/api/admin/announcements").then((r) => r.json()).then((d) => setRows(d.announcements ?? []));
-  }, []);
-  useEffect(() => { load(); }, [load]);
-  const toggle = async (id: string, isHidden: boolean) => {
-    await adminFetch("/api/admin/announcements", { method: "PATCH", body: JSON.stringify({ id, isHidden }) });
-    load();
-  };
-  return (
-    <div className="space-y-4">
-      <h2 className="text-2xl font-bold">Announcement Moderation</h2>
-      <div className="overflow-x-auto rounded-lg border">
-        <table className="w-full text-sm">
-          <thead className="border-b bg-muted/50">
-            <tr>
-              <th className="p-3 text-left">Title</th>
-              <th className="p-3 text-left">Token</th>
-              <th className="p-3 text-left">Creator</th>
-              <th className="p-3 text-left">Status</th>
-              <th className="p-3 text-left">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r) => (
-              <tr key={r.id} className="border-b">
-                <td className="p-3">{r.title}</td>
-                <td className="p-3">{r.tokenSymbol}</td>
-                <td className="p-3 font-mono text-xs">{r.creatorWallet.slice(0, 10)}…</td>
-                <td className="p-3"><Badge variant={r.isHidden ? "secondary" : "default"}>{r.isHidden ? "Hidden" : "Visible"}</Badge></td>
-                <td className="p-3">
-                  <Button size="sm" variant="outline" onClick={() => toggle(r.id, !r.isHidden)}>
-                    {r.isHidden ? "Restore" : "Hide"}
-                  </Button>
-                </td>
               </tr>
             ))}
           </tbody>
@@ -968,11 +1215,64 @@ export function V2PlatformSection() {
   const [flags, setFlags] = useState<{ envDefaults: Record<string, boolean>; overrides: Record<string, boolean>; effective: Record<string, boolean> } | null>(null);
   const [v2Data, setV2Data] = useState<{ creators: { walletAddress: string; reputationScore: number; status: string; isFeatured: boolean }[]; quests: { id: string; title: string; status: string; completions: number }[]; analytics: { dailySnapshots: number; trustHistoryEntries: number } } | null>(null);
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [questForm, setQuestForm] = useState({
+    creatorWallet: "",
+    title: "",
+    description: "",
+    questType: "SOCIAL" as const,
+    tokenAddress: "",
+  });
+
+  const loadV2 = useCallback(() => {
+    adminFetch("/api/admin/v2").then((r) => r.json()).then(setV2Data);
+  }, []);
 
   useEffect(() => {
     adminFetch("/api/admin/settings/v2/feature-flags").then((r) => r.json()).then(setFlags);
-    adminFetch("/api/admin/v2").then((r) => r.json()).then(setV2Data);
-  }, []);
+    loadV2();
+  }, [loadV2]);
+
+  async function patchV2(body: Record<string, unknown>) {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await adminFetch("/api/admin/v2", {
+        method: "PATCH",
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(formatAdminApiError(data, "Update failed"));
+      loadV2();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Update failed");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function createQuest() {
+    setLoading(true);
+    setMessage(null);
+    setError(null);
+    try {
+      const res = await adminFetch("/api/admin/v2", {
+        method: "PATCH",
+        body: JSON.stringify({ createQuest: questForm }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(formatAdminApiError(data, "Create failed"));
+      setQuestForm({ creatorWallet: "", title: "", description: "", questType: "SOCIAL", tokenAddress: "" });
+      setMessage("Quest created.");
+      loadV2();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Create failed");
+    } finally {
+      setLoading(false);
+    }
+  }
 
   const tabs = [
     { id: "flags" as const, label: "Feature Flags" },
@@ -1035,6 +1335,10 @@ export function V2PlatformSection() {
         <Card>
           <CardHeader><CardTitle>Creator Management</CardTitle></CardHeader>
           <CardContent className="space-y-2 text-sm">
+            {v2Data.creators.length === 0 && (
+              <p className="text-muted-foreground">No creator profiles yet. Profiles are created when users launch tokens.</p>
+            )}
+            {error && tab === "creators" && <p className="text-sm text-red-600">{error}</p>}
             {v2Data.creators.map((c) => (
               <div key={c.walletAddress} className="flex flex-wrap items-center justify-between gap-2 border-b py-2">
                 <Link href={`/creator/${c.walletAddress}`} className="font-mono hover:text-primary">
@@ -1042,7 +1346,27 @@ export function V2PlatformSection() {
                 </Link>
                 <span>Rep {c.reputationScore}</span>
                 <Badge variant="outline">{c.status}</Badge>
-                {c.isFeatured && <Badge>Featured</Badge>}
+                <div className="flex flex-wrap gap-2">
+                  {(["ANONYMOUS", "VERIFIED", "TRUSTED"] as const).map((status) => (
+                    <Button
+                      key={status}
+                      size="sm"
+                      variant={c.status === status ? "default" : "outline"}
+                      disabled={loading || c.status === status}
+                      onClick={() => void patchV2({ walletAddress: c.walletAddress, status })}
+                    >
+                      {status}
+                    </Button>
+                  ))}
+                  <Button
+                    size="sm"
+                    variant={c.isFeatured ? "default" : "outline"}
+                    disabled={loading}
+                    onClick={() => void patchV2({ walletAddress: c.walletAddress, isFeatured: !c.isFeatured })}
+                  >
+                    {c.isFeatured ? "Unfeature" : "Feature"}
+                  </Button>
+                </div>
               </div>
             ))}
           </CardContent>
@@ -1050,18 +1374,99 @@ export function V2PlatformSection() {
       )}
 
       {tab === "quests" && v2Data && (
-        <Card>
-          <CardHeader><CardTitle>Quest Management</CardTitle></CardHeader>
-          <CardContent className="space-y-2 text-sm">
-            {v2Data.quests.map((q) => (
-              <div key={q.id} className="flex flex-wrap items-center justify-between gap-2 border-b py-2">
-                <span className="font-medium">{q.title}</span>
-                <Badge variant="secondary">{q.status}</Badge>
-                <span>{q.completions} completions</span>
+        <div className="space-y-4">
+          <Card>
+            <CardHeader><CardTitle>Create quest</CardTitle></CardHeader>
+            <CardContent className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-2 sm:col-span-2">
+                <Label>Creator wallet</Label>
+                <Input
+                  className="font-mono text-xs"
+                  value={questForm.creatorWallet}
+                  onChange={(e) => setQuestForm({ ...questForm, creatorWallet: e.target.value })}
+                />
               </div>
-            ))}
-          </CardContent>
-        </Card>
+              <div className="space-y-2 sm:col-span-2">
+                <Label>Title</Label>
+                <Input value={questForm.title} onChange={(e) => setQuestForm({ ...questForm, title: e.target.value })} />
+              </div>
+              <div className="space-y-2 sm:col-span-2">
+                <Label>Description</Label>
+                <textarea
+                  value={questForm.description}
+                  onChange={(e) => setQuestForm({ ...questForm, description: e.target.value })}
+                  rows={3}
+                  className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Quest type</Label>
+                <select
+                  value={questForm.questType}
+                  onChange={(e) => setQuestForm({ ...questForm, questType: e.target.value as typeof questForm.questType })}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                >
+                  {["SOCIAL", "ENGAGEMENT", "GROWTH", "COMMUNITY"].map((t) => (
+                    <option key={t} value={t}>{t}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-2">
+                <Label>Token address (optional)</Label>
+                <Input
+                  className="font-mono text-xs"
+                  value={questForm.tokenAddress}
+                  onChange={(e) => setQuestForm({ ...questForm, tokenAddress: e.target.value })}
+                />
+              </div>
+              {message && <p className="text-sm text-emerald-600 sm:col-span-2">{message}</p>}
+              {error && tab === "quests" && <p className="text-sm text-red-600 sm:col-span-2">{error}</p>}
+              <div className="sm:col-span-2">
+                <Button type="button" disabled={loading} onClick={() => void createQuest()}>
+                  Create quest
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader><CardTitle>Quest Management</CardTitle></CardHeader>
+            <CardContent className="space-y-2 text-sm">
+              {v2Data.quests.length === 0 && (
+                <p className="text-muted-foreground">No quests yet. Create one above.</p>
+              )}
+              {v2Data.quests.map((q) => (
+                <div key={q.id} className="flex flex-wrap items-center justify-between gap-2 border-b py-2">
+                  <span className="font-medium">{q.title}</span>
+                  <Badge variant="secondary">{q.status}</Badge>
+                  <span>{q.completions} completions</span>
+                  <div className="flex flex-wrap gap-2">
+                    {(["ACTIVE", "PAUSED", "COMPLETED"] as const).map((status) => (
+                      <Button
+                        key={status}
+                        size="sm"
+                        variant={q.status === status ? "default" : "outline"}
+                        disabled={loading || q.status === status}
+                        onClick={() => void patchV2({ questId: q.id, questStatus: status })}
+                      >
+                        {status}
+                      </Button>
+                    ))}
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      disabled={loading}
+                      onClick={() => {
+                        if (confirm("Delete this quest?")) void patchV2({ deleteQuestId: q.id });
+                      }}
+                    >
+                      Delete
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        </div>
       )}
 
       {tab === "analytics" && v2Data && (
@@ -1096,6 +1501,7 @@ export function AdminSectionRouter({ section }: { section: string }) {
     announcements: { perm: "announcements", Component: AnnouncementsModerationSection },
     staking: { perm: "staking", Component: StakingConfigSection },
     launchpool: { perm: "launchpool", Component: LaunchpoolAdminSection },
+    earn: { perm: "earn", Component: EarnAdminSection },
     "v2-platform": { perm: "v2_platform", Component: V2PlatformSection },
     discovery: { perm: "discovery", Component: DiscoverySection },
     analytics: { perm: "analytics", Component: AnalyticsSection },

@@ -9,6 +9,7 @@ export type PlatformBranding = {
   heroLogoUrl: string;
   faviconUrl: string;
   platformName: string;
+  brandColor: string;
 };
 
 const DEFAULTS: PlatformBranding = {
@@ -17,6 +18,7 @@ const DEFAULTS: PlatformBranding = {
   heroLogoUrl: "/images/hero-logo.png",
   faviconUrl: "/images/logo.png",
   platformName: "FansPump",
+  brandColor: "#2563eb",
 };
 
 let cached: PlatformBranding | null = null;
@@ -70,4 +72,7 @@ export function usePlatformBranding() {
 /** Call after admin saves branding to refresh cached values. */
 export function invalidatePlatformBrandingCache() {
   cached = null;
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event("platform-branding-updated"));
+  }
 }

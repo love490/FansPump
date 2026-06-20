@@ -88,6 +88,87 @@ export async function findOrCreateAccountFromEmail(email: string) {
   });
 }
 
+export async function linkOAuthIdentityToAccount(
+  accountId: string,
+  provider: string,
+  profile: {
+    providerUserId: string;
+    email: string | null;
+    displayName: string | null;
+    avatarUrl: string | null;
+  }
+) {
+  const existingIdentity = await prisma.appIdentity.findUnique({
+    where: {
+      provider_providerUserId: {
+        provider,
+        providerUserId: profile.providerUserId,
+      },
+    },
+  });
+
+  if (existingIdentity) {
+    if (existingIdentity.accountId !== accountId) {
+      throw new Error("This account is already linked to another profile");
+    }
+    return prisma.appAccount.findUniqueOrThrow({ where: { id: accountId } });
+  }
+
+  await prisma.appIdentity.create({
+    data: {
+      accountId,
+      provider,
+      providerUserId: profile.providerUserId,
+      email: profile.email,
+    },
+  });
+
+  return prisma.appAccount.update({
+    where: { id: accountId },
+    data: {
+      email: profile.email ?? undefined,
+      displayName: profile.displayName ?? undefined,
+      avatarUrl: profile.avatarUrl ?? undefined,
+    },
+  });
+}
+
+export async function linkTelegramIdentity(accountId: string, username: string) {
+  const normalized = username.trim().replace(/^@/, "").toLowerCase();
+  if (!/^[a-z0-9_]{5,32}$/i.test(normalized)) {
+    throw new Error("Invalid Telegram username");
+  }
+
+  const existing = await prisma.appIdentity.findFirst({
+    where: { accountId, provider: "telegram" },
+  });
+
+  if (existing) {
+    return prisma.appIdentity.update({
+      where: { id: existing.id },
+      data: { providerUserId: normalized, email: `@${normalized}` },
+    });
+  }
+
+  const taken = await prisma.appIdentity.findUnique({
+    where: {
+      provider_providerUserId: { provider: "telegram", providerUserId: normalized },
+    },
+  });
+  if (taken && taken.accountId !== accountId) {
+    throw new Error("Telegram username is linked to another account");
+  }
+
+  return prisma.appIdentity.create({
+    data: {
+      accountId,
+      provider: "telegram",
+      providerUserId: normalized,
+      email: `@${normalized}`,
+    },
+  });
+}
+
 export async function linkWalletToAccount(accountId: string, walletAddress: string) {
   const wallet = walletAddress.toLowerCase();
 

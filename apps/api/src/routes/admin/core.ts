@@ -22,10 +22,14 @@ import prisma from "../../lib/prisma";
 import { asyncHandler, queryToSearchParams } from "../../lib/http-helpers";
 import {
   requireAdminSession,
+  requireAdminSessionWithCsrf,
   requirePermission,
 } from "../../lib/admin/express-api-auth";
 import { logAdminAction, getActivityLogs } from "../../lib/admin/express-audit";
 import { handleAdminError } from "../../lib/admin/handle-error";
+import { zodErrorMessage } from "../../lib/admin/zod-error";
+import { ensureCreatorProfile } from "../../lib/v2/reputation";
+import { roleHasPermission } from "../../lib/admin/roles";
 
 const router = Router();
 
@@ -721,6 +725,120 @@ router.patch(
   })
 );
 
+const announcementCreateSchema = z.object({
+  tokenAddress: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
+  title: z.string().min(3).max(120),
+  content: z.string().min(10).max(8000),
+  type: z.enum([
+    "VERSION_RELEASE",
+    "PARTNERSHIP",
+    "LIQUIDITY_ADDED",
+    "EXCHANGE_LISTING",
+    "MARKETING_UPDATE",
+    "COMMUNITY_UPDATE",
+    "GENERAL",
+  ]),
+  creatorWallet: z.string().regex(/^0x[a-fA-F0-9]{40}$/).optional(),
+});
+
+router.post(
+  "/announcements",
+  asyncHandler(async (req, res) => {
+    try {
+      const { email, admin, parsedBody } = await requirePermission(req, "announcements", "POST");
+      const body = announcementCreateSchema.parse(parsedBody);
+      const tokenAddress = body.tokenAddress.toLowerCase();
+
+      const token = await prisma.tokenProject.findUnique({
+        where: { contractAddress: tokenAddress },
+      });
+      if (!token) {
+        res.status(404).json({ error: "Token not found" });
+        return;
+      }
+
+      const creatorWallet = (body.creatorWallet ?? token.creatorAddress).toLowerCase();
+
+      const announcement = await prisma.tokenAnnouncement.create({
+        data: {
+          tokenId: token.id,
+          tokenAddress,
+          creatorWallet,
+          title: body.title.trim(),
+          content: body.content.trim(),
+          type: body.type,
+        },
+        include: { token: { select: { name: true, symbol: true } } },
+      });
+
+      await logAdminAction(
+        email,
+        "ANNOUNCEMENT_CREATED",
+        { announcementId: announcement.id, tokenAddress },
+        req,
+        admin.id
+      );
+
+      res.json({
+        announcement: {
+          id: announcement.id,
+          tokenAddress: announcement.tokenAddress,
+          tokenName: announcement.token.name,
+          tokenSymbol: announcement.token.symbol,
+          creatorWallet: announcement.creatorWallet,
+          title: announcement.title,
+          type: announcement.type,
+          isHidden: announcement.isHidden,
+          createdAt: announcement.createdAt.toISOString(),
+        },
+      });
+    } catch (e) {
+      if (e instanceof AdminAuthError) {
+        res.status(401).json({ error: e.message });
+        return;
+      }
+      if (e instanceof z.ZodError) {
+        res.status(400).json({ error: zodErrorMessage(e) });
+        return;
+      }
+      res.status(500).json({ error: "Failed to create announcement" });
+    }
+  })
+);
+
+router.delete(
+  "/announcements",
+  asyncHandler(async (req, res) => {
+    try {
+      const { admin } = await requireAdminSessionWithCsrf(req);
+      if (
+        !roleHasPermission(admin.role, "announcements") &&
+        !roleHasPermission(admin.role, "write")
+      ) {
+        throw new AdminAuthError("Insufficient permissions");
+      }
+
+      const id = String((req.body as { id?: string })?.id ?? "");
+      if (!id) {
+        res.status(400).json({ error: "id required" });
+        return;
+      }
+
+      await prisma.tokenAnnouncement.delete({ where: { id } });
+
+      await logAdminAction(admin.email, "ANNOUNCEMENT_DELETED", { announcementId: id }, req, admin.id);
+
+      res.json({ ok: true });
+    } catch (e) {
+      if (e instanceof AdminAuthError) {
+        res.status(401).json({ error: e.message });
+        return;
+      }
+      res.status(500).json({ error: "Failed to delete announcement" });
+    }
+  })
+);
+
 router.get(
   "/v2",
   asyncHandler(async (req, res) => {
@@ -766,13 +884,32 @@ router.patch(
   "/v2",
   asyncHandler(async (req, res) => {
     try {
-      const { parsedBody } = await requirePermission(req, "v2_platform", "PATCH");
-      const { walletAddress, status, isFeatured, questId, questStatus } = parsedBody as {
+      const { email, admin, parsedBody } = await requirePermission(req, "v2_platform", "PATCH");
+      const {
+        walletAddress,
+        status,
+        isFeatured,
+        questId,
+        questStatus,
+        createQuest,
+        deleteQuestId,
+      } = parsedBody as {
         walletAddress?: string;
         status?: string;
         isFeatured?: boolean;
         questId?: string;
         questStatus?: string;
+        deleteQuestId?: string;
+        createQuest?: {
+          creatorWallet: string;
+          title: string;
+          description: string;
+          questType: "SOCIAL" | "ENGAGEMENT" | "GROWTH" | "COMMUNITY";
+          targetUrl?: string | null;
+          tokenAddress?: string;
+          rewardXp?: number;
+          rewardReputation?: number;
+        };
       };
 
       if (walletAddress) {
@@ -781,6 +918,7 @@ router.patch(
           return;
         }
         const wallet = walletAddress.toLowerCase();
+        await ensureCreatorProfile(wallet);
         await prisma.creatorProfile.upsert({
           where: { walletAddress: wallet },
           create: {
@@ -797,11 +935,71 @@ router.patch(
         });
       }
 
+      if (createQuest) {
+        const wallet = createQuest.creatorWallet.toLowerCase();
+        if (!isAddress(wallet)) {
+          res.status(400).json({ error: "Invalid creator wallet" });
+          return;
+        }
+        await ensureCreatorProfile(wallet);
+
+        let tokenId: string | null = null;
+        let tokenAddress: string | null = null;
+        if (createQuest.tokenAddress) {
+          if (!isAddress(createQuest.tokenAddress)) {
+            res.status(400).json({ error: "Invalid token address" });
+            return;
+          }
+          const token = await prisma.tokenProject.findUnique({
+            where: { contractAddress: createQuest.tokenAddress.toLowerCase() },
+          });
+          if (!token) {
+            res.status(404).json({ error: "Token not found" });
+            return;
+          }
+          tokenId = token.id;
+          tokenAddress = token.contractAddress;
+        }
+
+        const quest = await prisma.creatorQuest.create({
+          data: {
+            creatorWallet: wallet,
+            tokenId,
+            tokenAddress,
+            questType: createQuest.questType,
+            title: createQuest.title.trim(),
+            description: createQuest.description.trim(),
+            targetUrl: createQuest.targetUrl ?? null,
+            rewardXp: createQuest.rewardXp ?? 10,
+            rewardReputation: createQuest.rewardReputation ?? 5,
+          },
+        });
+
+        await logAdminAction(
+          email,
+          "QUEST_CREATED",
+          { questId: quest.id, title: quest.title },
+          req,
+          admin.id
+        );
+      }
+
       if (questId && questStatus) {
         await prisma.creatorQuest.update({
           where: { id: questId },
           data: { status: questStatus as "ACTIVE" | "PAUSED" | "COMPLETED" },
         });
+      }
+
+      if (deleteQuestId) {
+        await prisma.creatorQuest.delete({ where: { id: deleteQuestId } });
+        await logAdminAction(
+          email,
+          "QUEST_DELETED",
+          { questId: deleteQuestId },
+          req,
+          admin.id
+        );
       }
 
       res.json({ ok: true });

@@ -18,6 +18,7 @@ export type AdminPermission =
   | "announcements"
   | "staking"
   | "launchpool"
+  | "earn"
   | "trust_panel"
   | "v2_platform"
   | "write";

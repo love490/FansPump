@@ -8,6 +8,7 @@ import { wagmiConfig, opnChain } from "@/lib/wagmi";
 import { ThemeProvider } from "@/components/theme-provider";
 import { AuthProvider } from "@/components/auth/auth-provider";
 import { OpnNetworkEnforcer } from "@/components/wallet/opn-network-enforcer";
+import { PlatformBrandTheme } from "@/components/platform-brand-theme";
 import { useState } from "react";
 
 const rkLight = lightTheme({
@@ -43,6 +44,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
         <QueryClientProvider client={queryClient}>
           <RainbowKitThemed>
             <AuthProvider>
+              <PlatformBrandTheme />
               <OpnNetworkEnforcer />
               {children}
             </AuthProvider>

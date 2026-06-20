@@ -5,6 +5,7 @@ import { useAccount } from "wagmi";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
+import { LinkedAccountsSection } from "@/components/settings/linked-accounts-section";
 import { ProfileEditor } from "@/components/profile/profile-editor";
 import { Shield, ExternalLink } from "lucide-react";
 import { shortenAddress } from "@/lib/utils";
@@ -18,6 +19,8 @@ export default function SettingsPage() {
         <h1 className="text-2xl font-bold">Settings</h1>
         <p className="mt-1 text-muted-foreground">Account preferences and platform options.</p>
       </header>
+
+      <LinkedAccountsSection />
 
       <Card>
         <CardHeader>

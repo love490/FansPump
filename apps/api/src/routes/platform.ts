@@ -20,6 +20,7 @@ router.get(
         heroLogoUrl: system.heroLogoUrl || DEFAULT_SYSTEM.heroLogoUrl,
         faviconUrl: system.faviconUrl || DEFAULT_SYSTEM.faviconUrl,
         platformName: system.platformName,
+        brandColor: system.brandColor || DEFAULT_SYSTEM.brandColor,
       });
     } catch (e) {
       console.error("[GET /api/platform/branding]", e);
@@ -29,6 +30,7 @@ router.get(
         heroLogoUrl: DEFAULT_SYSTEM.heroLogoUrl,
         faviconUrl: DEFAULT_SYSTEM.faviconUrl,
         platformName: DEFAULT_SYSTEM.platformName,
+        brandColor: DEFAULT_SYSTEM.brandColor,
       });
     }
   })

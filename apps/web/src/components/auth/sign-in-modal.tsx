@@ -166,7 +166,7 @@ export function SignInModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-sm">
+      <DialogContent className="max-w-sm bg-background shadow-2xl">
         <DialogHeader>
           <DialogTitle>Sign in</DialogTitle>
           <DialogDescription>

@@ -59,14 +59,12 @@ export function useAccountDisplayLabel(options?: { preferBalance?: boolean }) {
       : null;
 
   const balanceSummary =
-    preferBalance && !balanceLoading && usdBalanceLabel
-      ? opnBalanceLabel
-        ? `${usdBalanceLabel} · ${opnBalanceLabel}`
-        : usdBalanceLabel
-      : null;
+    preferBalance && !balanceLoading && opnBalanceLabel ? opnBalanceLabel : null;
 
   const primaryLabel =
-    preferBalance && balanceSummary ? balanceSummary : socialName || usdBalanceLabel || walletLabel || identityLabel;
+    preferBalance && opnBalanceLabel
+      ? opnBalanceLabel
+      : socialName || walletLabel || identityLabel;
 
   return {
     primaryLabel,

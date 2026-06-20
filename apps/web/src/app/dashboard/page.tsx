@@ -96,22 +96,28 @@ export default function DashboardPage() {
       )}
 
       {!hasWallet ? (
-        <Card>
+        <Card className="relative z-10 overflow-hidden bg-card shadow-sm">
           <CardHeader>
             <CardTitle>{isSignedIn ? "Connect your wallet" : "Sign in to continue"}</CardTitle>
             {isSignedIn && (
               <CardDescription>
-                Connect the wallet you use on FansPump to load balances, DeFi positions, and activity.
+                Connect the wallet you use on FansPump to load balances, DeFi positions, and activity.{" "}
+                <a href="/settings#linked-accounts" className="font-medium text-primary hover:underline">
+                  Link accounts
+                </a>{" "}
+                in settings.
               </CardDescription>
             )}
           </CardHeader>
-          <CardContent>
+          <CardContent className="relative isolate">
             {isSignedIn ? (
               <Button type="button" onClick={() => openConnectModal?.()}>
                 Connect wallet
               </Button>
             ) : (
-              <SignInButton />
+              <div className="relative z-10">
+                <SignInButton />
+              </div>
             )}
           </CardContent>
         </Card>

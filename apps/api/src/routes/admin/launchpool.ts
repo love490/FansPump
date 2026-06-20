@@ -11,6 +11,7 @@ import {
   requirePermission,
 } from "../../lib/admin/express-api-auth";
 import { handleAdminError } from "../../lib/admin/handle-error";
+import { zodErrorMessage } from "../../lib/admin/zod-error";
 
 const stakeAssetSchema = z.object({
   assetType: z.string().min(1),
@@ -114,7 +115,7 @@ router.post(
       });
     } catch (e) {
       if (e instanceof z.ZodError) {
-        res.status(400).json({ error: e.flatten() });
+        res.status(400).json({ error: zodErrorMessage(e) });
         return;
       }
       handleAdminError(res, e, "Admin request failed");
@@ -207,7 +208,7 @@ router.patch(
       res.json({ pool: serializeLaunchpool(pool, stats) });
     } catch (e) {
       if (e instanceof z.ZodError) {
-        res.status(400).json({ error: e.flatten() });
+        res.status(400).json({ error: zodErrorMessage(e) });
         return;
       }
       handleAdminError(res, e, "Admin request failed");

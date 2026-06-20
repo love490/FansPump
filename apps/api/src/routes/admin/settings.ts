@@ -44,6 +44,7 @@ const systemSchema = z.object({
     logoBrandUrl: z.string().optional(),
     heroLogoUrl: z.string().optional(),
     faviconUrl: z.string().optional(),
+    brandColor: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
   }),
 });
 

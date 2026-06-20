@@ -42,12 +42,17 @@ export function oauthCallbackUrl(provider: OAuthProvider): string {
   return `${apiBaseUrl()}/api/auth/oauth/${provider}/callback`;
 }
 
-export function oauthSuccessRedirect(): string {
-  return `${appBaseUrl()}/?signed_in=1`;
+export function oauthSuccessRedirect(path = "/?signed_in=1"): string {
+  const base = appBaseUrl();
+  if (path.startsWith("http")) return path;
+  return `${base}${path.startsWith("/") ? path : `/${path}`}`;
 }
 
-export function oauthErrorRedirect(message: string): string {
-  return `${appBaseUrl()}/?auth_error=${encodeURIComponent(message)}`;
+export function oauthErrorRedirect(message: string, path = "/"): string {
+  const base = appBaseUrl();
+  const suffix = path.startsWith("/") ? path : `/${path}`;
+  const join = suffix.includes("?") ? "&" : "?";
+  return `${base}${suffix}${join}auth_error=${encodeURIComponent(message)}`;
 }
 
 export function createOAuthState(): string {

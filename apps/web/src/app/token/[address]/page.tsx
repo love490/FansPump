@@ -8,6 +8,7 @@ import Link from "next/link";
 import { TokenAboutCard } from "@/components/token/token-about-card";
 import { AnnouncementsSection } from "@/components/token/announcements-section";
 import { TokenAnalyticsSection } from "@/components/token/token-analytics-section";
+import { TokenHealthPanel, TrustScorePanel } from "@/components/trust/TrustScorePanel";
 import { TokenBanner } from "@/components/tokens/token-banner";
 import { TokenLogo } from "@/components/tokens/token-logo";
 import { TOKEN_CATEGORY_LABELS, type TokenCategoryId } from "@iopn/shared";

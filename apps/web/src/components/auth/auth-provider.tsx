@@ -69,12 +69,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
-    if (params.get("signed_in") === "1" || params.get("auth_error")) {
+    if (params.get("signed_in") === "1" || params.get("linked") === "1" || params.get("auth_error")) {
       void refresh();
       const url = new URL(window.location.href);
       url.searchParams.delete("signed_in");
+      url.searchParams.delete("linked");
       url.searchParams.delete("auth_error");
-      window.history.replaceState({}, "", url.pathname + url.search);
+      window.history.replaceState({}, "", url.pathname + url.search + url.hash);
     }
   }, [refresh]);
 
@@ -108,4 +109,8 @@ export function useAuth() {
 
 export function oauthSignInUrl(provider: "google" | "github" | "twitter" | "apple" | "discord") {
   return apiUrl(`/api/auth/oauth/${provider}`);
+}
+
+export function oauthLinkUrl(provider: "google" | "github" | "twitter" | "apple" | "discord") {
+  return apiUrl(`/api/auth/oauth/${provider}?link=1`);
 }

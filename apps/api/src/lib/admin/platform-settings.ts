@@ -28,6 +28,8 @@ export type SystemConfig = {
   logoBrandUrl: string;
   heroLogoUrl: string;
   faviconUrl: string;
+  /** Primary brand color as #RRGGBB — applied site-wide via CSS variables */
+  brandColor: string;
 };
 
 export type DiscoveryConfig = {
@@ -80,6 +82,7 @@ export const DEFAULT_SYSTEM: SystemConfig = {
   logoBrandUrl: "/images/logo-brand.png",
   heroLogoUrl: "/images/hero-logo.png",
   faviconUrl: "/images/logo.png",
+  brandColor: "#2563eb",
 };
 
 export const DEFAULT_SECURITY: SecurityConfig = {

@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { adminFetch } from "@/lib/admin-session";
+import { formatAdminApiError } from "@/lib/admin/api-error";
 import type { SerializedLaunchpool } from "@/lib/launchpool/serialize";
 
 const emptyForm = {
@@ -58,27 +59,88 @@ export function LaunchpoolAdminSection() {
     setLoading(true);
     setMessage(null);
     setError(null);
+
+    if (form.title.trim().length < 3) {
+      setError("Title must be at least 3 characters");
+      setLoading(false);
+      return;
+    }
+    if (form.description.trim().length < 10) {
+      setError("Short description must be at least 10 characters");
+      setLoading(false);
+      return;
+    }
+    if (form.detailInfo.trim().length < 10) {
+      setError("Full explanation must be at least 10 characters");
+      setLoading(false);
+      return;
+    }
+    if (!form.rewardTokenSymbol.trim()) {
+      setError("Reward token symbol is required");
+      setLoading(false);
+      return;
+    }
+    if (!form.totalRewardUsd || Number(form.totalRewardUsd) <= 0) {
+      setError("Total reward USD must be greater than 0");
+      setLoading(false);
+      return;
+    }
+    if (!/^\d+$/.test(form.totalRewardAmount.trim())) {
+      setError("Total reward amount must be digits only (wei, no decimals)");
+      setLoading(false);
+      return;
+    }
+    if (!form.startAt || !form.endAt) {
+      setError("Start and end dates are required");
+      setLoading(false);
+      return;
+    }
+    const startDate = new Date(form.startAt);
+    const endDate = new Date(form.endAt);
+    if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
+      setError("Invalid start or end date");
+      setLoading(false);
+      return;
+    }
+    if (endDate <= startDate) {
+      setError("End date must be after start date");
+      setLoading(false);
+      return;
+    }
+    const stakeAssets = parseStakeAssets(form.stakeAssetsText);
+    if (stakeAssets.length === 0) {
+      setError("At least one stake asset is required");
+      setLoading(false);
+      return;
+    }
+    const rewardTokenAddress = form.rewardTokenAddress.trim();
+    if (rewardTokenAddress && !/^0x[a-fA-F0-9]{40}$/.test(rewardTokenAddress)) {
+      setError("Reward token address must be a valid 0x address or left empty");
+      setLoading(false);
+      return;
+    }
+
     try {
       const res = await adminFetch("/api/admin/launchpool", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          title: form.title,
-          description: form.description,
-          detailInfo: form.detailInfo,
+          title: form.title.trim(),
+          description: form.description.trim(),
+          detailInfo: form.detailInfo.trim(),
           status: form.status,
-          rewardTokenSymbol: form.rewardTokenSymbol,
-          rewardTokenAddress: form.rewardTokenAddress || null,
+          rewardTokenSymbol: form.rewardTokenSymbol.trim(),
+          rewardTokenAddress: rewardTokenAddress || null,
           totalRewardUsd: Number(form.totalRewardUsd),
-          totalRewardAmount: form.totalRewardAmount,
-          startAt: new Date(form.startAt).toISOString(),
-          endAt: new Date(form.endAt).toISOString(),
-          durationLabel: form.durationLabel || null,
-          stakeAssets: parseStakeAssets(form.stakeAssetsText),
+          totalRewardAmount: form.totalRewardAmount.trim(),
+          startAt: startDate.toISOString(),
+          endAt: endDate.toISOString(),
+          durationLabel: form.durationLabel.trim() || null,
+          stakeAssets,
         }),
       });
-      const data = (await res.json()) as { error?: string };
-      if (!res.ok) throw new Error(typeof data.error === "string" ? data.error : "Create failed");
+      const data = await res.json();
+      if (!res.ok) throw new Error(formatAdminApiError(data, "Create failed"));
       setForm(emptyForm);
       setMessage("Launchpool created.");
       load();
