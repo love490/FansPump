@@ -221,7 +221,6 @@ export function LinkedAccountsSection() {
     label: "Email",
     connected: emailLinked,
     connectedLabel: account?.email ?? identityFor("email")?.label,
-    description: "One-time code sent to your inbox.",
   });
 
   for (const row of OAUTH_ROWS) {
@@ -240,7 +239,6 @@ export function LinkedAccountsSection() {
     label: "Telegram",
     connected: telegramLinked,
     connectedLabel: identityFor("telegram")?.label,
-    description: "Your @username for quest verification.",
   });
 
   return (
