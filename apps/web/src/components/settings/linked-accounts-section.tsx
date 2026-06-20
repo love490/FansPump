@@ -7,9 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { SignInModal } from "@/components/auth/sign-in-modal";
 import { useAuth, oauthLinkUrl } from "@/components/auth/auth-provider";
-import { useActiveWallet } from "@/hooks/useActiveWallet";
 import { apiFetch } from "@/lib/api";
-import { SocialConnect } from "@/components/verification/SocialConnect";
 import { cn } from "@/lib/utils";
 
 type LinkedRow = {
@@ -34,7 +32,6 @@ const OAUTH_ROWS: {
 
 export function LinkedAccountsSection() {
   const { isSignedIn, account, refresh } = useAuth();
-  const { walletAddress } = useActiveWallet();
   const [modalOpen, setModalOpen] = useState(false);
   const [telegram, setTelegram] = useState("");
   const [loading, setLoading] = useState(false);
@@ -43,10 +40,6 @@ export function LinkedAccountsSection() {
   const [linked, setLinked] = useState<{
     identities: { provider: string; label: string }[];
     oauth: Record<string, boolean>;
-    walletSocial?: {
-      x?: { connected: boolean; username?: string };
-      discord?: { connected: boolean; username?: string };
-    };
   } | null>(null);
 
   const load = useCallback(async () => {
@@ -213,18 +206,6 @@ export function LinkedAccountsSection() {
             </div>
           ))}
         </div>
-
-        {walletAddress && (
-          <div className="rounded-lg border p-4">
-            <p className="mb-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              Wallet quest verification
-            </p>
-            <SocialConnect walletAddress={walletAddress} />
-            <p className="mt-2 text-xs text-muted-foreground">
-              X and Discord connections above are used for on-chain quest verification on your wallet.
-            </p>
-          </div>
-        )}
 
         {message && <p className="text-sm text-emerald-600">{message}</p>}
         {error && <p className="text-sm text-red-600">{error}</p>}

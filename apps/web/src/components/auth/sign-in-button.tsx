@@ -136,87 +136,98 @@ export function SignInButton({
         menuPos &&
         typeof document !== "undefined" &&
         createPortal(
-          <div
-            id="sign-in-account-menu"
-            role="menu"
-            style={{ top: menuPos.top, right: menuPos.right }}
-            className="fixed z-[9999] min-w-[12rem] rounded-lg border border-border bg-popover p-1 shadow-xl"
-          >
-            {balanceSummary && showBalance && (
-              <p className="px-3 py-2 text-sm font-medium tabular-nums">{balanceSummary}</p>
-            )}
-            {isSignedIn && account?.email && (
-              <p className="break-all px-3 py-2 text-xs text-muted-foreground">{account.email}</p>
-            )}
-            {walletAddress ? (
-              <p className="break-all px-3 py-1 font-mono text-xs text-muted-foreground">
-                {shortenAddress(walletAddress, 6)}
-              </p>
-            ) : (
-              !isSignedIn &&
-              !isConnected && <p className="px-3 py-2 text-xs text-amber-600">Wallet not connected</p>
-            )}
+          <>
+            <button
+              type="button"
+              className="fixed inset-0 z-[9998] cursor-default bg-black/25 backdrop-blur-[1px]"
+              aria-label="Close account menu"
+              onClick={() => setMenuOpen(false)}
+            />
+            <div
+              id="sign-in-account-menu"
+              role="menu"
+              style={{ top: menuPos.top, right: menuPos.right }}
+              className="fixed z-[9999] min-w-[14rem] overflow-hidden rounded-xl border border-border bg-background text-foreground shadow-2xl ring-1 ring-black/5 dark:ring-white/10"
+            >
+              <div className="border-b border-border bg-muted/40 px-3 py-2.5">
+                {balanceSummary && showBalance && (
+                  <p className="text-sm font-semibold tabular-nums">{balanceSummary}</p>
+                )}
+                {isSignedIn && account?.email && (
+                  <p className="mt-0.5 break-all text-xs text-muted-foreground">{account.email}</p>
+                )}
+                {walletAddress ? (
+                  <p className="mt-0.5 font-mono text-xs text-muted-foreground">
+                    {shortenAddress(walletAddress, 6)}
+                  </p>
+                ) : (
+                  !isSignedIn &&
+                  !isConnected && <p className="text-xs text-amber-600">Wallet not connected</p>
+                )}
+              </div>
+              <div className="p-1">
+                {!isConnected && (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-muted"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      openConnectModal?.();
+                    }}
+                  >
+                    <Wallet className="h-4 w-4" />
+                    Connect wallet
+                  </button>
+                )}
 
-            {!isConnected && (
-              <button
-                type="button"
-                role="menuitem"
-                className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-muted"
-                onClick={() => {
-                  setMenuOpen(false);
-                  openConnectModal?.();
-                }}
-              >
-                <Wallet className="h-4 w-4" />
-                Connect wallet
-              </button>
-            )}
+                {isSignedIn && (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-destructive hover:bg-destructive/10"
+                    onClick={() => {
+                      void signOut();
+                      setMenuOpen(false);
+                    }}
+                  >
+                    <LogOut className="h-4 w-4" />
+                    Sign out
+                  </button>
+                )}
 
-            {isSignedIn && (
-              <button
-                type="button"
-                role="menuitem"
-                className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-destructive hover:bg-destructive/10"
-                onClick={() => {
-                  void signOut();
-                  setMenuOpen(false);
-                }}
-              >
-                <LogOut className="h-4 w-4" />
-                Sign out
-              </button>
-            )}
+                {!isSignedIn && isConnected && (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-muted"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      router.push("/settings#linked-accounts");
+                    }}
+                  >
+                    <User className="h-4 w-4" />
+                    Link account
+                  </button>
+                )}
 
-            {!isSignedIn && isConnected && (
-              <button
-                type="button"
-                role="menuitem"
-                className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-muted"
-                onClick={() => {
-                  setMenuOpen(false);
-                  router.push("/settings#linked-accounts");
-                }}
-              >
-                <User className="h-4 w-4" />
-                Link account
-              </button>
-            )}
-
-            {isConnected && (
-              <button
-                type="button"
-                role="menuitem"
-                className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-destructive hover:bg-destructive/10"
-                onClick={() => {
-                  disconnect();
-                  setMenuOpen(false);
-                }}
-              >
-                <LogOut className="h-4 w-4" />
-                Disconnect wallet
-              </button>
-            )}
-          </div>,
+                {isConnected && (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-destructive hover:bg-destructive/10"
+                    onClick={() => {
+                      disconnect();
+                      setMenuOpen(false);
+                    }}
+                  >
+                    <LogOut className="h-4 w-4" />
+                    Disconnect wallet
+                  </button>
+                )}
+              </div>
+            </div>
+          </>,
           document.body
         )}
 
