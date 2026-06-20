@@ -239,12 +239,18 @@ router.get(
         {} as Record<string, number>
       );
 
+      const creatorFollowers = await prisma.creatorFollow.count({
+        where: { creatorWallet: token.creatorAddress.toLowerCase() },
+      });
+
       const { votes, liquidityLocks, lpBurns, ...tokenFields } = token;
 
       res.json({
         token: {
           ...tokenFields,
           featureFlags: token.featureFlags.toString(),
+          createdAt: token.createdAt.toISOString(),
+          creatorFollowers,
           creatorVerified: !!token.creator?.verification,
           creatorUsername: token.creator?.username ?? null,
           liquidityLocked: liquidityLocks.length > 0 || lpBurns.length > 0,

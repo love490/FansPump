@@ -408,27 +408,26 @@ export function TokenMarketTable({
 function FavoriteButton({
   row,
   isFavorite,
-  canToggleFavorite,
   allowFavorites,
   onNeedSignIn,
   onToggleFavorite,
 }: {
   row: MarketTableRow;
   isFavorite: boolean;
-  canToggleFavorite: boolean;
   allowFavorites: boolean;
   onNeedSignIn?: () => void;
   onToggleFavorite?: (tokenId: string) => void;
 }) {
-  const favoriteEnabled = canToggleFavorite && row.canFavorite;
+  const clickable = row.canFavorite;
 
   return (
     <button
       type="button"
-      disabled={!favoriteEnabled}
+      disabled={!clickable}
       onClick={(e) => {
         e.preventDefault();
         e.stopPropagation();
+        if (!clickable) return;
         if (!allowFavorites) {
           onNeedSignIn?.();
           return;
@@ -437,7 +436,7 @@ function FavoriteButton({
       }}
       className={cn(
         "pointer-events-auto relative z-20 rounded p-1 transition-colors",
-        favoriteEnabled ? "cursor-pointer hover:bg-muted" : "cursor-not-allowed opacity-40"
+        clickable ? "cursor-pointer hover:bg-muted" : "cursor-not-allowed opacity-40"
       )}
       aria-label={
         !allowFavorites
@@ -479,7 +478,6 @@ function MarketRowMobile({
         <FavoriteButton
           row={row}
           isFavorite={isFavorite}
-          canToggleFavorite={canToggleFavorite}
           allowFavorites={allowFavorites}
           onNeedSignIn={onNeedSignIn}
           onToggleFavorite={onToggleFavorite}
@@ -527,7 +525,6 @@ function MarketRowDesktop({
         <FavoriteButton
           row={row}
           isFavorite={isFavorite}
-          canToggleFavorite={canToggleFavorite}
           allowFavorites={allowFavorites}
           onNeedSignIn={onNeedSignIn}
           onToggleFavorite={onToggleFavorite}

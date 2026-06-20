@@ -14,6 +14,7 @@ import { DashboardEarningsTab } from "@/components/dashboard/dashboard-earnings-
 import { DashboardActivitiesTab } from "@/components/dashboard/dashboard-activities-tab";
 import { ProfileVerificationSection } from "@/components/verification/profile-verification-section";
 import { CreatorVerificationCard } from "@/components/verification/creator-verification-card";
+import { SignInButton } from "@/components/auth/sign-in-button";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { useActiveWallet } from "@/hooks/useActiveWallet";
 import { formatCreatorDisplay } from "@/lib/username";
@@ -98,19 +99,21 @@ export default function DashboardPage() {
         <Card>
           <CardHeader>
             <CardTitle>{isSignedIn ? "Connect your wallet" : "Sign in to continue"}</CardTitle>
-            <CardDescription>
-              {isSignedIn
-                ? "Connect the wallet you use on FansPump to load balances, DeFi positions, and activity."
-                : "Sign in with email, social, or wallet to view tokens, DeFi, earnings, and activity."}
-            </CardDescription>
+            {isSignedIn && (
+              <CardDescription>
+                Connect the wallet you use on FansPump to load balances, DeFi positions, and activity.
+              </CardDescription>
+            )}
           </CardHeader>
-          {isSignedIn && (
-            <CardContent>
+          <CardContent>
+            {isSignedIn ? (
               <Button type="button" onClick={() => openConnectModal?.()}>
                 Connect wallet
               </Button>
-            </CardContent>
-          )}
+            ) : (
+              <SignInButton />
+            )}
+          </CardContent>
         </Card>
       ) : (
         <>

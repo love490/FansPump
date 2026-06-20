@@ -5,8 +5,7 @@ import { apiUrl } from "@/lib/api";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { TokenFeatureBadges } from "@/components/token/token-feature-badges";
-import { TrustScorePanel, TokenHealthPanel } from "@/components/trust/TrustScorePanel";
+import { TokenAboutCard } from "@/components/token/token-about-card";
 import { AnnouncementsSection } from "@/components/token/announcements-section";
 import { TokenAnalyticsSection } from "@/components/token/token-analytics-section";
 import { TokenBanner } from "@/components/tokens/token-banner";
@@ -40,6 +39,10 @@ interface TokenDetail {
   description?: string | null;
   website?: string | null;
   github?: string | null;
+  telegram?: string | null;
+  twitter?: string | null;
+  createdAt?: string | null;
+  creatorFollowers?: number;
   buyTaxBps?: number | null;
   sellTaxBps?: number | null;
 }
@@ -247,18 +250,22 @@ export default function TokenPage() {
 
       {token.description && <p className="mt-6 text-muted-foreground">{token.description}</p>}
 
-      <div className="mt-6">
-        <TokenFeatureBadges
+      <TokenAboutCard
+        creatorFollowers={token.creatorFollowers ?? 0}
+        website={token.website}
+        telegram={token.telegram}
+        twitter={token.twitter}
+        createdAt={token.createdAt}
+      />
+
+      <div className="mt-6 grid gap-6 lg:grid-cols-2">
+        <TrustScorePanel tokenAddress={address} />
+        <TokenHealthPanel
           tokenAddress={address}
           featureFlags={featureFlags}
           buyTaxBps={token.buyTaxBps}
           sellTaxBps={token.sellTaxBps}
         />
-      </div>
-
-      <div className="mt-6 grid gap-6 lg:grid-cols-2">
-        <TrustScorePanel tokenAddress={address} />
-        <TokenHealthPanel tokenAddress={address} />
       </div>
 
       <div className="mt-8">
@@ -277,11 +284,6 @@ export default function TokenPage() {
       </Card>
 
       <div className="mt-6 flex flex-wrap gap-4">
-        {token.website && (
-          <a href={token.website} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-sm text-iopn-600 hover:underline">
-            Website <ExternalLink className="h-3 w-3" />
-          </a>
-        )}
         {token.github && (
           <a href={token.github} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-sm text-iopn-600 hover:underline">
             GitHub <ExternalLink className="h-3 w-3" />

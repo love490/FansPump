@@ -40,8 +40,9 @@ export function AnnouncementsSection({ tokenAddress, creatorAddress }: Announcem
   const isCreator = address?.toLowerCase() === creatorAddress.toLowerCase();
 
   function load() {
+    if (!creatorAddress) return;
     setLoading(true);
-    fetch(apiUrl(`/api/announcements?tokenAddress=${tokenAddress}`))
+    fetch(apiUrl(`/api/announcements?creatorWallet=${creatorAddress}`))
       .then((r) => r.json())
       .then((d) => setAnnouncements(d.announcements ?? []))
       .finally(() => setLoading(false));
@@ -49,7 +50,7 @@ export function AnnouncementsSection({ tokenAddress, creatorAddress }: Announcem
 
   useEffect(() => {
     load();
-  }, [tokenAddress]);
+  }, [creatorAddress]);
 
   async function postAnnouncement() {
     if (!address || !title.trim() || !content.trim()) return;

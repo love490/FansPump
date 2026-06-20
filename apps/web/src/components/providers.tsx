@@ -4,9 +4,10 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { RainbowKitProvider, darkTheme, lightTheme } from "@rainbow-me/rainbowkit";
 import { WagmiProvider } from "wagmi";
 import { useTheme } from "next-themes";
-import { wagmiConfig } from "@/lib/wagmi";
+import { wagmiConfig, opnChain } from "@/lib/wagmi";
 import { ThemeProvider } from "@/components/theme-provider";
 import { AuthProvider } from "@/components/auth/auth-provider";
+import { OpnNetworkEnforcer } from "@/components/wallet/opn-network-enforcer";
 import { useState } from "react";
 
 const rkLight = lightTheme({
@@ -24,7 +25,12 @@ const rkDark = darkTheme({
 function RainbowKitThemed({ children }: { children: React.ReactNode }) {
   const { resolvedTheme } = useTheme();
   return (
-    <RainbowKitProvider theme={resolvedTheme === "dark" ? rkDark : rkLight}>{children}</RainbowKitProvider>
+    <RainbowKitProvider
+      theme={resolvedTheme === "dark" ? rkDark : rkLight}
+      initialChain={opnChain}
+    >
+      {children}
+    </RainbowKitProvider>
   );
 }
 
@@ -36,7 +42,10 @@ export function Providers({ children }: { children: React.ReactNode }) {
       <WagmiProvider config={wagmiConfig}>
         <QueryClientProvider client={queryClient}>
           <RainbowKitThemed>
-            <AuthProvider>{children}</AuthProvider>
+            <AuthProvider>
+              <OpnNetworkEnforcer />
+              {children}
+            </AuthProvider>
           </RainbowKitThemed>
         </QueryClientProvider>
       </WagmiProvider>

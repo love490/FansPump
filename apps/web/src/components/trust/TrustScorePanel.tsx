@@ -9,6 +9,7 @@ import { TrustBadge } from "@/components/trust/TrustBadge";
 import { TrustScoreBar } from "@/components/trust/TrustScoreBar";
 import { TrustBreakdownModal } from "@/components/trust/TrustBreakdownModal";
 import { SecurityBadges } from "@/components/v2/security-badges";
+import { TokenFeatureBadges } from "@/components/token/token-feature-badges";
 
 const COMPONENT_BARS = [
   { key: "contractSafety" as const, label: "Contract Safety", weight: 0.35, colorClass: "bg-violet-500" },
@@ -108,7 +109,17 @@ export function TrustScorePanel({ tokenAddress }: { tokenAddress: string }) {
   );
 }
 
-export function TokenHealthPanel({ tokenAddress }: { tokenAddress: string }) {
+export function TokenHealthPanel({
+  tokenAddress,
+  featureFlags,
+  buyTaxBps,
+  sellTaxBps,
+}: {
+  tokenAddress: string;
+  featureFlags?: number;
+  buyTaxBps?: number | null;
+  sellTaxBps?: number | null;
+}) {
   const { trustScore, health, isLoading } = useTrustScore(tokenAddress);
 
   if (isLoading || !trustScore || !health) return null;
@@ -120,7 +131,7 @@ export function TokenHealthPanel({ tokenAddress }: { tokenAddress: string }) {
           <Activity className="h-5 w-5 text-primary" /> Token Health
         </CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-4">
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
           <HealthIndicator
             label="Trust Score"
@@ -153,6 +164,20 @@ export function TokenHealthPanel({ tokenAddress }: { tokenAddress: string }) {
             good={health.contractVerified}
           />
         </div>
+
+        {featureFlags != null && (
+          <div className="border-t border-border pt-4">
+            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Features &amp; protections
+            </p>
+            <TokenFeatureBadges
+              tokenAddress={tokenAddress}
+              featureFlags={featureFlags}
+              buyTaxBps={buyTaxBps}
+              sellTaxBps={sellTaxBps}
+            />
+          </div>
+        )}
       </CardContent>
     </Card>
   );
