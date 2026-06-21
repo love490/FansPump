@@ -13,6 +13,7 @@ import {
   mergeBountyVerificationConfig,
   resolvePrimaryTaskType,
   validateBountyTaskSelection,
+  type BountyTaskStep,
   type SocialBountyActionId,
 } from "@/lib/bounty-task-config";
 import type { BountyRewardType, BountyTaskType } from "@/lib/bounties";
@@ -35,6 +36,7 @@ const emptyForm = {
   description: "",
   taskTypes: ["CUSTOM"] as BountyTaskType[],
   socialActions: [] as SocialBountyActionId[],
+  taskSteps: [] as BountyTaskStep[],
   rewardType: "OPN" as BountyRewardType,
   rewardAmount: "",
   rewardTokenSymbol: "",
@@ -83,7 +85,7 @@ export function EarnAdminSection() {
       return;
     }
 
-    const taskError = validateBountyTaskSelection(form.taskTypes, form.socialActions);
+    const taskError = validateBountyTaskSelection(form.taskTypes, form.socialActions, form.taskSteps);
     if (taskError) {
       setError(taskError);
       setLoading(false);
@@ -106,7 +108,9 @@ export function EarnAdminSection() {
     }
 
     const primaryTaskType = resolvePrimaryTaskType(form.taskTypes);
-    const verificationConfig = mergeBountyVerificationConfig(null, form.taskTypes, form.socialActions);
+    const verificationConfig = mergeBountyVerificationConfig(null, form.taskTypes, form.socialActions, {
+      taskSteps: form.taskSteps,
+    });
 
     try {
       const res = await adminFetch("/api/admin/bounties", {
@@ -213,8 +217,10 @@ export function EarnAdminSection() {
               <BountyTaskPicker
                 taskTypes={form.taskTypes}
                 socialActions={form.socialActions}
+                taskSteps={form.taskSteps}
                 onTaskTypesChange={(taskTypes) => setForm({ ...form, taskTypes })}
                 onSocialActionsChange={(socialActions) => setForm({ ...form, socialActions })}
+                onTaskStepsChange={(taskSteps) => setForm({ ...form, taskSteps })}
               />
             </div>
             <div className="space-y-2">

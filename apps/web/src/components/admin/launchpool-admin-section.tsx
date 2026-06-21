@@ -31,6 +31,7 @@ const emptyForm = {
 export function LaunchpoolAdminSection() {
   const [pools, setPools] = useState<SerializedLaunchpool[]>([]);
   const [form, setForm] = useState(emptyForm);
+  const [editingProjectInfo, setEditingProjectInfo] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -93,7 +94,7 @@ export function LaunchpoolAdminSection() {
       return;
     }
     if (form.detailInfo.trim().length < 10) {
-      setError("Full explanation must be at least 10 characters");
+      setError("Project Info must be at least 10 characters");
       setLoading(false);
       return;
     }
@@ -208,6 +209,33 @@ export function LaunchpoolAdminSection() {
     }
   }
 
+  async function updateProjectInfo(poolId: string) {
+    const detailInfo = (editingProjectInfo[poolId] ?? "").trim();
+    if (detailInfo.length < 10) {
+      setError("Project Info must be at least 10 characters");
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    setMessage(null);
+    try {
+      const res = await adminFetch(`/api/admin/launchpool/${poolId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ detailInfo }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(formatAdminApiError(data, "Update failed"));
+      setMessage("Project Info updated.");
+      load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Update failed");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   async function updateStatus(poolId: string, status: "ACTIVE" | "ONGOING" | "ENDED") {
     setLoading(true);
     try {
@@ -246,14 +274,21 @@ export function LaunchpoolAdminSection() {
               <Input
                 value={form.description}
                 onChange={(e) => setForm({ ...form, description: e.target.value })}
+                placeholder="One-line summary shown on the launchpool card"
               />
             </div>
-            <div className="space-y-2 sm:col-span-2">
-              <Label>Full explanation (shown on ✓ info tick)</Label>
+            <div className="space-y-2 sm:col-span-2 rounded-lg border border-border bg-muted/20 p-4">
+              <Label htmlFor="launchpool-project-info">Project Info</Label>
+              <p className="text-xs text-muted-foreground">
+                Long-form project details shown on the <strong>Project Info</strong> tab when users open
+                this launchpool.
+              </p>
               <textarea
+                id="launchpool-project-info"
                 value={form.detailInfo}
                 onChange={(e) => setForm({ ...form, detailInfo: e.target.value })}
-                rows={4}
+                rows={6}
+                placeholder="About the project, tokenomics, roadmap, links, and anything participants should know…"
                 className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
               />
             </div>
@@ -378,41 +413,67 @@ export function LaunchpoolAdminSection() {
       <div className="space-y-3">
         {pools.map((pool) => (
           <Card key={pool.id}>
-            <CardContent className="flex flex-wrap items-center justify-between gap-3 pt-6">
-              <div>
-                <p className="font-semibold">{pool.title}</p>
-                <p className="text-sm text-muted-foreground">
-                  {pool.totalRewardUsd > 0
-                    ? `$${pool.totalRewardUsd.toLocaleString()} · `
-                    : ""}
-                  {pool.participantCount} participants
-                </p>
-                <Badge className="mt-2" variant="secondary">
-                  {pool.status}
-                </Badge>
+            <CardContent className="space-y-4 pt-6">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="font-semibold">{pool.title}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {pool.totalRewardUsd > 0
+                      ? `$${pool.totalRewardUsd.toLocaleString()} · `
+                      : ""}
+                    {pool.participantCount} participants
+                  </p>
+                  <Badge className="mt-2" variant="secondary">
+                    {pool.status}
+                  </Badge>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={loading || pool.rewardsDistributed}
+                    onClick={() => void distribute(pool.id)}
+                  >
+                    Distribute rewards
+                  </Button>
+                  {(["ACTIVE", "ONGOING", "ENDED"] as const).map((status) => (
+                    <Button
+                      key={status}
+                      type="button"
+                      size="sm"
+                      variant={pool.status === status ? "default" : "outline"}
+                      disabled={loading}
+                      onClick={() => void updateStatus(pool.id, status)}
+                    >
+                      {status}
+                    </Button>
+                  ))}
+                </div>
               </div>
-              <div className="flex flex-wrap gap-2">
+              <div className="space-y-2 rounded-lg border border-border bg-muted/20 p-4">
+                <Label htmlFor={`project-info-${pool.id}`}>Project Info</Label>
+                <p className="text-xs text-muted-foreground">
+                  Shown on the Project Info tab for this launchpool.
+                </p>
+                <textarea
+                  id={`project-info-${pool.id}`}
+                  rows={5}
+                  value={editingProjectInfo[pool.id] ?? pool.detailInfo ?? ""}
+                  onChange={(e) =>
+                    setEditingProjectInfo((prev) => ({ ...prev, [pool.id]: e.target.value }))
+                  }
+                  className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                />
                 <Button
                   type="button"
                   size="sm"
                   variant="outline"
-                  disabled={loading || pool.rewardsDistributed}
-                  onClick={() => void distribute(pool.id)}
+                  disabled={loading}
+                  onClick={() => void updateProjectInfo(pool.id)}
                 >
-                  Distribute rewards
+                  Save Project Info
                 </Button>
-                {(["ACTIVE", "ONGOING", "ENDED"] as const).map((status) => (
-                  <Button
-                    key={status}
-                    type="button"
-                    size="sm"
-                    variant={pool.status === status ? "default" : "outline"}
-                    disabled={loading}
-                    onClick={() => void updateStatus(pool.id, status)}
-                  >
-                    {status}
-                  </Button>
-                ))}
               </div>
             </CardContent>
           </Card>

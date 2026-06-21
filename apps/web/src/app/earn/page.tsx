@@ -7,13 +7,16 @@ import Link from "next/link";
 import { useAccount, useSignMessage } from "wagmi";
 import { BOUNTY_TABS, type BountyListItem, type BountyTab } from "@/lib/bounties";
 import { BountyCard } from "@/components/bounties/bounty-card";
+import { SignInModal } from "@/components/auth/sign-in-modal";
 import { Button } from "@/components/ui/button";
 import { CircleDollarSign } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useRequireSignIn } from "@/hooks/useRequireSignIn";
 
 export default function EarnPage() {
   const { address } = useAccount();
   const { signMessageAsync } = useSignMessage();
+  const { signInOpen, setSignInOpen, withSignIn } = useRequireSignIn();
   const [tab, setTab] = useState<BountyTab>("featured");
   const [bounties, setBounties] = useState<BountyListItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -31,42 +34,41 @@ export default function EarnPage() {
   }, [tab]);
 
   async function joinBounty(bountyId: string) {
-    if (!address) {
-      setJoinError("Connect your wallet to join a bounty.");
-      return;
-    }
-    setJoiningId(bountyId);
-    setJoinError(null);
-    try {
-      const prefix = process.env.NEXT_PUBLIC_CREATOR_ACTION_MESSAGE_PREFIX ?? "FansPump Creator Action";
-      const message = `${prefix}\nJoin bounty: ${bountyId}\nWallet: ${address.toLowerCase()}\nTime: ${Date.now()}`;
-      const signature = await signMessageAsync({ message });
-      const res = await fetch(apiUrl(`/api/bounties/${bountyId}/join`), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ walletAddress: address, message, signature }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Failed to join bounty");
-      setBounties((prev) =>
-        prev.map((b) =>
-          b.id === bountyId
-            ? {
-                ...b,
-                participantCount: b.participantCount + 1,
-                spotsLeft:
-                  b.maxParticipants != null ? Math.max(0, (b.spotsLeft ?? 0) - 1) : null,
-                isFull:
-                  b.maxParticipants != null && b.participantCount + 1 >= b.maxParticipants,
-              }
-            : b
-        )
-      );
-    } catch (e) {
-      setJoinError(e instanceof Error ? e.message : "Failed to join bounty");
-    } finally {
-      setJoiningId(null);
-    }
+    withSignIn(async () => {
+      if (!address) return;
+      setJoiningId(bountyId);
+      setJoinError(null);
+      try {
+        const prefix = process.env.NEXT_PUBLIC_CREATOR_ACTION_MESSAGE_PREFIX ?? "FansPump Creator Action";
+        const message = `${prefix}\nJoin bounty: ${bountyId}\nWallet: ${address.toLowerCase()}\nTime: ${Date.now()}`;
+        const signature = await signMessageAsync({ message });
+        const res = await fetch(apiUrl(`/api/bounties/${bountyId}/join`), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ walletAddress: address, message, signature }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error ?? "Failed to join bounty");
+        setBounties((prev) =>
+          prev.map((b) =>
+            b.id === bountyId
+              ? {
+                  ...b,
+                  participantCount: b.participantCount + 1,
+                  spotsLeft:
+                    b.maxParticipants != null ? Math.max(0, (b.spotsLeft ?? 0) - 1) : null,
+                  isFull:
+                    b.maxParticipants != null && b.participantCount + 1 >= b.maxParticipants,
+                }
+              : b
+          )
+        );
+      } catch (e) {
+        setJoinError(e instanceof Error ? e.message : "Failed to join bounty");
+      } finally {
+        setJoiningId(null);
+      }
+    });
   }
 
   return (
@@ -121,6 +123,7 @@ export default function EarnPage() {
           ))}
         </div>
       )}
+      <SignInModal open={signInOpen} onOpenChange={setSignInOpen} />
     </div>
   );
 }

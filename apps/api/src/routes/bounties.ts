@@ -59,10 +59,20 @@ const socialActionEnum = z.enum([
   "DISCORD_JOIN",
 ]);
 
+const taskStepSchema = z.object({
+  id: z.string().min(1).max(80),
+  kind: z.enum(["social", "custom", "question"]),
+  actionId: socialActionEnum.optional(),
+  instruction: z.string().min(1).max(500),
+  linkUrl: z.string().max(500).optional(),
+  buttonLabel: z.string().max(40).optional(),
+});
+
 const onchainConfigSchema = z
   .object({
     taskTypes: z.array(taskTypeEnum).optional(),
     socialActions: z.array(socialActionEnum).optional(),
+    taskSteps: z.array(taskStepSchema).optional(),
     requirementType: z.enum(["HOLD_TOKEN", "ADD_LIQUIDITY", "SWAP", "STAKE"]).optional(),
     tokenAddress: z.string().optional(),
     minAmount: z.string().optional(),
@@ -274,7 +284,8 @@ router.post(
 
       const taskTypes = parsed.taskTypes?.length ? parsed.taskTypes : [parsed.taskType];
       const socialActions = (parsed.socialActions ?? []) as SocialBountyActionId[];
-      const taskError = validateBountyTaskSelection(taskTypes, socialActions);
+      const taskSteps = parsed.verificationConfig?.taskSteps ?? [];
+      const taskError = validateBountyTaskSelection(taskTypes, socialActions, taskSteps);
       if (taskError) {
         res.status(400).json({ error: taskError });
         return;
@@ -284,7 +295,8 @@ router.post(
       const verificationConfig = mergeBountyVerificationConfig(
         parsed.verificationConfig,
         taskTypes,
-        socialActions
+        socialActions,
+        { taskSteps }
       );
 
       const endsAt = parsed.endsAt ? new Date(parsed.endsAt) : null;

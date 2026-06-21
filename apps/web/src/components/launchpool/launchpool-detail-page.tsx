@@ -12,7 +12,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { SignInModal } from "@/components/auth/sign-in-modal";
 import { cn } from "@/lib/utils";
+import { useRequireSignIn } from "@/hooks/useRequireSignIn";
 import {
   LAUNCHPOOL_STAKE_PREFIX,
   LAUNCHPOOL_UNSTAKE_PREFIX,
@@ -57,8 +59,9 @@ function formatTokenWei(wei: string): string {
 }
 
 export function LaunchpoolDetailPage({ poolId }: { poolId: string }) {
-  const { address, isConnected } = useAccount();
+  const { address } = useAccount();
   const { signMessageAsync } = useSignMessage();
+  const { canParticipate, signInOpen, setSignInOpen } = useRequireSignIn();
   const [pool, setPool] = useState<SerializedLaunchpool | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -367,8 +370,10 @@ export function LaunchpoolDetailPage({ poolId }: { poolId: string }) {
 
                   {isSelected && (
                     <div className="mt-4 space-y-3 rounded-lg border border-border bg-muted/20 p-4">
-                      {!isConnected ? (
-                        <p className="text-sm text-muted-foreground">Connect your wallet to stake.</p>
+                      {!canParticipate ? (
+                        <Button type="button" onClick={() => setSignInOpen(true)}>
+                          Sign in to stake
+                        </Button>
                       ) : !canStake ? (
                         <p className="text-sm text-muted-foreground">This launchpool is not open for staking.</p>
                       ) : (
@@ -428,6 +433,7 @@ export function LaunchpoolDetailPage({ poolId }: { poolId: string }) {
           })}
         </div>
       )}
+      <SignInModal open={signInOpen} onOpenChange={setSignInOpen} />
     </div>
   );
 }

@@ -21,6 +21,7 @@ import {
   mergeBountyVerificationConfig,
   resolvePrimaryTaskType,
   validateBountyTaskSelection,
+  type BountyTaskStep,
   type SocialBountyActionId,
 } from "@/lib/bounty-task-config";
 import { CircleDollarSign } from "lucide-react";
@@ -55,6 +56,7 @@ export function CreatorBountySection({
   const [description, setDescription] = useState("");
   const [taskTypes, setTaskTypes] = useState<BountyTaskType[]>(["CUSTOM"]);
   const [socialActions, setSocialActions] = useState<SocialBountyActionId[]>([]);
+  const [taskSteps, setTaskSteps] = useState<BountyTaskStep[]>([]);
   const [requirements, setRequirements] = useState("");
   const [rewardType, setRewardType] = useState<(typeof BOUNTY_REWARD_TYPES)[number]["id"]>("OPN");
   const [rewardAmount, setRewardAmount] = useState("");
@@ -88,7 +90,7 @@ export function CreatorBountySection({
     setError(null);
     setMessage(null);
     try {
-      const taskError = validateBountyTaskSelection(taskTypes, socialActions);
+      const taskError = validateBountyTaskSelection(taskTypes, socialActions, taskSteps);
       if (taskError) throw new Error(taskError);
 
       if (rewardType === "TOKEN" && !rewardTokenSymbol.trim() && !tokenAddress.trim()) {
@@ -120,7 +122,8 @@ export function CreatorBountySection({
       const verificationConfig = mergeBountyVerificationConfig(
         onchainConfig,
         taskTypes,
-        socialActions
+        socialActions,
+        { taskSteps }
       );
 
       const prefix = process.env.NEXT_PUBLIC_CREATOR_ACTION_MESSAGE_PREFIX ?? "FansPump Creator Action";
@@ -163,6 +166,7 @@ export function CreatorBountySection({
       setDescription("");
       setTaskTypes(["CUSTOM"]);
       setSocialActions([]);
+      setTaskSteps([]);
       setRequirements("");
       setRewardAmount("");
       setRewardDescription("");
@@ -225,8 +229,10 @@ export function CreatorBountySection({
                 <BountyTaskPicker
                   taskTypes={taskTypes}
                   socialActions={socialActions}
+                  taskSteps={taskSteps}
                   onTaskTypesChange={setTaskTypes}
                   onSocialActionsChange={setSocialActions}
+                  onTaskStepsChange={setTaskSteps}
                 />
               </div>
               <div className="space-y-2">

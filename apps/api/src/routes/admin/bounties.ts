@@ -40,6 +40,24 @@ const socialActionEnum = z.enum([
   "DISCORD_JOIN",
 ]);
 
+const taskStepSchema = z.object({
+  id: z.string().min(1).max(80),
+  kind: z.enum(["social", "custom", "question"]),
+  actionId: socialActionEnum.optional(),
+  instruction: z.string().min(1).max(500),
+  linkUrl: z.string().max(500).optional(),
+  buttonLabel: z.string().max(40).optional(),
+});
+
+const verificationConfigSchema = z
+  .object({
+    taskTypes: z.array(taskTypeEnum).optional(),
+    socialActions: z.array(socialActionEnum).optional(),
+    taskSteps: z.array(taskStepSchema).optional(),
+  })
+  .optional()
+  .nullable();
+
 const createSchema = z.object({
   creatorWallet: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
   title: z.string().min(3).max(120),
@@ -47,6 +65,7 @@ const createSchema = z.object({
   taskType: taskTypeEnum,
   taskTypes: z.array(taskTypeEnum).min(1).optional(),
   socialActions: z.array(socialActionEnum).optional(),
+  verificationConfig: verificationConfigSchema,
   requirements: z.string().max(2000).optional().nullable(),
   rewardType: z.enum(["OPN", "TOKEN", "CUSTOM", "XP"]),
   rewardAmount: z.string().min(1).max(64),
@@ -135,14 +154,17 @@ router.post(
 
       const taskTypes = body.taskTypes?.length ? body.taskTypes : [body.taskType];
       const socialActions = (body.socialActions ?? []) as SocialBountyActionId[];
-      const taskError = validateBountyTaskSelection(taskTypes, socialActions);
+      const taskSteps = body.verificationConfig?.taskSteps ?? [];
+      const taskError = validateBountyTaskSelection(taskTypes, socialActions, taskSteps);
       if (taskError) {
         res.status(400).json({ error: taskError });
         return;
       }
 
       const primaryTaskType = resolvePrimaryTaskType(taskTypes);
-      const verificationConfig = mergeBountyVerificationConfig(null, taskTypes, socialActions);
+      const verificationConfig = mergeBountyVerificationConfig(null, taskTypes, socialActions, {
+        taskSteps,
+      });
 
       const endsAt = body.endsAt ? new Date(body.endsAt) : null;
 
