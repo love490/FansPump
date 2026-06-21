@@ -86,7 +86,7 @@ export function serializeLaunchpool(
     rewardTokenAddress: pool.rewardTokenAddress,
     totalRewardUsd: pool.totalRewardUsd,
     totalRewardAmount: pool.totalRewardAmount,
-    minStakeAmount: pool.minStakeAmount,
+    minStakeAmount: pool.minStakeAmount ?? "0",
     maxStakeAmount: pool.maxStakeAmount ?? null,
     startAt: pool.startAt.toISOString(),
     endAt: pool.endAt.toISOString(),

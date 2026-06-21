@@ -51,7 +51,11 @@ router.get(
       res.json({ pools: serialized });
     } catch (e) {
       console.error("[GET /api/launchpool]", e);
-      res.status(500).json({ error: "Failed to load launchpools" });
+      const message =
+        e instanceof Error && e.message.includes("column")
+          ? "Launchpool database schema is out of date. Redeploy the API service or run db push."
+          : "Failed to load launchpools";
+      res.status(500).json({ error: message });
     }
   })
 );

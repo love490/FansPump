@@ -3,7 +3,7 @@ builder = "NIXPACKS"
 nixpacksConfigPath = "nixpacks.toml"
 
 [deploy]
-startCommand = "pnpm --filter @iopn/api start"
+startCommand = "pnpm db:push && pnpm --filter @iopn/api start"
 healthcheckPath = "/health"
 healthcheckTimeout = 30
 restartPolicyType = "on_failure"

@@ -17,7 +17,7 @@ type LaunchpoolStakeRow = {
 };
 
 export default function LaunchpoolPage() {
-  const { address, isConnected } = useAccount();
+  const { address } = useAccount();
   const [launchpoolStakes, setLaunchpoolStakes] = useState<LaunchpoolStakeRow[]>([]);
 
   useEffect(() => {
@@ -43,10 +43,7 @@ export default function LaunchpoolPage() {
         </p>
       </header>
 
-      <LaunchpoolStakingTab
-        activityRows={launchpoolStakes.map(launchpoolStakeToActivityRow)}
-        isConnected={isConnected}
-      />
+      <LaunchpoolStakingTab activityRows={launchpoolStakes.map(launchpoolStakeToActivityRow)} />
     </div>
   );
 }
