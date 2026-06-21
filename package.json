@@ -11,7 +11,7 @@
     "postinstall": "pnpm db:generate",
     "railway-build": "pnpm db:generate && pnpm --filter @iopn/web build",
     "db:generate": "pnpm --filter @iopn/database generate",
-    "db:push": "pnpm --filter @iopn/database push",
+    "db:push": "pnpm exec prisma db push --schema=packages/database/prisma/schema.prisma --accept-data-loss",
     "db:migrate": "pnpm --filter @iopn/database migrate",
     "db:studio": "pnpm --filter @iopn/database studio"
   },

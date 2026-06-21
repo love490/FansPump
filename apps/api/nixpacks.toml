@@ -13,7 +13,7 @@ cmds = [
 cmds = ["pnpm --filter @iopn/api build"]
 
 [start]
-cmd = "pnpm db:push && pnpm --filter @iopn/api start"
+cmd = "pnpm exec prisma db push --schema=packages/database/prisma/schema.prisma --accept-data-loss && pnpm --filter @iopn/api start"
 
 [phases.setup]
 nixPkgs = ["nodejs_20"]
@@ -33,4 +33,4 @@ cmds = [
 ]
 
 [start]
-cmd = "pnpm db:push && pnpm --filter @iopn/api start"
+cmd = "pnpm exec prisma db push --schema=packages/database/prisma/schema.prisma --accept-data-loss && pnpm --filter @iopn/api start"

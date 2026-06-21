@@ -3,7 +3,7 @@ builder = "NIXPACKS"
 nixpacksConfigPath = "nixpacks.toml"
 
 [deploy]
-startCommand = "pnpm db:push && pnpm --filter @iopn/api start"
+startCommand = "pnpm exec prisma db push --schema=packages/database/prisma/schema.prisma --accept-data-loss && pnpm --filter @iopn/api start"
 healthcheckPath = "/health"
 healthcheckTimeout = 30
 restartPolicyType = "on_failure"
