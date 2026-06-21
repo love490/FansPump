@@ -2,7 +2,7 @@
  * Runs before `prisma db push` on deploy.
  * Clears duplicate usernames (keeps oldest per name) and drops a legacy unique constraint if present.
  */
-import { PrismaClient } from "@prisma/client";
+const { PrismaClient } = require("@prisma/client");
 
 async function main() {
   const prisma = new PrismaClient();
