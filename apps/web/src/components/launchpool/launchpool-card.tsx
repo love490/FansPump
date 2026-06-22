@@ -81,8 +81,6 @@ export function LaunchpoolCard({ pool }: { pool: SerializedLaunchpool }) {
               </div>
             ))}
           </div>
-
-          <p className="text-center text-xs text-primary">Tap to view pools and stake</p>
         </CardContent>
       </Card>
     </Link>
