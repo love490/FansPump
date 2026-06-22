@@ -5,7 +5,7 @@ import { apiUrl } from "@/lib/api";
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useAccount, useSignMessage } from "wagmi";
-import { formatUnits, parseEther } from "viem";
+import { parseEther } from "viem";
 import { ArrowLeft, ChevronRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -20,6 +20,8 @@ import {
   LAUNCHPOOL_UNSTAKE_PREFIX,
   assetKey,
   formatLaunchpoolPrize,
+  formatListingTime,
+  formatTokenWei,
   formatUtcRange,
   type SerializedLaunchpool,
 } from "@/lib/launchpool/serialize";
@@ -46,16 +48,6 @@ function ProjectAvatar({ title }: { title: string }) {
       {letter}
     </div>
   );
-}
-
-function formatTokenWei(wei: string): string {
-  try {
-    return Number(formatUnits(BigInt(wei || "0"), 18)).toLocaleString(undefined, {
-      maximumFractionDigits: 4,
-    });
-  } catch {
-    return wei;
-  }
 }
 
 export function LaunchpoolDetailPage({ poolId }: { poolId: string }) {
@@ -249,9 +241,7 @@ export function LaunchpoolDetailPage({ poolId }: { poolId: string }) {
             </div>
             <div className="sm:col-span-2">
               <p className="text-xs text-muted-foreground">Listing Time</p>
-              <p className="text-sm font-medium">
-                {new Date(pool.startAt).toISOString().replace("T", " ").slice(0, 19)} UTC
-              </p>
+              <p className="text-sm font-medium">{formatListingTime(pool)}</p>
             </div>
           </div>
         </CardContent>
@@ -359,12 +349,12 @@ export function LaunchpoolDetailPage({ poolId }: { poolId: string }) {
                     <div>
                       <p className="text-xs text-muted-foreground">Total Staked</p>
                       <p className="font-medium">
-                        {formatTokenWei(pool.totalStakedAmount)} (all assets)
+                        {formatTokenWei(asset.totalStakedAmount ?? "0")} {asset.assetSymbol}
                       </p>
                     </div>
                     <div>
                       <p className="text-xs text-muted-foreground">Total Participants</p>
-                      <p className="font-medium">{pool.participantCount}</p>
+                      <p className="font-medium">{asset.participantCount ?? 0}</p>
                     </div>
                   </div>
 

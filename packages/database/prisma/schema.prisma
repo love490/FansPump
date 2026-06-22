@@ -744,6 +744,7 @@ model Launchpool {
   maxStakeAmount     String?          @map("max_stake_amount")
   startAt            DateTime         @map("start_at")
   endAt              DateTime         @map("end_at")
+  listingAt          DateTime?        @map("listing_at")
   durationLabel      String?          @map("duration_label")
   isPublished        Boolean          @default(true) @map("is_published")
   rewardsDistributed Boolean          @default(false) @map("rewards_distributed")

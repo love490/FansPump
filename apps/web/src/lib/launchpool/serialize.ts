@@ -6,6 +6,8 @@ export type LaunchpoolStakeAssetInput = {
   assetType: string;
   assetAddress?: string | null;
   assetSymbol: string;
+  totalStakedAmount?: string;
+  participantCount?: number;
 };
 
 export type SerializedLaunchpool = {
@@ -22,6 +24,7 @@ export type SerializedLaunchpool = {
   maxStakeAmount: string | null;
   startAt: string;
   endAt: string;
+  listingAt: string | null;
   durationLabel: string | null;
   isPublished: boolean;
   rewardsDistributed: boolean;
@@ -61,6 +64,16 @@ export function formatLaunchpoolPrize(pool: Pick<SerializedLaunchpool, "totalRew
   return "TBA";
 }
 
+export function formatTokenWei(wei: string): string {
+  try {
+    return Number(formatUnits(BigInt(wei || "0"), 18)).toLocaleString(undefined, {
+      maximumFractionDigits: 4,
+    });
+  } catch {
+    return wei;
+  }
+}
+
 export function formatUtcRange(start: string, end: string): string {
   const fmt = (d: Date) => {
     const mm = String(d.getUTCMonth() + 1).padStart(2, "0");
@@ -70,6 +83,11 @@ export function formatUtcRange(start: string, end: string): string {
     return `${mm}-${dd} ${hh}:${min}`;
   };
   return `${fmt(new Date(start))} ~ ${fmt(new Date(end))} UTC`;
+}
+
+export function formatListingTime(pool: Pick<SerializedLaunchpool, "listingAt" | "startAt">): string {
+  const value = pool.listingAt ?? pool.startAt;
+  return `${new Date(value).toISOString().replace("T", " ").slice(0, 19)} UTC`;
 }
 
 export function assetKey(asset: LaunchpoolStakeAssetInput): string {
@@ -93,6 +111,7 @@ type LaunchpoolRecord = {
   maxStakeAmount: string | null;
   startAt: Date;
   endAt: Date;
+  listingAt: Date | null;
   durationLabel: string | null;
   isPublished: boolean;
   rewardsDistributed: boolean;
@@ -102,12 +121,29 @@ type LaunchpoolRecord = {
 type LaunchpoolStats = {
   totalStakedAmount: string;
   participantCount: number;
+  assetStats?: Array<{
+    assetSymbol: string;
+    assetAddress: string | null;
+    totalStakedAmount: string;
+    participantCount: number;
+  }>;
 };
+
+function assetStatsKey(assetSymbol: string, assetAddress: string | null): string {
+  return `${assetSymbol.toUpperCase()}::${(assetAddress ?? "").toLowerCase()}`;
+}
 
 export function serializeLaunchpool(
   pool: LaunchpoolRecord,
   stats?: LaunchpoolStats
 ): SerializedLaunchpool {
+  const assetStatsMap = new Map(
+    (stats?.assetStats ?? []).map((item) => [
+      assetStatsKey(item.assetSymbol, item.assetAddress),
+      item,
+    ])
+  );
+
   return {
     id: pool.id,
     title: pool.title,
@@ -122,14 +158,20 @@ export function serializeLaunchpool(
     maxStakeAmount: pool.maxStakeAmount ?? null,
     startAt: pool.startAt.toISOString(),
     endAt: pool.endAt.toISOString(),
+    listingAt: pool.listingAt?.toISOString() ?? null,
     durationLabel: pool.durationLabel,
     isPublished: pool.isPublished,
     rewardsDistributed: pool.rewardsDistributed,
-    stakeAssets: pool.stakeAssets.map((asset) => ({
-      assetType: asset.assetType,
-      assetAddress: asset.assetAddress ?? null,
-      assetSymbol: asset.assetSymbol,
-    })),
+    stakeAssets: pool.stakeAssets.map((asset) => {
+      const stat = assetStatsMap.get(assetStatsKey(asset.assetSymbol, asset.assetAddress ?? null));
+      return {
+        assetType: asset.assetType,
+        assetAddress: asset.assetAddress ?? null,
+        assetSymbol: asset.assetSymbol,
+        totalStakedAmount: stat?.totalStakedAmount ?? "0",
+        participantCount: stat?.participantCount ?? 0,
+      };
+    }),
     totalStakedAmount: stats?.totalStakedAmount ?? "0",
     participantCount: stats?.participantCount ?? 0,
   };

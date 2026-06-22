@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   formatLaunchpoolPrize,
+  formatTokenWei,
   launchpoolHeadline,
   type SerializedLaunchpool,
 } from "@/lib/launchpool/serialize";
@@ -73,7 +74,8 @@ export function LaunchpoolCard({ pool }: { pool: SerializedLaunchpool }) {
                 <div className="min-w-0 flex-1">
                   <p className="font-medium">{asset.assetSymbol} Pool</p>
                   <p className="text-xs text-muted-foreground">
-                    Stake {asset.assetSymbol} to earn {pool.rewardTokenSymbol}
+                    {formatTokenWei(asset.totalStakedAmount ?? "0")} {asset.assetSymbol} staked ·{" "}
+                    {asset.participantCount ?? 0} participants
                   </p>
                 </div>
               </div>

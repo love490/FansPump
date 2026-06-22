@@ -11,6 +11,13 @@ import { adminFetch } from "@/lib/admin-session";
 import { formatAdminApiError } from "@/lib/admin/api-error";
 import type { SerializedLaunchpool } from "@/lib/launchpool/serialize";
 
+function toDatetimeLocal(iso: string | null | undefined): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 const emptyForm = {
   title: "",
   description: "",
@@ -24,6 +31,7 @@ const emptyForm = {
   maxStakeAmount: "",
   startAt: "",
   endAt: "",
+  listingAt: "",
   durationLabel: "",
   stakeAssetsText: "OPN,USDT,USDC",
 };
@@ -32,6 +40,7 @@ export function LaunchpoolAdminSection() {
   const [pools, setPools] = useState<SerializedLaunchpool[]>([]);
   const [form, setForm] = useState(emptyForm);
   const [editingProjectInfo, setEditingProjectInfo] = useState<Record<string, string>>({});
+  const [editingListingAt, setEditingListingAt] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -177,6 +186,9 @@ export function LaunchpoolAdminSection() {
           maxStakeAmount: maxWei,
           startAt: startDate.toISOString(),
           endAt: endDate.toISOString(),
+          listingAt: form.listingAt.trim()
+            ? new Date(form.listingAt).toISOString()
+            : startDate.toISOString(),
           durationLabel: form.durationLabel.trim() || null,
           stakeAssets,
         }),
@@ -228,6 +240,38 @@ export function LaunchpoolAdminSection() {
       const data = await res.json();
       if (!res.ok) throw new Error(formatAdminApiError(data, "Update failed"));
       setMessage("Project Info updated.");
+      load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Update failed");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function updateListingTime(poolId: string) {
+    const listingAt = editingListingAt[poolId]?.trim();
+    if (!listingAt) {
+      setError("Listing time is required");
+      return;
+    }
+    const listingDate = new Date(listingAt);
+    if (Number.isNaN(listingDate.getTime())) {
+      setError("Invalid listing time");
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    setMessage(null);
+    try {
+      const res = await adminFetch(`/api/admin/launchpool/${poolId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ listingAt: listingDate.toISOString() }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(formatAdminApiError(data, "Update failed"));
+      setMessage("Listing time updated.");
       load();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Update failed");
@@ -394,6 +438,18 @@ export function LaunchpoolAdminSection() {
               />
             </div>
             <div className="space-y-2 sm:col-span-2">
+              <Label htmlFor="launchpool-listing-at">Listing time</Label>
+              <Input
+                id="launchpool-listing-at"
+                type="datetime-local"
+                value={form.listingAt}
+                onChange={(e) => setForm({ ...form, listingAt: e.target.value })}
+              />
+              <p className="text-xs text-muted-foreground">
+                Shown as Listing Time on the launchpool detail page. Defaults to start time if left empty.
+              </p>
+            </div>
+            <div className="space-y-2 sm:col-span-2">
               <Label>Stake assets (comma-separated symbols)</Label>
               <Input
                 value={form.stakeAssetsText}
@@ -450,6 +506,29 @@ export function LaunchpoolAdminSection() {
                     </Button>
                   ))}
                 </div>
+              </div>
+              <div className="space-y-2 rounded-lg border border-border bg-muted/20 p-4">
+                <Label htmlFor={`listing-at-${pool.id}`}>Listing time</Label>
+                <p className="text-xs text-muted-foreground">
+                  Shown on the launchpool detail page as Listing Time.
+                </p>
+                <Input
+                  id={`listing-at-${pool.id}`}
+                  type="datetime-local"
+                  value={editingListingAt[pool.id] ?? toDatetimeLocal(pool.listingAt ?? pool.startAt)}
+                  onChange={(e) =>
+                    setEditingListingAt((prev) => ({ ...prev, [pool.id]: e.target.value }))
+                  }
+                />
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={loading}
+                  onClick={() => void updateListingTime(pool.id)}
+                >
+                  Save Listing Time
+                </Button>
               </div>
               <div className="space-y-2 rounded-lg border border-border bg-muted/20 p-4">
                 <Label htmlFor={`project-info-${pool.id}`}>Project Info</Label>

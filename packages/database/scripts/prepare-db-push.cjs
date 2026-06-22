@@ -40,6 +40,7 @@ async function main() {
         ) THEN
           ALTER TABLE launchpools ADD COLUMN IF NOT EXISTS min_stake_amount TEXT NOT NULL DEFAULT '0';
           ALTER TABLE launchpools ADD COLUMN IF NOT EXISTS max_stake_amount TEXT;
+          ALTER TABLE launchpools ADD COLUMN IF NOT EXISTS listing_at TIMESTAMP(3);
         END IF;
         IF EXISTS (
           SELECT 1 FROM information_schema.columns

@@ -4,6 +4,8 @@ export type LaunchpoolStakeAssetInput = {
   assetType: string;
   assetAddress?: string | null;
   assetSymbol: string;
+  totalStakedAmount?: string;
+  participantCount?: number;
 };
 
 export type SerializedLaunchpool = {
@@ -20,6 +22,7 @@ export type SerializedLaunchpool = {
   maxStakeAmount: string | null;
   startAt: string;
   endAt: string;
+  listingAt: string | null;
   durationLabel: string | null;
   isPublished: boolean;
   rewardsDistributed: boolean;
@@ -61,6 +64,7 @@ type LaunchpoolRecord = {
   maxStakeAmount: string | null;
   startAt: Date;
   endAt: Date;
+  listingAt: Date | null;
   durationLabel: string | null;
   isPublished: boolean;
   rewardsDistributed: boolean;
@@ -70,12 +74,29 @@ type LaunchpoolRecord = {
 type LaunchpoolStats = {
   totalStakedAmount: string;
   participantCount: number;
+  assetStats?: Array<{
+    assetSymbol: string;
+    assetAddress: string | null;
+    totalStakedAmount: string;
+    participantCount: number;
+  }>;
 };
+
+function assetStatsKey(assetSymbol: string, assetAddress: string | null): string {
+  return `${assetSymbol.toUpperCase()}::${(assetAddress ?? "").toLowerCase()}`;
+}
 
 export function serializeLaunchpool(
   pool: LaunchpoolRecord,
   stats?: LaunchpoolStats
 ): SerializedLaunchpool {
+  const assetStatsMap = new Map(
+    (stats?.assetStats ?? []).map((item) => [
+      assetStatsKey(item.assetSymbol, item.assetAddress),
+      item,
+    ])
+  );
+
   return {
     id: pool.id,
     title: pool.title,
@@ -90,14 +111,20 @@ export function serializeLaunchpool(
     maxStakeAmount: pool.maxStakeAmount ?? null,
     startAt: pool.startAt.toISOString(),
     endAt: pool.endAt.toISOString(),
+    listingAt: pool.listingAt?.toISOString() ?? null,
     durationLabel: pool.durationLabel,
     isPublished: pool.isPublished,
     rewardsDistributed: pool.rewardsDistributed,
-    stakeAssets: pool.stakeAssets.map((asset) => ({
-      assetType: asset.assetType,
-      assetAddress: asset.assetAddress ?? null,
-      assetSymbol: asset.assetSymbol,
-    })),
+    stakeAssets: pool.stakeAssets.map((asset) => {
+      const stat = assetStatsMap.get(assetStatsKey(asset.assetSymbol, asset.assetAddress ?? null));
+      return {
+        assetType: asset.assetType,
+        assetAddress: asset.assetAddress ?? null,
+        assetSymbol: asset.assetSymbol,
+        totalStakedAmount: stat?.totalStakedAmount ?? "0",
+        participantCount: stat?.participantCount ?? 0,
+      };
+    }),
     totalStakedAmount: stats?.totalStakedAmount ?? "0",
     participantCount: stats?.participantCount ?? 0,
   };

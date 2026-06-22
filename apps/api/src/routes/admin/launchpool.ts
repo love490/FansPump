@@ -32,6 +32,7 @@ const createSchema = z.object({
   maxStakeAmount: z.string().regex(/^\d+$/).optional().nullable(),
   startAt: z.string().datetime(),
   endAt: z.string().datetime(),
+  listingAt: z.string().datetime().optional().nullable(),
   durationLabel: z.string().max(64).optional().nullable(),
   isPublished: z.boolean().optional(),
   stakeAssets: z.array(stakeAssetSchema).min(1),
@@ -50,6 +51,7 @@ const updateSchema = z.object({
   maxStakeAmount: z.string().regex(/^\d+$/).optional().nullable(),
   startAt: z.string().datetime().optional(),
   endAt: z.string().datetime().optional(),
+  listingAt: z.string().datetime().optional().nullable(),
   durationLabel: z.string().max(64).optional().nullable(),
   isPublished: z.boolean().optional(),
   stakeAssets: z.array(stakeAssetSchema).min(1).optional(),
@@ -103,6 +105,7 @@ router.post(
           maxStakeAmount: body.maxStakeAmount ?? null,
           startAt: new Date(body.startAt),
           endAt: new Date(body.endAt),
+          listingAt: body.listingAt ? new Date(body.listingAt) : new Date(body.startAt),
           durationLabel: body.durationLabel ?? null,
           isPublished: body.isPublished ?? true,
           stakeAssets: {
@@ -117,7 +120,11 @@ router.post(
       });
 
       res.json({
-        pool: serializeLaunchpool(pool, { totalStakedAmount: "0", participantCount: 0 }),
+        pool: serializeLaunchpool(pool, {
+          totalStakedAmount: "0",
+          participantCount: 0,
+          assetStats: [],
+        }),
       });
     } catch (e) {
       if (e instanceof z.ZodError) {
@@ -195,6 +202,7 @@ router.patch(
           maxStakeAmount: body.maxStakeAmount,
           startAt: body.startAt ? new Date(body.startAt) : undefined,
           endAt: body.endAt ? new Date(body.endAt) : undefined,
+          listingAt: body.listingAt ? new Date(body.listingAt) : body.listingAt === null ? null : undefined,
           durationLabel: body.durationLabel,
           isPublished: body.isPublished,
           ...(body.stakeAssets
