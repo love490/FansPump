@@ -48,6 +48,11 @@ function rowKey(row: {
   return `${row.symbol}-${row.contractAddress ?? "native"}`;
 }
 
+function displaySymbol(row: { symbol: string; isLp?: boolean }): string {
+  if (row.isLp) return row.symbol.replace(/\s+LP$/i, "");
+  return row.symbol;
+}
+
 export function DashboardMyTokensTab() {
   const { hasWallet } = useActiveWallet();
   const { assets, loading, refresh } = useWalletPortfolioBalance();
@@ -88,9 +93,7 @@ export function DashboardMyTokensTab() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3">
-        <p className="text-sm text-muted-foreground">
-          Wallet balances, LP positions, and tokens you created.
-        </p>
+        <p className="text-sm text-muted-foreground">Wallet balances and LP positions.</p>
         <Button
           type="button"
           variant="outline"
@@ -122,28 +125,19 @@ export function DashboardMyTokensTab() {
         <div className="divide-y divide-border overflow-hidden rounded-xl border border-border">
           {rows.map((row) => {
             const href = tokenHref(row);
+            const symbol = displaySymbol(row);
             const content = (
               <>
                 <TokenLogo
                   src={row.logoUrl}
-                  symbol={row.isLp ? "LP" : row.symbol}
+                  symbol={row.isLp ? symbol.split("/")[0] ?? symbol : row.symbol}
                   name={row.name}
                   layout="fixed"
                   size={40}
                 />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
-                    <p className="truncate text-base font-bold uppercase tracking-wide">{row.symbol}</p>
-                    {row.isCreator && (
-                      <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase text-primary">
-                        Created
-                      </span>
-                    )}
-                    {row.isLp && (
-                      <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold uppercase text-muted-foreground">
-                        LP
-                      </span>
-                    )}
+                    <p className="truncate text-base font-bold uppercase tracking-wide">{symbol}</p>
                   </div>
                   <p className="mt-0.5 text-sm tabular-nums text-muted-foreground">
                     {formatBalanceAmount(row.amount)}

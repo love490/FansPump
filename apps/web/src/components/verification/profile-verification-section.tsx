@@ -35,7 +35,7 @@ export function ProfileVerificationSection() {
       setNotice("Discord connection failed. Try again.");
     }
     if (social || error) {
-      router.replace("/profile", { scroll: false });
+      router.replace("/settings", { scroll: false });
     }
   }, [searchParams, router, refresh]);
 

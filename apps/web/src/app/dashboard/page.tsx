@@ -2,7 +2,6 @@
 
 import { Suspense, useState } from "react";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
-import { ShieldCheck } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { DashboardBalancePanel } from "@/components/dashboard/dashboard-balance-panel";
@@ -12,8 +11,6 @@ import { DashboardMyTokensTab } from "@/components/dashboard/dashboard-my-tokens
 import { DashboardDefiTab } from "@/components/dashboard/dashboard-defi-tab";
 import { DashboardEarningsTab } from "@/components/dashboard/dashboard-earnings-tab";
 import { DashboardActivitiesTab } from "@/components/dashboard/dashboard-activities-tab";
-import { ProfileVerificationSection } from "@/components/verification/profile-verification-section";
-import { CreatorVerificationCard } from "@/components/verification/creator-verification-card";
 import { SignInButton } from "@/components/auth/sign-in-button";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { useActiveWallet } from "@/hooks/useActiveWallet";
@@ -21,7 +18,7 @@ import { formatCreatorDisplay } from "@/lib/username";
 import { shortenAddress } from "@/lib/utils";
 
 export default function DashboardPage() {
-  const { walletAddress, hasWallet, isSignedIn, linkedWalletOnly, isWalletConnected } = useActiveWallet();
+  const { walletAddress, hasWallet, isSignedIn, linkedWalletOnly } = useActiveWallet();
   const { openConnectModal } = useConnectModal();
   const { profile } = useUserProfile(walletAddress);
   const [activeTab, setActiveTab] = useState<DashboardTabId>("tokens");
@@ -43,57 +40,6 @@ export default function DashboardPage() {
           </p>
         </div>
       </header>
-
-      {hasWallet ? (
-        <>
-          {isWalletConnected ? (
-            <CreatorVerificationCard />
-          ) : (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <ShieldCheck className="h-4 w-4" />
-                  Verify
-                </CardTitle>
-                <CardDescription>
-                  Connect your wallet to sign and receive a verified creator badge.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Button type="button" onClick={() => openConnectModal?.()}>
-                  Connect wallet to verify
-                </Button>
-              </CardContent>
-            </Card>
-          )}
-          <Suspense fallback={null}>
-            <ProfileVerificationSection />
-          </Suspense>
-        </>
-      ) : (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <ShieldCheck className="h-4 w-4" />
-              Verify
-            </CardTitle>
-            <CardDescription>
-              Sign in and connect your wallet to verify your creator profile and earn a trusted badge.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {isSignedIn ? (
-              <Button type="button" onClick={() => openConnectModal?.()}>
-                Connect wallet to verify
-              </Button>
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                Sign in below to get started with verification.
-              </p>
-            )}
-          </CardContent>
-        </Card>
-      )}
 
       {!hasWallet ? (
         <Card className="relative z-10 overflow-hidden bg-card shadow-sm">

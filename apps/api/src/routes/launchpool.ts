@@ -29,13 +29,20 @@ router.use(publicRateLimit);
 router.get(
   "/",
   asyncHandler(async (req, res) => {
-    const status = queryToSearchParams(req.query).get("status")?.toUpperCase() as LaunchpoolStatus | null;
+    const statusParam = queryToSearchParams(req.query).get("status")?.toUpperCase();
 
     try {
+      const statusFilter =
+        statusParam === "OPEN" || statusParam === "ONGOING"
+          ? { in: ["ACTIVE", "ONGOING"] as LaunchpoolStatus[] }
+          : statusParam
+            ? { equals: statusParam as LaunchpoolStatus }
+            : undefined;
+
       const pools = await prisma.launchpool.findMany({
         where: {
           isPublished: true,
-          ...(status ? { status } : {}),
+          ...(statusFilter ? { status: statusFilter } : {}),
         },
         include: { stakeAssets: true },
         orderBy: [{ status: "asc" }, { startAt: "desc" }],

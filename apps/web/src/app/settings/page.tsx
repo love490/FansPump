@@ -2,16 +2,21 @@
 
 import Link from "next/link";
 import { useAccount } from "wagmi";
+import { Suspense } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { LinkedAccountsSection } from "@/components/settings/linked-accounts-section";
 import { ProfileEditor } from "@/components/profile/profile-editor";
-import { Shield, ExternalLink } from "lucide-react";
+import { CreatorVerificationCard } from "@/components/verification/creator-verification-card";
+import { ProfileVerificationSection } from "@/components/verification/profile-verification-section";
+import { ExternalLink } from "lucide-react";
 import { shortenAddress } from "@/lib/utils";
+import { useActiveWallet } from "@/hooks/useActiveWallet";
 
 export default function SettingsPage() {
   const { address, isConnected } = useAccount();
+  const { hasWallet, isWalletConnected } = useActiveWallet();
 
   return (
     <div className="mx-auto max-w-xl space-y-6 py-2 sm:py-4">
@@ -21,6 +26,14 @@ export default function SettingsPage() {
       </header>
 
       <LinkedAccountsSection />
+
+      {hasWallet && isWalletConnected && <CreatorVerificationCard />}
+
+      {hasWallet && (
+        <Suspense fallback={null}>
+          <ProfileVerificationSection />
+        </Suspense>
+      )}
 
       <Card>
         <CardHeader>
@@ -55,21 +68,6 @@ export default function SettingsPage() {
         </CardHeader>
         <CardContent>
           <ThemeToggle />
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Creator</CardTitle>
-          <CardDescription>Verify your deployer wallet for a trusted creator badge.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Button asChild variant="outline" className="gap-2">
-            <Link href="/verify">
-              <Shield className="h-4 w-4" />
-              Creator verification
-            </Link>
-          </Button>
         </CardContent>
       </Card>
 

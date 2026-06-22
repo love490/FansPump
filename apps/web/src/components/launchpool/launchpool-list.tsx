@@ -7,16 +7,15 @@ import { LaunchpoolCard } from "@/components/launchpool/launchpool-card";
 import { cn } from "@/lib/utils";
 import type { SerializedLaunchpool } from "@/lib/launchpool/serialize";
 
-export type LaunchpoolTab = "ACTIVE" | "ONGOING" | "ENDED";
+export type LaunchpoolTab = "ONGOING" | "ENDED";
 
 const TABS: { id: LaunchpoolTab; label: string }[] = [
-  { id: "ACTIVE", label: "Active" },
   { id: "ONGOING", label: "Ongoing" },
   { id: "ENDED", label: "Ended" },
 ];
 
 export function LaunchpoolList({
-  initialTab = "ACTIVE",
+  initialTab = "ONGOING",
   showTabs = true,
   limit,
 }: {
@@ -77,7 +76,7 @@ export function LaunchpoolList({
         <p className="text-sm text-red-600">{error}</p>
       ) : pools.length === 0 ? (
         <p className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">
-          No {tab.toLowerCase()} launchpools yet.
+          No {TABS.find((item) => item.id === tab)?.label.toLowerCase()} launchpools yet.
         </p>
       ) : (
         <div className="space-y-4">
