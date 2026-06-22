@@ -5,7 +5,7 @@
     "buildCommand": "pnpm db:generate && pnpm --filter @iopn/web build"
   },
   "deploy": {
-    "startCommand": "pnpm exec prisma db push --schema=packages/database/prisma/schema.prisma --accept-data-loss && pnpm --filter @iopn/web start",
+    "startCommand": "pnpm --filter @iopn/database exec prisma db push --schema=./prisma/schema.prisma --accept-data-loss && pnpm --filter @iopn/web start",
     "restartPolicyType": "ON_FAILURE"
   },
   "environment": {
