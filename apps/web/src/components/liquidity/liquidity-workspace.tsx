@@ -6,8 +6,9 @@ import { cn } from "@/lib/utils";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { AddLiquidityPanel } from "@/components/liquidity/add-liquidity-panel";
 import { MyLiquidityList } from "@/components/liquidity/my-liquidity-list";
-import { LiquidityLockBurnEntryCard } from "@/components/liquidity/liquidity-lock-burn-entry-card";
+import { RemoveLiquidityPanel } from "@/components/liquidity/remove-liquidity-panel";
 import { StatGrid } from "@/components/defi/defi-stats-overview";
+import { parseLiquidityPairId } from "@/lib/liquidity/pair-tokens";
 import { useAccount } from "wagmi";
 import { useMyLiquidityPositions } from "@/hooks/liquidity/useMyLiquidityPositions";
 import { useBasePoolLpPositions } from "@/hooks/liquidity/useBasePoolLpPositions";
@@ -23,7 +24,17 @@ function tabFromSearchParams(searchParams: URLSearchParams): LiquidityTab {
   return searchParams.get("tab") === "remove" ? "remove" : "add";
 }
 
-function RemoveLiquidityTab({ refreshSeq }: { refreshSeq: number }) {
+function RemoveLiquidityTab({
+  refreshSeq,
+  removeToken,
+  removePairId,
+  onRemoved,
+}: {
+  refreshSeq: number;
+  removeToken: string;
+  removePairId: ReturnType<typeof parseLiquidityPairId> | null;
+  onRemoved: () => void;
+}) {
   const { isConnected, address } = useAccount();
   const { positions, loading: lpLoading } = useMyLiquidityPositions(address);
   const { positions: basePools, loading: baseLoading } = useBasePoolLpPositions(address);
@@ -38,6 +49,14 @@ function RemoveLiquidityTab({ refreshSeq }: { refreshSeq: number }) {
 
   return (
     <div className="space-y-6">
+      {removeToken && removePairId && (
+        <RemoveLiquidityPanel
+          tokenAddress={removeToken}
+          pairId={removePairId}
+          onRemoved={onRemoved}
+        />
+      )}
+
       <div className="space-y-3">
         <div>
           <h3 className="text-base font-semibold">My activity</h3>
@@ -74,8 +93,6 @@ function RemoveLiquidityTab({ refreshSeq }: { refreshSeq: number }) {
         </div>
         <MyLiquidityList refreshSeq={refreshSeq} showBasePools emphasizeLp />
       </div>
-
-      {isConnected && <LiquidityLockBurnEntryCard />}
     </div>
   );
 }
@@ -85,7 +102,17 @@ function LiquidityWorkspaceInner({ refreshSeq = 0, onLiquidityAdded }: Liquidity
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const urlTab = tabFromSearchParams(searchParams);
+  const initialToken = searchParams.get("token")?.trim() ?? "";
+  const removeToken = searchParams.get("token")?.trim() ?? "";
+  const removePairId = searchParams.get("pair")
+    ? parseLiquidityPairId(searchParams.get("pair"))
+    : null;
   const [tab, setTab] = useState<LiquidityTab>(urlTab);
+  const [listRefresh, setListRefresh] = useState(refreshSeq);
+
+  useEffect(() => {
+    setListRefresh(refreshSeq);
+  }, [refreshSeq]);
 
   useEffect(() => {
     setTab(urlTab);
@@ -95,13 +122,22 @@ function LiquidityWorkspaceInner({ refreshSeq = 0, onLiquidityAdded }: Liquidity
     (next: LiquidityTab) => {
       setTab(next);
       const params = new URLSearchParams(searchParams.toString());
-      if (next === "remove") params.set("tab", "remove");
-      else params.delete("tab");
+      if (next === "remove") {
+        params.set("tab", "remove");
+      } else {
+        params.delete("tab");
+        params.delete("pair");
+      }
       const query = params.toString();
       router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
     },
     [pathname, router, searchParams]
   );
+
+  const handleLiquidityRemoved = useCallback(() => {
+    setListRefresh((n) => n + 1);
+    onLiquidityAdded?.();
+  }, [onLiquidityAdded]);
 
   const handleLiquidityAdded = useCallback(() => {
     onLiquidityAdded?.();
@@ -143,9 +179,14 @@ function LiquidityWorkspaceInner({ refreshSeq = 0, onLiquidityAdded }: Liquidity
 
         <CardContent className="overflow-visible pt-5">
           {tab === "add" ? (
-            <AddLiquidityPanel variant="compact" onLiquidityAdded={handleLiquidityAdded} />
+            <AddLiquidityPanel initialToken={initialToken} onLiquidityAdded={handleLiquidityAdded} />
           ) : (
-            <RemoveLiquidityTab refreshSeq={refreshSeq} />
+            <RemoveLiquidityTab
+              refreshSeq={listRefresh}
+              removeToken={removeToken}
+              removePairId={removePairId}
+              onRemoved={handleLiquidityRemoved}
+            />
           )}
         </CardContent>
       </Card>

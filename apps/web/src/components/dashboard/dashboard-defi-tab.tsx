@@ -21,6 +21,7 @@ import {
   StakingActivityList,
   type StakingActivityRow,
 } from "@/components/staking/staking-activity-list";
+import { liquidityUrl } from "@/lib/navigation/liquidity-routes";
 
 type StakeRow = {
   id: string;
@@ -91,7 +92,7 @@ export function DashboardDefiTab() {
           label: `${p.tokenSymbol} / ${p.pairLabel}`,
           amount: `${formatUnits(p.lpBalance, p.lpDecimals)} LP`,
           platform: "FansPump",
-          href: `/liquidity/${p.tokenAddress}`,
+          href: liquidityUrl({ tab: "remove", token: p.tokenAddress, pair: p.pairId }),
           lpToken: p.lpToken,
           lpBalance: p.lpBalance,
         })),
@@ -102,7 +103,7 @@ export function DashboardDefiTab() {
           label: p.pairLabel,
           amount: `${formatUnits(p.lpBalance, p.lpDecimals)} LP`,
           platform: "OPN Network",
-          href: "/liquidity",
+          href: liquidityUrl({ tab: "remove" }),
           lpToken: p.lpToken,
           lpBalance: p.lpBalance,
         })),

@@ -351,7 +351,7 @@ router.get(
           amount: formatActivityAmount(lock.amount, 18, "LP"),
           platform: "OPN Network",
           occurredAt: lock.createdAt.toISOString(),
-          href: `/liquidity/${lock.tokenAddress}`,
+          href: `/tools/lock`,
         });
       }
 
@@ -364,7 +364,7 @@ router.get(
           amount: formatActivityAmount(burn.amount, 18, "LP"),
           platform: "FansPump",
           occurredAt: burn.burnedAt.toISOString(),
-          href: `/liquidity/${burn.tokenAddress}`,
+          href: `/tools/lock`,
         });
       }
 

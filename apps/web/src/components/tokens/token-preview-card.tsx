@@ -12,11 +12,19 @@ import { SecurityBadges } from "@/components/v2/security-badges";
 import { TokenCardHero } from "@/components/tokens/token-card-hero";
 import { ContractVerifiedIcon } from "@/components/icons/contract-verified-icon";
 
-function formatDurationLong(iso: string | Date): string {
+function formatTokenAge(iso: string | Date): string {
   const then = new Date(iso).getTime();
   if (Number.isNaN(then)) return "—";
-  const days = Math.max(0, Math.floor((Date.now() - then) / (1000 * 60 * 60 * 24)));
-  if (days === 0) return "today";
+  const diffMs = Math.max(0, Date.now() - then);
+  const minutes = Math.floor(diffMs / (1000 * 60));
+  const hours = Math.floor(diffMs / (1000 * 60 * 60));
+  const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+  if (days === 0) {
+    if (minutes < 1) return "today";
+    if (minutes < 60) return `${minutes}min`;
+    return `${hours}hr`;
+  }
   if (days === 1) return "1 day";
   if (days < 30) return `${days} days`;
   const months = Math.floor(days / 30);
@@ -61,10 +69,9 @@ export function TokenPreviewCard({
       : "—";
   const holders =
     token.holderCount > 0 ? formatCompactNumber(token.holderCount) : "—";
-  const age = token.createdAt ? formatDurationLong(token.createdAt) : null;
+  const age = token.createdAt ? formatTokenAge(token.createdAt) : null;
   const displayBadges = (token.badges ?? []).filter((b) => b.id !== "liquidity_locked");
-  const hasBadges =
-    displayBadges.length > 0 || (token.trustScore != null && token.trustScore > 0);
+  const hasBadges = displayBadges.length > 0;
   const hasMetaRow = Boolean(token.creatorAddress) || Boolean(age);
 
   return (
@@ -152,11 +159,6 @@ export function TokenPreviewCard({
             </p>
 
             <div className={cn("mt-0.5 flex min-h-[16px] flex-wrap items-center gap-0.5", !hasBadges && "invisible")}>
-              {token.trustScore != null && token.trustScore > 0 && (
-                <span className="rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-primary">
-                  Trust {Math.round(token.trustScore)}
-                </span>
-              )}
               {displayBadges.length > 0 && <SecurityBadges badges={displayBadges} max={2} />}
             </div>
           </div>

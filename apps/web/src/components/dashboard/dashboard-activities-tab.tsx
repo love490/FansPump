@@ -15,6 +15,7 @@ import { useMyLiquidityPositions } from "@/hooks/liquidity/useMyLiquidityPositio
 import { useBasePoolLpPositions } from "@/hooks/liquidity/useBasePoolLpPositions";
 import { useActiveWallet } from "@/hooks/useActiveWallet";
 import { loadStoredLiquidityPositions } from "@/lib/liquidity/my-liquidity-storage";
+import { liquidityUrl } from "@/lib/navigation/liquidity-routes";
 import { cn } from "@/lib/utils";
 
 function platformBadgeClass(platform: UserActivity["platform"]) {
@@ -62,7 +63,7 @@ export function DashboardActivitiesTab() {
       subtitle: entry.txHash ? `Tx ${entry.txHash.slice(0, 10)}…` : "Recorded on this device",
       platform: "FansPump" as const,
       occurredAt: entry.addedAt,
-      href: `/liquidity/${entry.tokenAddress}`,
+      href: liquidityUrl({ tab: "remove", token: entry.tokenAddress, pair: entry.pairId }),
     }));
   }, [walletAddress]);
 
@@ -80,7 +81,7 @@ export function DashboardActivitiesTab() {
         amount: `${formatUnits(pos.lpBalance, pos.lpDecimals)} LP`,
         platform: "OPN Network",
         occurredAt: now,
-        href: `/liquidity/${pos.tokenAddress}`,
+        href: liquidityUrl({ tab: "remove", token: pos.tokenAddress, pair: pos.pairId }),
       });
     }
 
@@ -94,7 +95,7 @@ export function DashboardActivitiesTab() {
         amount: `${formatUnits(pool.lpBalance, pool.lpDecimals)} LP`,
         platform: "OPN Network",
         occurredAt: now,
-        href: "/liquidity",
+        href: liquidityUrl({ tab: "remove" }),
       });
     }
 

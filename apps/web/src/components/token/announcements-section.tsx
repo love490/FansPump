@@ -91,16 +91,23 @@ export function AnnouncementsSection({ tokenAddress, creatorAddress }: Announcem
   }
 
   return (
-    <Card className="mt-8">
-      <CardHeader className="flex flex-row items-center justify-between space-y-0">
-        <CardTitle className="flex items-center gap-2">
-          <Megaphone className="h-5 w-5" /> Announcements
-        </CardTitle>
-        {isCreator && (
-          <Button variant="outline" size="sm" onClick={() => setShowForm((v) => !v)}>
-            {showForm ? "Cancel" : "New announcement"}
-          </Button>
-        )}
+    <Card className="mt-8 overflow-hidden">
+      <CardHeader className="space-y-0">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <CardTitle className="flex min-w-0 items-center gap-2">
+            <Megaphone className="h-5 w-5 shrink-0" /> Announcements
+          </CardTitle>
+          {isCreator && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="shrink-0"
+              onClick={() => setShowForm((v) => !v)}
+            >
+              {showForm ? "Cancel" : "New announcement"}
+            </Button>
+          )}
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
         {showForm && isCreator && (

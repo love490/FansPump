@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 
 export function LiquidityLockBurnEntryCard({ className }: { className?: string }) {
   return (
-    <Link href="/liquidity/lock-burn" className={cn("block", className)}>
+    <Link href="/tools/lock" className={cn("block", className)}>
       <Card className="transition-colors hover:border-primary/40 hover:bg-muted/20">
         <CardContent className="flex items-center gap-4 p-5">
           <div className="flex shrink-0 -space-x-2">
@@ -19,9 +19,9 @@ export function LiquidityLockBurnEntryCard({ className }: { className?: string }
             </span>
           </div>
           <div className="min-w-0 flex-1">
-            <p className="font-semibold">Lock &amp; burn</p>
+            <p className="font-semibold">Lock</p>
             <p className="text-sm text-muted-foreground">
-              View and manage all your locked and burned LP tokens.
+              Time-lock or burn LP from your wallet positions.
             </p>
           </div>
           <span className="shrink-0 text-sm font-semibold tracking-widest text-primary">&gt;&gt;&gt;</span>

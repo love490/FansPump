@@ -54,6 +54,7 @@ import { registerTokenMetadata } from "@/lib/token-register";
 import { formatContractError } from "@/lib/contract-errors";
 import { tokenQueryKeys } from "@/lib/tokens-api";
 import { getActiveChainId } from "@/lib/chain-config/opn";
+import { liquidityUrl } from "@/lib/navigation/liquidity-routes";
 import Link from "next/link";
 import { AlertTriangle, Lock } from "lucide-react";
 
@@ -674,7 +675,7 @@ export function TokenCreateForm() {
                   </a>
                 </Button>
                 <Button asChild variant="outline">
-                  <Link href={`/token/${deployedToken}/liquidity/add`}>Add liquidity</Link>
+                  <Link href={liquidityUrl({ token: deployedToken })}>Add liquidity</Link>
                 </Button>
                 <Button asChild variant="outline">
                   <Link href={`/token/${deployedToken}/ownership`}>Manage ownership</Link>

@@ -41,7 +41,7 @@ export function LiquidityPairPicker({ value, onChange, rowAnchorRef }: Liquidity
         panelRef={panelRef}
         anchorMode={rowAnchorRef ? "card" : "pill"}
       >
-        <div className="space-y-1 p-2">
+        <div className="max-h-[min(280px,40vh)] space-y-1 overflow-y-auto overscroll-contain p-2">
           {LIQUIDITY_PAIR_OPTIONS.map((option) => (
             <button
               key={option.id}

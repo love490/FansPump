@@ -9,12 +9,15 @@ import { Footer } from "@/components/layout/footer";
 import { MobileBottomNav, MOBILE_BOTTOM_NAV_PADDING } from "@/components/layout/mobile-bottom-nav";
 import { cn } from "@/lib/utils";
 import { isDexPath } from "@/lib/navigation/swap-nav";
+import { isToolsPath } from "@/lib/navigation/tools-nav";
 import { DexSubNav } from "@/components/layout/dex-sub-nav";
+import { ToolsSubNav } from "@/components/layout/tools-sub-nav";
 
 function MainColumn({ children }: { children: React.ReactNode }) {
   const { collapsed } = useSidebar();
   const pathname = usePathname();
   const showDexSubNav = isDexPath(pathname ?? "");
+  const showToolsSubNav = isToolsPath(pathname ?? "");
 
   return (
     <div className="flex min-w-0 flex-1 flex-col">
@@ -30,6 +33,11 @@ function MainColumn({ children }: { children: React.ReactNode }) {
             {showDexSubNav && (
               <div className="mb-6 flex justify-center px-0 sm:px-4 lg:px-8">
                 <DexSubNav className="w-full max-w-3xl" />
+              </div>
+            )}
+            {showToolsSubNav && (
+              <div className="mb-6 flex justify-center px-0 sm:px-4 lg:px-8">
+                <ToolsSubNav className="w-full max-w-3xl" />
               </div>
             )}
             {children}

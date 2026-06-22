@@ -15,6 +15,7 @@ import { useBasePoolLpPositions } from "@/hooks/liquidity/useBasePoolLpPositions
 import { useWalletPortfolioBalance } from "@/hooks/dashboard/useWalletPortfolioBalance";
 import { formatActivityAmount } from "@/lib/dashboard/activities";
 import { formatBalanceTotal } from "@/lib/dashboard/wallet-balance";
+import { liquidityUrl } from "@/lib/navigation/liquidity-routes";
 
 type DashboardApi = {
   stats?: {
@@ -106,7 +107,7 @@ export function DashboardEarningsTab() {
         id: `lp-${p.lpToken}`,
         label: `${p.tokenSymbol} / ${p.pairLabel}`,
         detail: `${formatUnits(p.lpBalance, p.lpDecimals)} LP · fee share on FansPump`,
-        href: `/liquidity/${p.tokenAddress}`,
+        href: liquidityUrl({ tab: "remove", token: p.tokenAddress, pair: p.pairId }),
       });
     }
     for (const p of basePools) {
@@ -115,7 +116,7 @@ export function DashboardEarningsTab() {
         id: `base-${p.poolId}`,
         label: p.pairLabel,
         detail: `${formatUnits(p.lpBalance, p.lpDecimals)} LP · OPN Network pool`,
-        href: "/liquidity",
+        href: liquidityUrl({ tab: "remove" }),
       });
     }
     return rows;

@@ -49,6 +49,8 @@ export function isDexPath(pathname: string): boolean {
     pathname.startsWith("/swap/") ||
     pathname === "/liquidity" ||
     pathname.startsWith("/liquidity/") ||
+    pathname === "/tools" ||
+    pathname.startsWith("/tools/") ||
     pathname === "/pools" ||
     pathname.startsWith("/pools/") ||
     pathname === "/staking"

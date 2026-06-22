@@ -323,7 +323,7 @@ export function SwapTokenPicker({
           </div>
         </div>
 
-        <div className="space-y-2 overflow-y-auto p-3">
+        <div className="max-h-[min(320px,45vh)] space-y-2 overflow-y-auto overscroll-contain p-3">
           {listLoading && !query.trim() ? (
             <div className="flex items-center gap-2 px-2 py-4 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />

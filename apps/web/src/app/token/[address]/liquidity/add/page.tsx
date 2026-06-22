@@ -2,43 +2,25 @@
 
 import { useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { AddLiquidityPanel } from "@/components/liquidity/add-liquidity-panel";
-import { CreatorLpSecurityPanel } from "@/components/liquidity/creator-lp-security-panel";
-import { useIsTokenCreator } from "@/hooks/use-is-token-creator";
+import { liquidityUrl } from "@/lib/navigation/liquidity-routes";
 
-/** Creator-only: add liquidity and open lock/burn tools. */
-export default function TokenLiquidityAddPage() {
+/** Redirect legacy add-liquidity URL to the main liquidity page. */
+export default function TokenLiquidityAddRedirectPage() {
   const params = useParams();
   const router = useRouter();
   const tokenAddress = (params.address as string) ?? "";
-  const { isCreator, loading } = useIsTokenCreator(tokenAddress);
 
   useEffect(() => {
-    if (loading) return;
-    if (!isCreator) {
-      router.replace(`/token/${tokenAddress}/liquidity`);
+    if (!tokenAddress) {
+      router.replace(liquidityUrl());
+      return;
     }
-  }, [loading, isCreator, tokenAddress, router]);
-
-  if (loading || !isCreator) {
-    return (
-      <div className="mx-auto max-w-3xl space-y-6 py-2 sm:py-4">
-        <div className="h-48 animate-pulse rounded-xl bg-muted" />
-      </div>
-    );
-  }
+    router.replace(liquidityUrl({ token: tokenAddress }));
+  }, [tokenAddress, router]);
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6 py-2 sm:py-4">
-      <header>
-        <h1 className="text-2xl font-bold">Add Liquidity</h1>
-        <p className="mt-1 text-muted-foreground">
-          Pair your token with OPN, WOPN, or USDT on OPNChain Swap.
-        </p>
-      </header>
-
-      <AddLiquidityPanel initialToken={tokenAddress} showManageLink />
-      <CreatorLpSecurityPanel tokenAddress={tokenAddress} />
+    <div className="mx-auto max-w-3xl py-8 text-center text-sm text-muted-foreground">
+      Redirecting to liquidity…
     </div>
   );
 }

@@ -77,9 +77,11 @@ export const opnChainConfig = {
     wopnExplicit: envAddress("NEXT_PUBLIC_WOPN_ADDRESS", OPN_TESTNET_TOKENS.WOPN),
     opnt: envAddress("NEXT_PUBLIC_OPNT_ADDRESS", OPN_TESTNET_TOKENS.OPNT),
     usdt: envAddress("NEXT_PUBLIC_USDT_ADDRESS", OPN_TESTNET_TOKENS.USDT),
+    usdc: envAddress("NEXT_PUBLIC_USDC_ADDRESS", ZERO),
   },
   tokenDecimals: {
-    usdt: Number(process.env.NEXT_PUBLIC_USDT_DECIMALS ?? 18),
+    usdt: Number(process.env.NEXT_PUBLIC_USDT_DECIMALS ?? 6),
+    usdc: Number(process.env.NEXT_PUBLIC_USDC_DECIMALS ?? 6),
   },
 } as const;
 

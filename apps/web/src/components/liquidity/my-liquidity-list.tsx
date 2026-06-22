@@ -9,6 +9,8 @@ import { useMyLiquidityPositions } from "@/hooks/liquidity/useMyLiquidityPositio
 import { useBasePoolLpPositions } from "@/hooks/liquidity/useBasePoolLpPositions";
 import { shortenAddress } from "@/lib/utils";
 import { formatLiquidityAmountFromWei } from "@/lib/liquidity/format-amount";
+import { AddressCopyButton } from "@/components/ui/address-copy-button";
+import { liquidityRemovePairUrl } from "@/lib/navigation/liquidity-routes";
 
 export function MyLiquidityList({
   refreshSeq = 0,
@@ -77,9 +79,9 @@ export function MyLiquidityList({
           {positions.map((p) => (
             <div
               key={`${p.tokenAddress}:${p.pairId}:${p.lpToken || "pending"}`}
-              className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+              className="flex flex-col gap-3 overflow-hidden px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
             >
-              <div>
+              <div className="min-w-0 flex-1 overflow-hidden">
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="font-semibold">
                     {p.tokenSymbol} / {p.pairLabel}
@@ -90,7 +92,15 @@ export function MyLiquidityList({
                     </span>
                   )}
                 </div>
-                <p className="font-mono text-xs text-muted-foreground">{shortenAddress(p.tokenAddress, 6)}</p>
+                <div className="mt-0.5 flex min-w-0 max-w-full items-center gap-0.5">
+                  <span
+                    className="truncate font-mono text-xs text-muted-foreground"
+                    title={p.tokenAddress}
+                  >
+                    {shortenAddress(p.tokenAddress, 6)}
+                  </span>
+                  <AddressCopyButton value={p.tokenAddress} className="h-6 w-6" />
+                </div>
                 <p className="mt-1 text-sm tabular-nums text-muted-foreground">
                   {p.pending
                     ? "Confirming on-chain…"
@@ -98,7 +108,7 @@ export function MyLiquidityList({
                 </p>
               </div>
               <Button asChild size="sm" variant="outline" className="shrink-0">
-                <Link href={`/liquidity/${p.tokenAddress}?pair=${p.pairId}`}>Remove liquidity</Link>
+                <Link href={liquidityRemovePairUrl(p.tokenAddress, p.pairId)}>Remove liquidity</Link>
               </Button>
             </div>
           ))}

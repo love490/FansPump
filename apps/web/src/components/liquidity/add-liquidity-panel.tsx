@@ -1,9 +1,8 @@
-"use client";
+﻿"use client";
 
 import { apiUrl } from "@/lib/api";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
 import { Plus } from "lucide-react";
 import {
   useAccount,
@@ -16,11 +15,7 @@ import {
 import { formatUnits, maxUint256, parseEther, parseUnits, type Address, type Hash } from "viem";
 import { SwapTokenPicker } from "@/components/swap/swap-token-picker";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { DismissibleAlert } from "@/components/ui/dismissible-alert";
-import { useWalletLiquidityTokens } from "@/hooks/liquidity/useWalletLiquidityTokens";
 import { tokenAbi } from "@/lib/abis/factory";
 import { DEX_ROUTER_ADDRESS, opnChain } from "@/lib/wagmi";
 import { dexRouterLiquidityAbi } from "@/lib/liquidity/dex-router-abi";
@@ -28,7 +23,6 @@ import { simulateAddLiquidity } from "@/lib/liquidity/add-liquidity-tx";
 import {
   getLiquidityPair,
   LIQUIDITY_DEADLINE_SECONDS,
-  LIQUIDITY_PAIR_OPTIONS,
   pairConflictsWithToken,
   type LiquidityPairId,
 } from "@/lib/liquidity/pair-tokens";
@@ -38,7 +32,7 @@ import { saveLiquidityPosition } from "@/lib/liquidity/my-liquidity-storage";
 import { resolveDexFactory } from "@/lib/liquidity/dex-factory";
 import { findPairAddress, quoteCandidatesForPairId } from "@/lib/liquidity/pair-resolve";
 import { readRouterWeth } from "@/lib/liquidity/router-weth";
-import { cn, shortenAddress } from "@/lib/utils";
+import { shortenAddress } from "@/lib/utils";
 import { opnChainConfig } from "@/lib/chain-config/opn";
 import { ensureWopnBalance, readWopnBalance } from "@/lib/liquidity/wrap-opn-tx";
 import { formatLiquidityAmountFromWei } from "@/lib/liquidity/format-amount";
@@ -46,9 +40,7 @@ import { LiquidityPairPicker } from "@/components/liquidity/liquidity-pair-picke
 
 type AddLiquidityPanelProps = {
   initialToken?: string;
-  showManageLink?: boolean;
   onLiquidityAdded?: () => void;
-  variant?: "wizard" | "compact";
 };
 
 function LiquidityAmountInput({
@@ -86,16 +78,12 @@ function parseError(e: unknown): string {
 
 export function AddLiquidityPanel({
   initialToken = "",
-  showManageLink = false,
   onLiquidityAdded,
-  variant = "wizard",
 }: AddLiquidityPanelProps) {
   const cardRef = useRef<HTMLDivElement>(null);
   const { address, isConnected } = useAccount();
   const chainId = useChainId();
   const client = usePublicClient();
-  const { tokens: walletTokens, loading: walletLoading, refresh: refreshWalletTokens } =
-    useWalletLiquidityTokens(address);
 
   const [tokenAddress, setTokenAddress] = useState(initialToken);
   const [pairId, setPairId] = useState<LiquidityPairId>("OPN");
@@ -108,7 +96,10 @@ export function AddLiquidityPanel({
   const [processing, setProcessing] = useState(false);
   const [lastTxHash, setLastTxHash] = useState<Hash | undefined>();
 
+  const [pairDecimalsResolved, setPairDecimalsResolved] = useState<number | null>(null);
+
   const pair = getLiquidityPair(pairId);
+  const pairDecimals = pairDecimalsResolved ?? pair.decimals;
   const wopnPair = getLiquidityPair("WOPN");
   const wopnAddress = opnChainConfig.contracts.wopnExplicit;
   const usesWopnPath = pair.isNative;
@@ -195,6 +186,29 @@ export function AddLiquidityPanel({
     };
   }, [validToken, tokenAddress, client]);
 
+  useEffect(() => {
+    if (pair.isNative || !pair.address || !client) {
+      setPairDecimalsResolved(null);
+      return;
+    }
+    let cancelled = false;
+    client
+      .readContract({
+        address: pair.address,
+        abi: erc20Abi,
+        functionName: "decimals",
+      })
+      .then((d) => {
+        if (!cancelled) setPairDecimalsResolved(Number(d));
+      })
+      .catch(() => {
+        if (!cancelled) setPairDecimalsResolved(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [pair, client]);
+
   const parsedTokenAmount = useMemo(() => {
     if (!tokenAmount || Number(tokenAmount) <= 0) return null;
     try {
@@ -207,11 +221,11 @@ export function AddLiquidityPanel({
   const parsedPairAmount = useMemo(() => {
     if (!pairAmount || Number(pairAmount) <= 0) return null;
     try {
-      return pair.isNative ? parseEther(pairAmount) : parseUnits(pairAmount, pair.decimals);
+      return pair.isNative ? parseEther(pairAmount) : parseUnits(pairAmount, pairDecimals);
     } catch {
       return null;
     }
-  }, [pairAmount, pair]);
+  }, [pairAmount, pair, pairDecimals]);
 
   const needsTokenApproval =
     parsedTokenAmount !== null && (tokenAllowance ?? 0n) < parsedTokenAmount;
@@ -225,7 +239,7 @@ export function AddLiquidityPanel({
     (wopnBalance ?? 0n) < parsedPairAmount;
 
   const pairBalanceDisplay = pair.isNative ? nativeBalance?.value : pairTokenBalance;
-  const pairBalanceDecimals = pair.decimals;
+  const pairBalanceDecimals = pair.isNative ? pair.decimals : pairDecimals;
 
   const busy = processing;
 
@@ -255,7 +269,7 @@ export function AddLiquidityPanel({
     },
     label: string
   ): Promise<Hash> {
-    setStatus(`${label} — confirm in your wallet…`);
+    setStatus(`${label} â€” confirm in your walletâ€¦`);
     setError(null);
     const hash = await writeContractAsync(
       request as Parameters<typeof writeContractAsync>[0]
@@ -295,7 +309,7 @@ export function AddLiquidityPanel({
             functionName: "approve",
             args: [DEX_ROUTER_ADDRESS, maxUint256],
           },
-          `Step 1 — Approve ${tokenSymbol} in your wallet`
+          `Step 1 â€” Approve ${tokenSymbol} in your wallet`
         );
         await refetchTokenAllowance();
       }
@@ -311,7 +325,7 @@ export function AddLiquidityPanel({
               functionName: "approve",
               args: [DEX_ROUTER_ADDRESS, maxUint256],
             },
-            `Step 2 — Approve ${pair.symbol} in your wallet`
+            `Step 2 â€” Approve ${pair.symbol} in your wallet`
           );
           await refetchPairAllowance();
         }
@@ -323,7 +337,7 @@ export function AddLiquidityPanel({
         const wopnBal = await readWopnBalance(client, wopnAddress, address);
         if (wopnBal < parsedPairAmount) {
           setAction("wrap-opn");
-          setStatus("Wrapping OPN → WOPN — confirm in your wallet…");
+          setStatus("Wrapping OPN â†’ WOPN â€” confirm in your walletâ€¦");
           await ensureWopnBalance({
             client,
             wopnAddress,
@@ -346,7 +360,7 @@ export function AddLiquidityPanel({
               functionName: "approve",
               args: [DEX_ROUTER_ADDRESS, maxUint256],
             },
-            "Step — Approve WOPN in your wallet"
+            "Step â€” Approve WOPN in your wallet"
           );
           await refetchWopnAllowance();
         }
@@ -385,7 +399,7 @@ export function AddLiquidityPanel({
         deadline,
       });
 
-      setStatus(`Final step — Add liquidity (${tokenSymbol}/${pair.symbol}) — confirm in your wallet…`);
+      setStatus(`Final step â€” Add liquidity (${tokenSymbol}/${pair.symbol}) â€” confirm in your walletâ€¦`);
       const addRequest =
         tx.value > 0n
           ? {
@@ -407,7 +421,7 @@ export function AddLiquidityPanel({
       );
       setLastTxHash(addHash);
 
-      console.log("[liquidity] Transaction submitted, saving position…", addHash);
+      console.log("[liquidity] Transaction submitted, saving positionâ€¦", addHash);
       saveLiquidityPosition({
         walletAddress: address.toLowerCase(),
         tokenAddress: tokenAddress.toLowerCase(),
@@ -431,7 +445,8 @@ export function AddLiquidityPanel({
               pairId,
               weth,
               opnChainConfig.contracts.wopnExplicit,
-              opnChainConfig.contracts.usdt
+              opnChainConfig.contracts.usdt,
+              opnChainConfig.contracts.usdc
             );
             const pairAddr = await findPairAddress(
               client,
@@ -463,7 +478,7 @@ export function AddLiquidityPanel({
       } catch (receiptError) {
         console.warn("[liquidity] Receipt wait failed (tx may still succeed):", receiptError);
         setStatus(
-          `Liquidity submitted — refresh My Liquidity in a moment if balance is not visible yet.`
+          `Liquidity submitted â€” refresh My Liquidity in a moment if balance is not visible yet.`
         );
       }
 
@@ -476,7 +491,6 @@ export function AddLiquidityPanel({
           refetchTokenAllowance(),
           refetchPairAllowance(),
           refetchWopnAllowance(),
-          refreshWalletTokens(),
         ]);
       } catch (refreshError) {
         console.warn("[liquidity] Balance refresh failed:", refreshError);
@@ -501,13 +515,13 @@ export function AddLiquidityPanel({
 
   const addLiquidityLabel =
     action === "approve-token"
-      ? `Approving ${tokenSymbol}… (${pendingSteps} wallet steps)`
+      ? `Approving ${tokenSymbol}â€¦ (${pendingSteps} wallet steps)`
       : action === "wrap-opn"
-        ? `Wrapping OPN → WOPN… (${pendingSteps} wallet steps)`
+        ? `Wrapping OPN â†’ WOPNâ€¦ (${pendingSteps} wallet steps)`
       : action === "approve-pair"
-        ? `Approving ${usesWopnPath ? "WOPN" : pair.symbol}… (${pendingSteps} wallet steps)`
+        ? `Approving ${usesWopnPath ? "WOPN" : pair.symbol}â€¦ (${pendingSteps} wallet steps)`
         : action === "add"
-          ? `Adding liquidity…`
+          ? `Adding liquidityâ€¦`
           : "Add liquidity";
 
   const terminalSuccess =
@@ -525,11 +539,10 @@ export function AddLiquidityPanel({
     resetAddForm();
   }
 
-  if (variant === "compact") {
-    const formDisabled = !isConnected || wrongNetwork;
+  const formDisabled = !isConnected || wrongNetwork;
 
-    return (
-      <div ref={cardRef} className="relative space-y-3 overflow-visible">
+  return (
+    <div ref={cardRef} className="relative space-y-3 overflow-visible">
         <div className="overflow-visible rounded-xl border border-border/60 bg-muted/20 p-4">
           <div className="mb-3 flex items-center justify-between text-sm">
             <span className="text-muted-foreground">Input</span>
@@ -606,6 +619,12 @@ export function AddLiquidityPanel({
           </p>
         )}
 
+        {pairId === "OPN" && (
+          <p className="text-sm text-muted-foreground">
+            OPN is wrapped to WOPN automatically before liquidity is added.
+          </p>
+        )}
+
         <Button
           type="button"
           className="w-full"
@@ -642,272 +661,5 @@ export function AddLiquidityPanel({
           </DismissibleAlert>
         )}
       </div>
-    );
-  }
-
-  return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>1. Select token</CardTitle>
-          <CardDescription>
-            Paste a contract address, search by name, or pick a token detected in your wallet.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <SwapTokenPicker value={tokenAddress} onChange={setTokenAddress} label="Project token" />
-
-          {isConnected && (
-            <div className="space-y-2">
-              <div className="flex items-center justify-between gap-2">
-                <Label className="text-muted-foreground">Tokens in your wallet</Label>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  disabled={walletLoading}
-                  onClick={() => void refreshWalletTokens()}
-                >
-                  {walletLoading ? "Scanning…" : "Refresh"}
-                </Button>
-              </div>
-
-              {walletLoading && walletTokens.length === 0 ? (
-                <div className="space-y-2">
-                  {[...Array(2)].map((_, i) => (
-                    <div key={i} className="h-14 animate-pulse rounded-lg bg-muted" />
-                  ))}
-                </div>
-              ) : walletTokens.length === 0 ? (
-                <p className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
-                  No indexed tokens found in your wallet yet. Paste any ERC-20 contract address above.
-                </p>
-              ) : (
-                <div className="grid gap-2 sm:grid-cols-2">
-                  {walletTokens.map((t) => {
-                    const active = tokenAddress.toLowerCase() === t.contractAddress.toLowerCase();
-                    return (
-                      <button
-                        key={t.contractAddress}
-                        type="button"
-                        onClick={() => setTokenAddress(t.contractAddress)}
-                        className={cn(
-                          "flex flex-col items-start rounded-lg border p-3 text-left transition-colors hover:bg-muted/40",
-                          active && "border-primary bg-primary/5"
-                        )}
-                      >
-                        <span className="font-semibold">
-                          {t.symbol}
-                          {t.isCreator && (
-                            <span className="ml-2 text-xs font-normal text-primary">Created by you</span>
-                          )}
-                        </span>
-                        <span className="text-xs text-muted-foreground">{t.name}</span>
-                        <span className="mt-1 font-mono text-xs text-muted-foreground">
-                          {shortenAddress(t.contractAddress, 6)}
-                        </span>
-                        <span className="mt-1 text-xs">
-                          Balance: {formatBalance(t.balance, t.decimals)} {t.symbol}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {validToken && (
-        <Card>
-          <CardHeader>
-            <CardTitle>2. Pair with</CardTitle>
-            <CardDescription>Choose which asset to pair your token with on Swap.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-wrap gap-2">
-              {LIQUIDITY_PAIR_OPTIONS.map((option) => (
-                <button
-                  key={option.id}
-                  type="button"
-                  onClick={() => setPairId(option.id)}
-                  className={cn(
-                    "rounded-lg border px-4 py-2 text-sm font-medium transition-colors",
-                    pairId === option.id
-                      ? "border-primary bg-primary/10 text-primary"
-                      : "text-muted-foreground hover:bg-muted"
-                  )}
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
-            {pairConflict && (
-              <p className="mt-3 text-sm text-red-600">
-                This token is {pair.symbol}. Choose a different project token or pair asset.
-              </p>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-      {validToken && !pairConflict && (
-        <Card>
-          <CardHeader>
-            <CardTitle>3. Add liquidity</CardTitle>
-            <CardDescription>
-              Click once — your wallet will walk you through each step (approve {tokenSymbol}
-              {usesWopnPath
-                ? ", wrap OPN → WOPN, approve WOPN"
-                : needsPairApproval
-                  ? `, approve ${pair.symbol}`
-                  : ""}
-              , then add liquidity).
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {!isConnected ? (
-              <p className="text-sm text-muted-foreground">Connect your wallet to continue.</p>
-            ) : (
-              <>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div>
-                    <Label>{tokenSymbol} amount</Label>
-                    <Input
-                      type="text"
-                      inputMode="decimal"
-                      placeholder="0.0"
-                      value={tokenAmount}
-                      onChange={(e) => setTokenAmount(e.target.value)}
-                      className="mt-2"
-                    />
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      Balance:{" "}
-                      {tokenBalance !== undefined
-                        ? `${formatBalance(tokenBalance, tokenDecimals)} ${tokenSymbol}`
-                        : "—"}
-                    </p>
-                  </div>
-                  <div>
-                    <Label>{pair.symbol} amount</Label>
-                    <Input
-                      type="text"
-                      inputMode="decimal"
-                      placeholder="0.0"
-                      value={pairAmount}
-                      onChange={(e) => setPairAmount(e.target.value)}
-                      className="mt-2"
-                    />
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      Balance:{" "}
-                      {pairBalanceDisplay !== undefined
-                        ? `${formatBalance(pairBalanceDisplay, pairBalanceDecimals)} ${pair.symbol}`
-                        : "—"}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="rounded-lg border border-dashed bg-muted/20 p-3 text-sm text-muted-foreground">
-                  <p className="font-medium text-foreground">One button — wallet will ask for:</p>
-                  <ol className="mt-2 list-decimal space-y-1 pl-4">
-                    {needsTokenApproval && (
-                      <li>
-                        <strong>Approve {tokenSymbol}</strong>
-                      </li>
-                    )}
-                    {needsWopnApproval && (
-                      <li>
-                        <strong>Approve WOPN</strong>
-                      </li>
-                    )}
-                    {needsPairApproval && (
-                      <li>
-                        <strong>Approve {pair.symbol}</strong>
-                      </li>
-                    )}
-                    {needsOpnWrap && (
-                      <li>
-                        <strong>Wrap OPN → WOPN</strong> (automatic)
-                      </li>
-                    )}
-                    <li>
-                      <strong>Add liquidity ({tokenSymbol}/{pair.symbol})</strong>
-                    </li>
-                  </ol>
-                  {!needsTokenApproval && !needsPairApproval && !needsWopnApproval && !needsOpnWrap && (
-                    <p className="mt-2 text-xs text-green-700">Approvals already set — one wallet confirm.</p>
-                  )}
-                  {usesWopnPath && (
-                    <p className="mt-2 text-xs text-muted-foreground">
-                      OPN is wrapped to WOPN automatically before liquidity is added.
-                    </p>
-                  )}
-                </div>
-
-                {wrongNetwork && (
-                  <p className="text-sm text-amber-700">
-                    Switch your wallet to {opnChain.name} (chain {opnChain.id}).
-                  </p>
-                )}
-
-                <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-                  <Button
-                    type="button"
-                    className="w-full sm:w-auto"
-                    disabled={!amountsValid || busy || wrongNetwork}
-                    onClick={() => void addLiquidity()}
-                  >
-                    {addLiquidityLabel}
-                  </Button>
-                  {showManageLink && (
-                    <Button asChild variant="ghost">
-                      <Link href={`/liquidity/${tokenAddress}?pair=${pairId}`}>Manage LP</Link>
-                    </Button>
-                  )}
-                </div>
-
-                {status && busy && (
-                  <p className="text-sm text-muted-foreground">{status}</p>
-                )}
-
-                {terminalSuccess && status && (
-                  <DismissibleAlert variant="success" onDismiss={dismissNotice}>
-                    {status}
-                    {lastTxHash && (
-                      <p className="mt-2 font-mono text-xs opacity-80">
-                        Tx:{" "}
-                        <a
-                          href={`${opnChainConfig.explorerUrl.replace(/\/$/, "")}/tx/${lastTxHash}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="underline"
-                        >
-                          {shortenAddress(lastTxHash, 10)}
-                        </a>
-                      </p>
-                    )}
-                    {validToken && (
-                      <Link
-                        href={`/liquidity/${tokenAddress}?pair=${pairId}`}
-                        className="mt-3 inline-flex text-sm font-semibold tracking-widest text-primary hover:underline"
-                      >
-                        Manage liquidity &gt;&gt;&gt;
-                      </Link>
-                    )}
-                  </DismissibleAlert>
-                )}
-
-                {error && !busy && (
-                  <DismissibleAlert variant="error" onDismiss={dismissNotice}>
-                    {error}
-                  </DismissibleAlert>
-                )}
-              </>
-            )}
-          </CardContent>
-        </Card>
-      )}
-    </div>
   );
 }

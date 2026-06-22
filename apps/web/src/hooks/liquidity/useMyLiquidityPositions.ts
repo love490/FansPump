@@ -6,7 +6,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { Address, PublicClient } from "viem";
 import { usePublicClient } from "wagmi";
 import { uniswapV2PairAbi } from "@/lib/liquidity/abis";
-import { getLiquidityPair, type LiquidityPairId } from "@/lib/liquidity/pair-tokens";
+import { getLiquidityPair, LIQUIDITY_PAIR_OPTIONS, type LiquidityPairId } from "@/lib/liquidity/pair-tokens";
 import { readRouterWeth } from "@/lib/liquidity/router-weth";
 import { resolveDexFactory } from "@/lib/liquidity/dex-factory";
 import { findPairAddress, quoteCandidatesForPairId } from "@/lib/liquidity/pair-resolve";
@@ -244,10 +244,16 @@ export function useMyLiquidityPositions(walletAddress: string | undefined) {
       }
       for (const [addr, meta] of candidates) {
         const pairIds: LiquidityPairId[] =
-          meta.pairIds.size > 0 ? [...meta.pairIds] : ["OPN", "WOPN", "USDT"];
+          meta.pairIds.size > 0 ? [...meta.pairIds] : LIQUIDITY_PAIR_OPTIONS.map((p) => p.id);
 
         for (const pairId of pairIds) {
-          const quotes = quoteCandidatesForPairId(pairId, weth, wopn, usdt);
+          const quotes = quoteCandidatesForPairId(
+            pairId,
+            weth,
+            wopn,
+            usdt,
+            opnChainConfig.contracts.usdc
+          );
           checks.push(
             readLpPosition(
               client,

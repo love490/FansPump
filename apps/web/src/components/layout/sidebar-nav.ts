@@ -14,8 +14,10 @@ import {
   Megaphone,
   LifeBuoy,
   Shield,
+  Wrench,
 } from "lucide-react";
 import { isDexPath } from "@/lib/navigation/swap-nav";
+import { isToolsPath } from "@/lib/navigation/tools-nav";
 
 export type SidebarNavId =
   | "home"
@@ -30,6 +32,7 @@ export type SidebarNavId =
   | "analytics"
   | "staking"
   | "launchpool"
+  | "tools"
   | "trustscan"
   | "support"
   | "how-it-works"
@@ -54,6 +57,7 @@ export const platformLinks: SidebarNavItem[] = [
   { id: "trustscan", href: "/trustscan", label: "TrustScan", icon: Shield },
   { id: "earn", href: "/earn", label: "Earn", icon: CircleDollarSign },
   { id: "launchpool", href: "/launchpool", label: "Launchpool", icon: Megaphone },
+  { id: "tools", href: "/tools", label: "Tools", icon: Wrench },
   { id: "dex", href: "/swap", label: "DEX", icon: ArrowLeftRight },
   { id: "how-it-works", href: "/docs/how-it-works", label: "How It Works", icon: HelpCircle },
   { id: "docs", href: "/docs", label: "Docs", icon: BookOpen },
@@ -109,6 +113,8 @@ export function isSidebarNavActive(
       return pathname === "/staking";
     case "launchpool":
       return pathname === "/launchpool";
+    case "tools":
+      return isToolsPath(pathname);
     case "support":
       return pathname === "/support";
     case "analytics":

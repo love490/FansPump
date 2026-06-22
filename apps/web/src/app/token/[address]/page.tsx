@@ -21,6 +21,7 @@ import { SignInModal } from "@/components/auth/sign-in-modal";
 import { AddressCopyButton } from "@/components/ui/address-copy-button";
 import { useActiveWallet } from "@/hooks/useActiveWallet";
 import { shortenAddress, cn } from "@/lib/utils";
+import { liquidityUrl, tokenLiquidityViewUrl, TOOLS_LOCK_PATH } from "@/lib/navigation/liquidity-routes";
 import { OPN_EXPLORER_BASE } from "@/lib/wagmi";
 import { ExternalLink, Star, ShoppingCart, TrendingDown, ArrowLeftRight, Droplets, FileCode } from "lucide-react";
 
@@ -207,7 +208,7 @@ export default function TokenPage() {
             </Link>
           </Button>
           <Button asChild variant="outline" size="sm">
-            <Link href={isCreator ? `/token/${address}/liquidity/add` : `/token/${address}/liquidity`}>
+            <Link href={isCreator ? liquidityUrl({ token: address }) : tokenLiquidityViewUrl(address)}>
               <Droplets className="h-4 w-4" /> {isCreator ? "Add Liquidity" : "View Liquidity"}
             </Link>
           </Button>
@@ -235,7 +236,7 @@ export default function TokenPage() {
           {isCreator && (
             <>
               <Button asChild variant="outline" size="sm">
-                <Link href={`/liquidity/${address}`}>
+                <Link href={TOOLS_LOCK_PATH}>
                   <Droplets className="h-4 w-4" /> Lock / Burn LP
                 </Link>
               </Button>

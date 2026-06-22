@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
 
-export default function LiquidityLockBurnRedirectPage() {
+export default function ToolsIndexPage() {
   redirect("/tools/lock");
 }

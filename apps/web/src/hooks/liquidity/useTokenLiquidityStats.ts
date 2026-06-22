@@ -138,7 +138,10 @@ export function useTokenLiquidityStats(tokenAddress: string | undefined, tokenDe
       const factory = await resolveDexFactory(client);
 
       const weth = await readRouterWeth(client, DEX_ROUTER_ADDRESS);
-      const pairIds: LiquidityPairId[] = ["OPN", "USDT"];
+      const wopn = opnChainConfig.contracts.wopnExplicit;
+      const usdt = opnChainConfig.contracts.usdt;
+      const usdc = opnChainConfig.contracts.usdc;
+      const pairIds: LiquidityPairId[] = LIQUIDITY_PAIR_OPTIONS.map((p) => p.id);
 
       let burnAddresses: Address[] = [];
       try {
@@ -162,8 +165,9 @@ export function useTokenLiquidityStats(tokenAddress: string | undefined, tokenDe
           const quote = quoteAddressForPairId(
             pairId,
             weth,
-            opnChainConfig.contracts.wopnExplicit,
-            opnChainConfig.contracts.usdt
+            wopn,
+            usdt,
+            usdc
           ) as Address;
           return readPairStat(client, factory, token, pairId, quote, tokenDecimals, burnAddresses);
         })
@@ -175,7 +179,7 @@ export function useTokenLiquidityStats(tokenAddress: string | undefined, tokenDe
       for (const p of pairs) {
         const n = Number(p.tvlQuote);
         if (Number.isFinite(n)) {
-          if (p.quoteSymbol === "USDT") totalUsdt += n;
+          if (p.quoteSymbol === "USDT" || p.quoteSymbol === "USDC") totalUsdt += n;
           // OPN pair: rough 1:1 placeholder until price oracle — show OPN TVL separately
         }
       }

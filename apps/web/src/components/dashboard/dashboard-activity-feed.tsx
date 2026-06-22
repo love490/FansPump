@@ -16,6 +16,7 @@ import {
 } from "@/lib/dashboard/activities";
 import { useMyLiquidityPositions } from "@/hooks/liquidity/useMyLiquidityPositions";
 import { useBasePoolLpPositions } from "@/hooks/liquidity/useBasePoolLpPositions";
+import { liquidityUrl } from "@/lib/navigation/liquidity-routes";
 import { cn } from "@/lib/utils";
 import { Activity, Layers, Droplets } from "lucide-react";
 
@@ -83,7 +84,7 @@ export function DashboardActivityFeed() {
         amount: `${formatUnits(pos.lpBalance, pos.lpDecimals)} LP`,
         platform: "OPN Network",
         occurredAt: now,
-        href: `/liquidity/${pos.tokenAddress}`,
+        href: liquidityUrl({ tab: "remove", token: pos.tokenAddress, pair: pos.pairId }),
       });
     }
 
@@ -96,7 +97,7 @@ export function DashboardActivityFeed() {
         amount: `${formatUnits(pool.lpBalance, pool.lpDecimals)} LP`,
         platform: "OPN Network",
         occurredAt: now,
-        href: "/liquidity",
+        href: liquidityUrl({ tab: "remove" }),
       });
     }
 

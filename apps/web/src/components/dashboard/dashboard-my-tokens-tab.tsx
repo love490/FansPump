@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { useActiveWallet } from "@/hooks/useActiveWallet";
 import { useWalletPortfolioBalance } from "@/hooks/dashboard/useWalletPortfolioBalance";
 import { formatMarketPrice } from "@/lib/tokens/market-metrics";
+import { liquidityUrl } from "@/lib/navigation/liquidity-routes";
 import { cn } from "@/lib/utils";
 
 function formatBalanceAmount(amount: number): string {
@@ -27,9 +28,9 @@ function tokenHref(row: {
 }): string | null {
   if (row.isLp) {
     if (row.projectTokenAddress?.startsWith("0x")) {
-      return `/liquidity/${row.projectTokenAddress}`;
+      return liquidityUrl({ tab: "remove", token: row.projectTokenAddress });
     }
-    return "/liquidity";
+    return liquidityUrl({ tab: "remove" });
   }
   if (row.isNative || row.symbol === "OPN") return "/swap";
   if (row.contractAddress?.startsWith("0x") && !row.isLp) {

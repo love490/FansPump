@@ -2,10 +2,9 @@
 
 import Link from "next/link";
 import { useAccount } from "wagmi";
-import { Flame, Lock, ArrowRight } from "lucide-react";
+import { Flame, Lock } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { LIQUIDITY_PAIR_OPTIONS } from "@/lib/liquidity/pair-tokens";
+import { TOOLS_LOCK_BURN_PATH } from "@/lib/navigation/liquidity-routes";
 import { LIQUIDITY_LOCKER_ADDRESS } from "@/lib/liquidity/constants";
 import { getOrCreateBurnAddress } from "@/lib/liquidity/burn-address";
 import { shortenAddress, cn } from "@/lib/utils";
@@ -18,7 +17,6 @@ function isLockerConfigured() {
 
 type Props = {
   tokenAddress: string;
-  defaultPairId?: string;
 };
 
 function SecurityActionCard({
@@ -62,37 +60,24 @@ function SecurityActionCard({
   );
 }
 
-export function CreatorLpSecurityPanel({ tokenAddress, defaultPairId = "OPN" }: Props) {
+export function CreatorLpSecurityPanel({ tokenAddress }: Props) {
   const { address } = useAccount();
   const burnAddress =
     address && tokenAddress ? getOrCreateBurnAddress(tokenAddress, address) : null;
   const lockerReady = isLockerConfigured();
-  const pairId =
-    LIQUIDITY_PAIR_OPTIONS.find((p) => p.id === defaultPairId)?.id ?? LIQUIDITY_PAIR_OPTIONS[0].id;
 
   return (
     <Card>
       <CardHeader>
         <CardTitle>Lock &amp; burn liquidity</CardTitle>
         <CardDescription>
-          After adding liquidity, secure your LP to build community trust. Choose a pair to manage.
+          After adding liquidity, secure your LP in Tools — lock or burn from your wallet positions.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="grid gap-2 sm:grid-cols-3">
-          {LIQUIDITY_PAIR_OPTIONS.map((pair) => (
-            <Button key={pair.id} asChild variant="outline" className="justify-between">
-              <Link href={`/liquidity/${tokenAddress}?pair=${pair.id}`}>
-                <span>{pair.symbol} pair</span>
-                <ArrowRight className="h-4 w-4" />
-              </Link>
-            </Button>
-          ))}
-        </div>
-
         <div className="grid gap-3 md:grid-cols-2">
           <SecurityActionCard
-            href={`/liquidity/${tokenAddress}?pair=${pairId}#burn`}
+            href={TOOLS_LOCK_BURN_PATH}
             title="Burn LP"
             description="Permanently send LP to a unique burn wallet generated for your token."
             detail={burnAddress ? shortenAddress(burnAddress, 8) : undefined}
@@ -100,7 +85,7 @@ export function CreatorLpSecurityPanel({ tokenAddress, defaultPairId = "OPN" }: 
             accent="burn"
           />
           <SecurityActionCard
-            href={`/liquidity/${tokenAddress}?pair=${pairId}#lock`}
+            href={TOOLS_LOCK_BURN_PATH}
             title="Lock LP"
             description={
               lockerReady

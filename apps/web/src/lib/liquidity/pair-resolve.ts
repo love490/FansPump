@@ -9,7 +9,8 @@ export function quoteCandidatesForPairId(
   pairId: LiquidityPairId,
   weth: Address,
   wopnExplicit: Address,
-  usdt: Address
+  usdt: Address,
+  usdc?: Address
 ): Address[] {
   const seen = new Set<string>();
   const add = (addr: string) => {
@@ -19,6 +20,8 @@ export function quoteCandidatesForPairId(
 
   if (pairId === "USDT") {
     add(usdt);
+  } else if (pairId === "USDC") {
+    if (usdc) add(usdc);
   } else if (pairId === "WOPN") {
     add(wopnExplicit);
     add(weth);
@@ -59,6 +62,7 @@ export function defaultQuoteCandidates(weth: Address): Address[] {
     "OPN",
     weth,
     opnChainConfig.contracts.wopnExplicit,
-    opnChainConfig.contracts.usdt
+    opnChainConfig.contracts.usdt,
+    opnChainConfig.contracts.usdc
   );
 }
