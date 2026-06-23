@@ -8,8 +8,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { DismissibleAlert } from "@/components/ui/dismissible-alert";
-import { SwapTokenPicker } from "@/components/swap/swap-token-picker";
-import { LiquidityPairPicker } from "@/components/liquidity/liquidity-pair-picker";
 import {
   useMyLiquidityPositions,
   type MyLiquidityPosition,
@@ -21,13 +19,7 @@ import { formatLiquidityAmountFromWei, formatTokenLpPositionLabel } from "@/lib/
 import { liquidityUrl } from "@/lib/navigation/liquidity-routes";
 import { apiUrl } from "@/lib/api";
 import { cn, shortenAddress } from "@/lib/utils";
-import { LIQUIDITY_PAIR_OPTIONS, type LiquidityPairId } from "@/lib/liquidity/pair-tokens";
 import { isValidTokenAddress } from "@/lib/swap/routerAdapter";
-import { DEX_ROUTER_ADDRESS } from "@/lib/wagmi";
-import { readRouterWeth } from "@/lib/liquidity/router-weth";
-import { resolveDexFactory } from "@/lib/liquidity/dex-factory";
-import { findPairAddress, quoteCandidatesForPairId } from "@/lib/liquidity/pair-resolve";
-import { opnChainConfig } from "@/lib/chain-config/opn";
 
 const LOCK_PRESETS = [
   { label: "30 days", days: 30 },
@@ -68,11 +60,7 @@ export function LpLockPanel() {
   );
 
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
-  const [manualToken, setManualToken] = useState("");
-  const [manualPairId, setManualPairId] = useState<LiquidityPairId>("OPN");
   const [manualLpToken, setManualLpToken] = useState("");
-  const [manualTarget, setManualTarget] = useState<LockTarget | null>(null);
-  const [manualLoading, setManualLoading] = useState(false);
 
   const selectedPosition = useMemo(() => {
     if (!selectedKey) return null;
@@ -100,97 +88,20 @@ export function LpLockPanel() {
     functionName: "decimals",
   });
 
-  useEffect(() => {
-    if (!isConnected || !address || !client || !isValidTokenAddress(manualToken)) {
-      setManualTarget(null);
-      return;
-    }
-
-    let cancelled = false;
-    setManualLoading(true);
-
-    (async () => {
-      try {
-        const token = manualToken as Address;
-        const [weth, factory] = await Promise.all([
-          readRouterWeth(client, DEX_ROUTER_ADDRESS),
-          resolveDexFactory(client),
-        ]);
-        const quotes = quoteCandidatesForPairId(
-          manualPairId,
-          weth,
-          opnChainConfig.contracts.wopnExplicit,
-          opnChainConfig.contracts.usdt,
-          opnChainConfig.contracts.usdc
-        );
-        const pair = await findPairAddress(client, factory, token, quotes);
-        if (!pair || cancelled) {
-          if (!cancelled) setManualTarget(null);
-          return;
-        }
-
-        const [balance, decimals, symbol] = await Promise.all([
-          client.readContract({
-            address: pair,
-            abi: erc20Abi,
-            functionName: "balanceOf",
-            args: [address as Address],
-          }),
-          client.readContract({
-            address: pair,
-            abi: erc20Abi,
-            functionName: "decimals",
-          }),
-          client.readContract({
-            address: token,
-            abi: erc20Abi,
-            functionName: "symbol",
-          }),
-        ]);
-
-        if (cancelled) return;
-        const pairMeta = LIQUIDITY_PAIR_OPTIONS.find((p) => p.id === manualPairId);
-        if (balance === 0n) {
-          setManualTarget(null);
-          return;
-        }
-
-        setManualTarget({
-          tokenAddress: manualToken.toLowerCase(),
-          tokenSymbol: typeof symbol === "string" ? symbol : "Token",
-          pairLabel: pairMeta?.symbol ?? manualPairId,
-          lpToken: pair.toLowerCase(),
-          lpBalance: balance,
-          lpDecimals: Number(decimals),
-        });
-        setSelectedKey(null);
-      } catch {
-        if (!cancelled) setManualTarget(null);
-      } finally {
-        if (!cancelled) setManualLoading(false);
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [manualToken, manualPairId, address, client, isConnected]);
-
   const pastedLpTarget = useMemo((): LockTarget | null => {
     if (!validManualLp || manualLpBalance === undefined || manualLpBalance === 0n) return null;
     return {
-      tokenAddress: manualToken && isValidTokenAddress(manualToken) ? manualToken.toLowerCase() : "",
+      tokenAddress: "",
       tokenSymbol: "LP",
       pairLabel: "Custom",
       lpToken: manualLpToken.toLowerCase(),
       lpBalance: manualLpBalance,
       lpDecimals: Number(manualLpDecimals ?? 18),
     };
-  }, [validManualLp, manualLpBalance, manualLpDecimals, manualLpToken, manualToken]);
+  }, [validManualLp, manualLpBalance, manualLpDecimals, manualLpToken]);
 
   const target: LockTarget | null = useMemo(() => {
     if (pastedLpTarget) return pastedLpTarget;
-    if (manualTarget) return manualTarget;
     if (!selectedPosition) return null;
     return {
       tokenAddress: selectedPosition.tokenAddress,
@@ -200,7 +111,7 @@ export function LpLockPanel() {
       lpBalance: selectedPosition.lpBalance,
       lpDecimals: selectedPosition.lpDecimals,
     };
-  }, [pastedLpTarget, manualTarget, selectedPosition]);
+  }, [pastedLpTarget, selectedPosition]);
 
   const [lockAmount, setLockAmount] = useState("");
   const [preset, setPreset] = useState("30");
@@ -349,13 +260,13 @@ export function LpLockPanel() {
             <Link href={liquidityUrl()} className="font-medium text-primary hover:underline">
               Add liquidity
             </Link>{" "}
-            first, or pick a token and pair below.
+            first, or paste an LP pair contract below.
           </p>
         ) : (
           <div className="grid gap-2 sm:grid-cols-2">
             {activePositions.map((p) => {
               const key = positionKey(p);
-              const active = selectedKey === key && !pastedLpTarget && !manualTarget;
+              const active = selectedKey === key && !pastedLpTarget;
               return (
                 <button
                   key={key}
@@ -363,7 +274,6 @@ export function LpLockPanel() {
                   onClick={() => {
                     setSelectedKey(key);
                     setManualLpToken("");
-                    setManualTarget(null);
                   }}
                   className={cn(
                     "flex flex-col items-start rounded-lg border p-3 text-left transition-colors hover:bg-muted/40",
@@ -392,49 +302,21 @@ export function LpLockPanel() {
         )}
       </div>
 
-      <div className="space-y-3 rounded-xl border border-border/60 bg-muted/20 p-4">
-        <div>
-          <p className="text-sm font-semibold">Or choose token &amp; pair</p>
-          <p className="text-xs text-muted-foreground">
-            Pick a pool if your LP balance was not detected automatically.
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <SwapTokenPicker
-            value={manualToken}
-            onChange={(v) => {
-              setManualToken(v);
-              setManualLpToken("");
-            }}
-            label="Token"
-            searchPlaceholder="Paste token address or search"
-          />
-          <LiquidityPairPicker value={manualPairId} onChange={setManualPairId} />
-        </div>
-        {manualLoading && (
-          <p className="text-xs text-muted-foreground">Looking up pool…</p>
-        )}
-        {manualTarget && !pastedLpTarget && (
-          <p className="text-xs text-muted-foreground">
-            Found {formatTokenLpPositionLabel(
-              manualTarget.lpBalance,
-              manualTarget.lpDecimals,
-              manualTarget.tokenSymbol,
-              manualTarget.pairLabel
-            )}{" "}
-            at {shortenAddress(manualTarget.lpToken, 6)}
-          </p>
-        )}
-        <div className="space-y-2">
-          <Label htmlFor="lp-pair-address">Or paste LP pair contract</Label>
-          <Input
-            id="lp-pair-address"
-            value={manualLpToken}
-            onChange={(e) => setManualLpToken(e.target.value)}
-            placeholder="0x…"
-            disabled={!isConnected}
-          />
-        </div>
+      <div className="space-y-2">
+        <Label htmlFor="lp-pair-address">Or paste LP pair contract</Label>
+        <Input
+          id="lp-pair-address"
+          value={manualLpToken}
+          onChange={(e) => {
+            setManualLpToken(e.target.value);
+            setSelectedKey(null);
+          }}
+          placeholder="0x…"
+          disabled={!isConnected}
+        />
+        <p className="text-xs text-muted-foreground">
+          Use this if your LP balance was not detected automatically.
+        </p>
       </div>
 
       {target && isConnected && (
