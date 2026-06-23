@@ -6,13 +6,6 @@ import { LpLockPanel } from "@/components/tools/lp-lock-panel";
 export default function ToolsLockPage() {
   return (
     <div className="mx-auto max-w-3xl space-y-6">
-      <header>
-        <h1 className="text-2xl font-bold">Lock</h1>
-        <p className="mt-1 text-muted-foreground">
-          Time-lock LP tokens from your wallet in the on-chain locker contract.
-        </p>
-      </header>
-
       <Card>
         <CardHeader>
           <CardTitle>Lock liquidity</CardTitle>
