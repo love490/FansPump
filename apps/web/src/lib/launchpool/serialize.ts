@@ -46,16 +46,28 @@ export function launchpoolHeadline(
   if (pool.totalRewardUsd > 0) {
     return `Get a share of $${pool.totalRewardUsd.toLocaleString(undefined, { maximumFractionDigits: 0 })} by staking ${stakeAssetsLabel(pool.stakeAssets)}`;
   }
-  return `Stake ${stakeAssetsLabel(pool.stakeAssets)} to earn ${pool.rewardTokenSymbol}`;
+  return `Stake ${stakeAssetsLabel(pool.stakeAssets)} to earn ${formatTokenTicker(pool.rewardTokenSymbol)}`;
+}
+
+/** Ticker with a single leading $ (e.g. LOVE → $LOVE, $LOVE → $LOVE). */
+export function formatTokenTicker(symbol: string): string {
+  const base = symbol.trim().replace(/^\$+/, "");
+  return base ? `$${base}` : "";
+}
+
+/** Symbol without a leading $ for amount suffixes (e.g. "10,000 LOVE"). */
+export function formatTokenTickerPlain(symbol: string): string {
+  return symbol.trim().replace(/^\$+/, "");
 }
 
 export function formatLaunchpoolPrize(pool: Pick<SerializedLaunchpool, "totalRewardUsd" | "totalRewardAmount" | "rewardTokenSymbol">): string {
+  const ticker = formatTokenTickerPlain(pool.rewardTokenSymbol);
   if (BigInt(pool.totalRewardAmount || "0") > 0n) {
     try {
       const formatted = Number(formatUnits(BigInt(pool.totalRewardAmount), 18));
-      return `${formatted.toLocaleString(undefined, { maximumFractionDigits: 0 })} ${pool.rewardTokenSymbol}`;
+      return `${formatted.toLocaleString(undefined, { maximumFractionDigits: 0 })} ${ticker}`;
     } catch {
-      return `${pool.totalRewardAmount} ${pool.rewardTokenSymbol}`;
+      return `${pool.totalRewardAmount} ${ticker}`;
     }
   }
   if (pool.totalRewardUsd > 0) {
