@@ -101,3 +101,14 @@ export function percentToAllocationBps(percent: string): number {
 export function bpsToPercentString(bps: number): string {
   return String(bps / 100);
 }
+
+/** Strip commas and non-digits from a supply input (whole tokens only). */
+export function sanitizeSupplyDigits(input: string): string {
+  return input.replace(/,/g, "").replace(/[^\d]/g, "");
+}
+
+/** Format a digit-only supply string with thousands separators. */
+export function formatSupplyDigits(digits: string): string {
+  if (!digits) return "";
+  return digits.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+}

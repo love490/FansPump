@@ -5,11 +5,10 @@ import { ChevronRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import {
-  formatLaunchpoolPrize,
-  formatTokenWei,
   launchpoolHeadline,
   type SerializedLaunchpool,
 } from "@/lib/launchpool/serialize";
+import { PrizePoolRow } from "@/components/launchpool/prize-pool-row";
 
 const STATUS_LABELS = {
   ACTIVE: "Active",
@@ -49,38 +48,7 @@ export function LaunchpoolCard({ pool }: { pool: SerializedLaunchpool }) {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <p className="text-xs text-muted-foreground">
-                Prize Pool ({pool.rewardTokenSymbol})
-              </p>
-              <p className="text-xl font-semibold">{formatLaunchpoolPrize(pool)}</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">
-                My Rewards ({pool.rewardTokenSymbol})
-              </p>
-              <p className="text-xl font-semibold">0.00</p>
-            </div>
-          </div>
-
-          <div className="space-y-2 border-t border-border pt-3">
-            {pool.stakeAssets.map((asset) => (
-              <div
-                key={`${asset.assetSymbol}-${asset.assetAddress ?? "native"}`}
-                className="flex items-center gap-2 text-sm"
-              >
-                <ProjectAvatar title={asset.assetSymbol} />
-                <div className="min-w-0 flex-1">
-                  <p className="font-medium">{asset.assetSymbol} Pool</p>
-                  <p className="text-xs text-muted-foreground">
-                    {formatTokenWei(asset.totalStakedAmount ?? "0")} {asset.assetSymbol} staked ·{" "}
-                    {asset.participantCount ?? 0} participants
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
+          <PrizePoolRow pool={pool} valueClassName="text-xl" />
         </CardContent>
       </Card>
     </Link>

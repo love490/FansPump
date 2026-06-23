@@ -15,11 +15,11 @@ import { Label } from "@/components/ui/label";
 import { SignInModal } from "@/components/auth/sign-in-modal";
 import { cn } from "@/lib/utils";
 import { useRequireSignIn } from "@/hooks/useRequireSignIn";
+import { PrizePoolRow } from "@/components/launchpool/prize-pool-row";
 import {
   LAUNCHPOOL_STAKE_PREFIX,
   LAUNCHPOOL_UNSTAKE_PREFIX,
   assetKey,
-  formatLaunchpoolPrize,
   formatListingTime,
   formatTokenWei,
   formatUtcRange,
@@ -192,7 +192,6 @@ export function LaunchpoolDetailPage({ poolId }: { poolId: string }) {
     );
   }
 
-  const prizeLabel = `Prize Pool (${pool.rewardTokenSymbol})`;
   const minLabel =
     BigInt(pool.minStakeAmount || "0") > 0n
       ? formatTokenWei(pool.minStakeAmount)
@@ -227,9 +226,8 @@ export function LaunchpoolDetailPage({ poolId }: { poolId: string }) {
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <p className="text-xs text-muted-foreground">{prizeLabel}</p>
-              <p className="text-lg font-semibold">{formatLaunchpoolPrize(pool)}</p>
+            <div className="sm:col-span-2">
+              <PrizePoolRow pool={pool} valueClassName="text-lg" />
             </div>
             <div>
               <p className="text-xs text-muted-foreground">Event Duration</p>
@@ -342,9 +340,8 @@ export function LaunchpoolDetailPage({ poolId }: { poolId: string }) {
                   </button>
 
                   <div className="mt-4 grid gap-3 text-sm sm:grid-cols-3">
-                    <div>
-                      <p className="text-xs text-muted-foreground">Prize Pool ({pool.rewardTokenSymbol})</p>
-                      <p className="font-medium">{formatLaunchpoolPrize(pool)}</p>
+                    <div className="sm:col-span-3">
+                      <PrizePoolRow pool={pool} labelClassName="text-xs" valueClassName="text-sm font-medium" />
                     </div>
                     <div>
                       <p className="text-xs text-muted-foreground">Total Staked</p>

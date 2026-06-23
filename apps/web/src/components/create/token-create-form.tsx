@@ -31,7 +31,9 @@ import {
   bpsToPercentString,
   bpsToTokenAmountString,
   bpsToTaxPerToken,
+  formatSupplyDigits,
   percentToAllocationBps,
+  sanitizeSupplyDigits,
   toSupplyWei,
   tokenAmountToBps,
   type SupplyInputUnit,
@@ -89,7 +91,7 @@ export function TokenCreateForm() {
   const [step, setStep] = useState(1);
   const [name, setName] = useState("");
   const [symbol, setSymbol] = useState("");
-  const [supply, setSupply] = useState("1000000");
+  const [supply, setSupply] = useState("100000000");
   const [selectedFeatures, setSelectedFeatures] = useState<number[]>([]);
   const [maxWallet, setMaxWallet] = useState("");
   const [maxTx, setMaxTx] = useState("");
@@ -778,7 +780,12 @@ export function TokenCreateForm() {
             </div>
             <div className="sm:col-span-2">
               <Label>Initial supply</Label>
-              <Input value={supply} onChange={(e) => setSupply(e.target.value)} inputMode="decimal" placeholder="1000000" />
+              <Input
+                value={formatSupplyDigits(supply)}
+                onChange={(e) => setSupply(sanitizeSupplyDigits(e.target.value))}
+                inputMode="numeric"
+                placeholder="100,000,000"
+              />
             </div>
             <Button className="sm:col-span-2" onClick={() => setStep(2)} disabled={!name || !symbol}>
               Continue
