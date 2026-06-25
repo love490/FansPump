@@ -23,6 +23,7 @@ import { requireAdminSessionWithCsrf, requirePermission } from "../../lib/admin/
 import { logAdminAction } from "../../lib/admin/express-audit";
 import { handleAdminError } from "../../lib/admin/handle-error";
 import { zodErrorMessage } from "../../lib/admin/zod-error";
+import { getPlatformCreatorWallet } from "../../lib/admin";
 import { sumStepXpPoints } from "../../lib/bounties/step-progress";
 
 const taskTypeEnum = z.enum([
@@ -63,7 +64,7 @@ const verificationConfigSchema = z
   .nullable();
 
 const createSchema = z.object({
-  creatorWallet: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
+  creatorWallet: z.string().regex(/^0x[a-fA-F0-9]{40}$/).optional(),
   title: z.string().min(3).max(120),
   description: z.string().min(10).max(4000),
   taskType: taskTypeEnum,
@@ -120,10 +121,12 @@ router.post(
     try {
       const { email, admin, parsedBody } = await requirePermission(req, "earn", "POST");
       const body = createSchema.parse(parsedBody);
-      const wallet = body.creatorWallet.toLowerCase();
+      const wallet = (body.creatorWallet ?? getPlatformCreatorWallet())?.toLowerCase();
 
-      if (!isAddress(wallet)) {
-        res.status(400).json({ error: "Invalid creator wallet" });
+      if (!wallet || !isAddress(wallet)) {
+        res.status(400).json({
+          error: "Platform creator wallet is not configured. Set PLATFORM_CREATOR_WALLET or ADMIN_WALLET_ADDRESSES.",
+        });
         return;
       }
 

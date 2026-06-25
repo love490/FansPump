@@ -4,6 +4,8 @@ export const QUIZ_STEP_ID = "__quiz__";
 
 export type StepProgressEntry = {
   visitedAt?: string;
+  verifiedAt?: string;
+  verifyError?: string;
   claimedAt?: string;
 };
 
@@ -91,6 +93,14 @@ export function sumStepXpPoints(steps: BountyTaskStep[]): number {
 export function allStepsClaimed(steps: BountyTaskStep[], proof: BountyStepProof): boolean {
   const progress = proof.stepProgress ?? {};
   return steps.every((step) => Boolean(progress[step.id]?.claimedAt));
+}
+
+export function allSocialStepsVerified(steps: BountyTaskStep[], proof: BountyStepProof): boolean {
+  const progress = proof.stepProgress ?? {};
+  return steps.every((step) => {
+    if (step.kind !== "social") return true;
+    return Boolean(progress[step.id]?.verifiedAt);
+  });
 }
 
 export function hasOnchainBonusReward(rewardType: string, rewardAmount: string): boolean {

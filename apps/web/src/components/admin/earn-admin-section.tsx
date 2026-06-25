@@ -20,6 +20,7 @@ import {
 import { defaultQuizDraft, quizDraftToPayload, validateQuizDraft, type QuizDraft } from "@/lib/quiz";
 import { BountyXpLeaderboard } from "@/components/bounties/bounty-xp-leaderboard";
 import type { BountyRewardType, BountyTaskType } from "@/lib/bounties";
+import { shortenAddress } from "@/lib/utils";
 
 type BountyRow = {
   id: string;
@@ -28,13 +29,14 @@ type BountyRow = {
   taskType: string;
   rewardType: string;
   rewardAmount: string;
+  xpReward?: number;
   participantCount: number;
   isFeatured: boolean;
   creatorWallet: string;
+  creatorUsername?: string | null;
 };
 
 const emptyForm = {
-  creatorWallet: "",
   title: "",
   description: "",
   bountyKind: "standard" as "standard" | "quiz",
@@ -61,22 +63,14 @@ export function EarnAdminSection() {
   const [leaderboardWallet, setLeaderboardWallet] = useState("");
 
   const creatorOptions = useMemo(() => {
-    const wallets = new Set(bounties.map((b) => b.creatorWallet.toLowerCase()));
-    const draft = form.creatorWallet.trim().toLowerCase();
-    if (/^0x[a-f0-9]{40}$/.test(draft)) wallets.add(draft);
-    return [...wallets];
-  }, [bounties, form.creatorWallet]);
+    return [...new Set(bounties.map((b) => b.creatorWallet.toLowerCase()))];
+  }, [bounties]);
 
   useEffect(() => {
-    const draft = form.creatorWallet.trim().toLowerCase();
-    if (/^0x[a-f0-9]{40}$/.test(draft)) {
-      setLeaderboardWallet(draft);
-      return;
-    }
     if (!leaderboardWallet && creatorOptions.length > 0) {
       setLeaderboardWallet(creatorOptions[0]);
     }
-  }, [form.creatorWallet, creatorOptions, leaderboardWallet]);
+  }, [creatorOptions, leaderboardWallet]);
 
   const load = useCallback(() => {
     adminFetch("/api/admin/bounties")
@@ -94,11 +88,6 @@ export function EarnAdminSection() {
     setMessage(null);
     setError(null);
 
-    if (form.creatorWallet.trim().length !== 42) {
-      setError("Creator wallet must be a valid 0x address");
-      setLoading(false);
-      return;
-    }
     if (form.title.trim().length < 3) {
       setError("Title must be at least 3 characters");
       setLoading(false);
@@ -158,7 +147,6 @@ export function EarnAdminSection() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          creatorWallet: form.creatorWallet.trim(),
           title: form.title.trim(),
           description: form.description.trim(),
           taskType: primaryTaskType,
@@ -227,23 +215,14 @@ export function EarnAdminSection() {
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>Earn — Bounties</CardTitle>
+          <CardTitle>Earn — All quests</CardTitle>
           <CardDescription>
-            Create and manage bounties shown on the public Earn page. Admin-created bounties do not
-            require a wallet signature.
+            Manage every bounty on the public Earn page — platform quests and creator-published quests.
+            New admin quests use the platform wallet automatically; creator quests appear here for moderation.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid gap-3 sm:grid-cols-2">
-            <div className="space-y-2 sm:col-span-2">
-              <Label>Creator wallet</Label>
-              <Input
-                className="font-mono text-xs"
-                placeholder="0x…"
-                value={form.creatorWallet}
-                onChange={(e) => setForm({ ...form, creatorWallet: e.target.value })}
-              />
-            </div>
             <div className="space-y-2 sm:col-span-2">
               <Label>Title</Label>
               <Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
@@ -397,7 +376,18 @@ export function EarnAdminSection() {
               <div>
                 <p className="font-semibold">{bounty.title}</p>
                 <p className="text-sm text-muted-foreground">
-                  {bounty.rewardAmount} {bounty.rewardType} · {bounty.participantCount} joined
+                  {bounty.xpReward ? `${bounty.xpReward} XP` : `${bounty.rewardAmount} ${bounty.rewardType}`}
+                  {" · "}
+                  {bounty.participantCount} joined
+                  {" · "}
+                  {bounty.taskType}
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Creator:{" "}
+                  <span className="font-medium text-foreground">
+                    {bounty.creatorUsername?.trim() || shortenAddress(bounty.creatorWallet, 4)}
+                  </span>
+                  <span className="ml-1 font-mono">{shortenAddress(bounty.creatorWallet, 4)}</span>
                 </p>
                 <div className="mt-2 flex flex-wrap gap-2">
                   <Badge variant="secondary">{bounty.status}</Badge>
@@ -445,7 +435,7 @@ export function EarnAdminSection() {
         <div className="space-y-3">
           <div className="flex flex-wrap items-end gap-3">
             <div className="space-y-2">
-              <Label>Leaderboard creator</Label>
+              <Label>View leaderboard</Label>
               <select
                 value={leaderboardWallet}
                 onChange={(e) => setLeaderboardWallet(e.target.value)}
@@ -462,7 +452,7 @@ export function EarnAdminSection() {
           {leaderboardWallet && (
             <BountyXpLeaderboard
               creatorWallet={leaderboardWallet}
-              description="Combined XP rankings for all quests published by this creator or admin account."
+              description="Combined XP rankings for all quests from the selected creator."
             />
           )}
         </div>

@@ -4,6 +4,8 @@ export const QUIZ_STEP_ID = "__quiz__";
 
 export type StepProgressEntry = {
   visitedAt?: string;
+  verifiedAt?: string;
+  verifyError?: string;
   claimedAt?: string;
 };
 

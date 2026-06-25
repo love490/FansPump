@@ -25,3 +25,12 @@ export function getFactoryAdminAddress(): string | null {
   if (addr && /^0x[a-f0-9]{40}$/.test(addr)) return addr;
   return null;
 }
+
+/** Wallet attributed to admin-created platform quests (leaderboard + creator profile). */
+export function getPlatformCreatorWallet(): string | null {
+  const configured = process.env.PLATFORM_CREATOR_WALLET?.trim().toLowerCase();
+  if (configured && /^0x[a-f0-9]{40}$/.test(configured)) return configured;
+  const admin = getAdminWallets()[0];
+  if (admin) return admin;
+  return getFactoryAdminAddress();
+}

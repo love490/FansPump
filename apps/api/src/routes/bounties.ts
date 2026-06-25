@@ -32,6 +32,7 @@ import { validateQuizInput } from "@/lib/quiz/validate";
 import { awardBountyCompletionXp, getCreatorBountyLeaderboard } from "@/lib/bounties/xp";
 import {
   allStepsClaimed,
+  allSocialStepsVerified,
   mergeStepProof,
   parseStepProof,
   QUIZ_STEP_ID,
@@ -41,6 +42,7 @@ import {
   totalQuestXp,
   hasOnchainBonusReward,
 } from "@/lib/bounties/step-progress";
+import { verifySocialBountyStep } from "@/lib/bounties/social-step-verify";
 import prisma from "../lib/prisma";
 import { asyncHandler, getRouteParam, queryToSearchParams } from "../lib/http-helpers";
 import { publicRateLimit } from "../middleware/rateLimit";
@@ -604,8 +606,35 @@ router.post(
         return;
       }
 
+      if (step.kind === "social") {
+        const verification = await verifySocialBountyStep(wallet, step);
+        if (!verification.verified) {
+          const stepProgress = { ...(proof.stepProgress ?? {}) };
+          stepProgress[stepId] = {
+            ...entry,
+            verifyError: verification.reason ?? "Social task not verified",
+          };
+          const failed = await prisma.bountyParticipation.update({
+            where: { id: participation.id },
+            data: {
+              proofJson: mergeStepProof(participation.proofJson, { stepProgress }) as Prisma.InputJsonValue,
+            },
+          });
+          res.status(400).json({
+            error: verification.reason ?? "Social task not verified — complete it on the platform first",
+            participation: mapParticipation(failed),
+          });
+          return;
+        }
+      }
+
       const stepProgress = { ...(proof.stepProgress ?? {}) };
-      stepProgress[stepId] = { ...entry, claimedAt: new Date().toISOString() };
+      stepProgress[stepId] = {
+        ...entry,
+        verifiedAt: step.kind === "social" ? new Date().toISOString() : entry.verifiedAt,
+        verifyError: undefined,
+        claimedAt: new Date().toISOString(),
+      };
 
       const updated = await prisma.bountyParticipation.update({
         where: { id: participation.id },
@@ -664,6 +693,24 @@ router.post(
       if (!allStepsClaimed(steps, proof)) {
         res.status(400).json({ error: "Complete and claim every step before collecting XP" });
         return;
+      }
+
+      if (!allSocialStepsVerified(steps, proof)) {
+        res.status(400).json({
+          error: "All social tasks must be verified before collecting XP",
+        });
+        return;
+      }
+
+      for (const step of steps) {
+        if (step.kind !== "social") continue;
+        const verification = await verifySocialBountyStep(wallet, step);
+        if (!verification.verified) {
+          res.status(400).json({
+            error: verification.reason ?? `Could not verify: ${step.instruction}`,
+          });
+          return;
+        }
       }
 
       const xpTotal = totalQuestXp(steps);

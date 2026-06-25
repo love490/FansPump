@@ -73,7 +73,10 @@ export function QuestStepRunner({
         body: JSON.stringify(auth),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Request failed");
+      if (!res.ok) {
+        if (data.participation) onUpdate(data.participation);
+        throw new Error(data.error ?? "Request failed");
+      }
       if (data.participation) onUpdate(data.participation);
       return data;
     } catch (e) {
@@ -108,7 +111,7 @@ export function QuestStepRunner({
         <div>
           <p className="font-medium">Quest steps</p>
           <p className="text-xs text-muted-foreground">
-            Complete each action, then claim step XP. Collect total XP when all steps are done.
+            Complete each action, then claim step XP after verification. Collect total XP when all steps pass.
           </p>
         </div>
         <Badge variant="secondary" className="gap-1">
@@ -174,7 +177,7 @@ function StepRow({
   onClaim,
 }: {
   step: BountyTaskStep;
-  entry?: { visitedAt?: string; claimedAt?: string };
+  entry?: { visitedAt?: string; verifiedAt?: string; verifyError?: string; claimedAt?: string };
   busy: string | null;
   isQuiz: boolean;
   questId: string;
@@ -183,10 +186,12 @@ function StepRow({
   onVisit: () => void;
   onClaim: () => void;
 }) {
+  const isSocial = step.kind === "social";
   const label = stepButtonLabel(step);
   const xp = stepXpPoints(step);
   const visited = Boolean(entry?.visitedAt);
   const claimed = Boolean(entry?.claimedAt);
+  const verifyError = entry?.verifyError;
   const visitBusy = busy === `/steps/${step.id}/visit`;
   const claimBusy = busy === `/steps/${step.id}/claim`;
 
@@ -201,8 +206,17 @@ function StepRow({
         <div className="min-w-0 flex-1">
           <p className="font-medium">{step.instruction.trim() || label}</p>
           <p className="mt-1 text-xs text-muted-foreground">
-            {claimed ? "Step XP claimed" : visited ? "Action completed — claim your points" : "Tap the action button to start"}
+            {claimed
+              ? "Step XP claimed"
+              : visited
+                ? isSocial
+                  ? "Action opened — claim to verify and collect points"
+                  : "Action completed — claim your points"
+                : "Tap the action button to start"}
           </p>
+          {verifyError && !claimed && (
+            <p className="mt-1 text-xs text-red-600">{verifyError}</p>
+          )}
         </div>
         <Badge variant="outline">{xp} XP</Badge>
       </div>
@@ -223,7 +237,7 @@ function StepRow({
             </Button>
           ) : visited ? (
             <Button type="button" size="sm" disabled={claimBusy} onClick={onClaim}>
-              {claimBusy ? "Claiming…" : `Claim ${xp} XP`}
+              {claimBusy ? "Verifying…" : isSocial ? `Verify & claim ${xp} XP` : `Claim ${xp} XP`}
             </Button>
           ) : (
             <Button type="button" size="sm" disabled={visitBusy} onClick={onVisit}>
