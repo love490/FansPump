@@ -58,6 +58,19 @@ export function QuestDetailPage({ questId }: { questId: string }) {
     void load();
   }, [load]);
 
+  const questSteps = useMemo(
+    () =>
+      bounty
+        ? resolveQuestSteps({
+            taskType: bounty.taskType,
+            verificationMethod: bounty.verificationMethod,
+            verificationConfig: bounty.verificationConfig,
+            xpReward: bounty.xpReward ?? 0,
+          })
+        : [],
+    [bounty]
+  );
+
   async function signAction(action: string) {
     if (!address) throw new Error("Connect your wallet first");
     const prefix = process.env.NEXT_PUBLIC_CREATOR_ACTION_MESSAGE_PREFIX ?? "FansPump Creator Action";
@@ -157,16 +170,6 @@ export function QuestDetailPage({ questId }: { questId: string }) {
   const isOnchain = bounty.verificationMethod === "ONCHAIN";
   const config = bounty.verificationConfig as { requirementType?: string } | null;
   const onchainBonus = hasOnchainBonusReward(bounty.rewardType, bounty.rewardAmount);
-  const questSteps = useMemo(
-    () =>
-      resolveQuestSteps({
-        taskType: bounty.taskType,
-        verificationMethod: bounty.verificationMethod,
-        verificationConfig: bounty.verificationConfig,
-        xpReward: bounty.xpReward ?? 0,
-      }),
-    [bounty]
-  );
   const xpTotal = totalQuestXp(questSteps);
 
   return (

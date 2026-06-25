@@ -80,10 +80,7 @@ export function BountyXpLeaderboard({
                     <td className="py-2.5 pr-3 tabular-nums text-muted-foreground">{row.rank}</td>
                     <td className="py-2.5 pr-3">
                       <span className="font-medium">
-                        {formatCreatorDisplay(row.username, row.walletAddress)}
-                      </span>
-                      <span className="ml-2 font-mono text-xs text-muted-foreground">
-                        {shortenAddress(row.walletAddress, 4)}
+                        {formatCreatorDisplay(row.username, row.walletAddress, shortenAddress)}
                       </span>
                     </td>
                     <td className="py-2.5 pr-3 text-right tabular-nums">{row.questsCompleted}</td>
