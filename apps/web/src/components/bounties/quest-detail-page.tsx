@@ -20,6 +20,7 @@ import { Label } from "@/components/ui/label";
 import { CreatorProfileLink } from "@/components/profile/creator-profile-link";
 import { BountyTaskBadges } from "@/components/bounties/bounty-task-badges";
 import { BountyTaskRunner } from "@/components/bounties/bounty-task-runner";
+import { QuizRunner } from "@/components/quiz/quiz-runner";
 import { SignInModal } from "@/components/auth/sign-in-modal";
 import { useRequireSignIn } from "@/hooks/useRequireSignIn";
 import { Calendar, Clock, Gift, Users, ArrowLeft } from "lucide-react";
@@ -154,6 +155,7 @@ export function QuestDetailPage({ questId }: { questId: string }) {
   const remaining = timeRemaining(bounty.endsAt);
   const status = participation?.status;
   const isOnchain = bounty.verificationMethod === "ONCHAIN";
+  const isQuiz = bounty.verificationMethod === "QUIZ";
   const config = bounty.verificationConfig as { requirementType?: string } | null;
 
   return (
@@ -188,7 +190,7 @@ export function QuestDetailPage({ questId }: { questId: string }) {
         <CardContent className="space-y-6">
           <p className="text-sm text-muted-foreground">{bounty.description}</p>
 
-          <BountyTaskRunner bounty={bounty} />
+          {!isQuiz && <BountyTaskRunner bounty={bounty} />}
 
           {bounty.requirements && (
             <div className="rounded-lg border bg-muted/30 p-4 text-sm">
@@ -256,7 +258,15 @@ export function QuestDetailPage({ questId }: { questId: string }) {
               )
             )}
 
-            {participation?.status === "JOINED" && (
+            {participation?.status === "JOINED" && isQuiz && address && (
+              <QuizRunner
+                bountyId={questId}
+                walletAddress={address}
+                onClaimReady={() => void load()}
+              />
+            )}
+
+            {participation?.status === "JOINED" && !isQuiz && (
               <div className="space-y-3">
                 {!isOnchain && (
                   <>

@@ -11,6 +11,9 @@ import {
   validateBountyTaskSelection,
   type SocialBountyActionId,
 } from "../../lib/bounty-task-config";
+import { createQuizForBounty } from "../../lib/quiz/service";
+import { quizInputSchema } from "../../lib/quiz/schemas";
+import { validateQuizInput } from "../../lib/quiz/validate";
 import { ensureCreatorProfile } from "../../lib/v2/reputation";
 import { AdminAuthError } from "../../lib/admin-auth";
 import { roleHasPermission } from "../../lib/admin/roles";
@@ -74,6 +77,8 @@ const createSchema = z.object({
   endsAt: z.string().datetime().optional().nullable(),
   tokenAddress: z.string().optional().nullable(),
   isFeatured: z.boolean().optional(),
+  verificationMethod: z.enum(["MANUAL", "ONCHAIN", "API", "QUIZ"]).optional(),
+  quiz: quizInputSchema.optional(),
 });
 
 const patchSchema = z.object({
@@ -155,37 +160,69 @@ router.post(
       const taskTypes = body.taskTypes?.length ? body.taskTypes : [body.taskType];
       const socialActions = (body.socialActions ?? []) as SocialBountyActionId[];
       const taskSteps = body.verificationConfig?.taskSteps ?? [];
-      const taskError = validateBountyTaskSelection(taskTypes, socialActions, taskSteps);
-      if (taskError) {
-        res.status(400).json({ error: taskError });
+      const verificationMethod = body.verificationMethod ?? "MANUAL";
+
+      if (verificationMethod === "QUIZ" && !body.quiz) {
+        res.status(400).json({ error: "Quiz quests require quiz questions" });
         return;
       }
 
-      const primaryTaskType = resolvePrimaryTaskType(taskTypes);
-      const verificationConfig = mergeBountyVerificationConfig(null, taskTypes, socialActions, {
-        taskSteps,
-      });
+      if (verificationMethod !== "QUIZ") {
+        const taskError = validateBountyTaskSelection(taskTypes, socialActions, taskSteps);
+        if (taskError) {
+          res.status(400).json({ error: taskError });
+          return;
+        }
+      }
+
+      if (verificationMethod === "QUIZ" && body.quiz) {
+        const quizError = validateQuizInput(body.quiz);
+        if (quizError) {
+          res.status(400).json({ error: quizError });
+          return;
+        }
+      }
+
+      const primaryTaskType =
+        verificationMethod === "QUIZ" ? "CUSTOM" : resolvePrimaryTaskType(taskTypes);
+      const verificationConfig =
+        verificationMethod === "QUIZ"
+          ? null
+          : mergeBountyVerificationConfig(null, taskTypes, socialActions, {
+              taskSteps,
+            });
 
       const endsAt = body.endsAt ? new Date(body.endsAt) : null;
 
-      const bounty = await prisma.bounty.create({
-        data: {
-          creatorWallet: wallet,
-          tokenId,
-          tokenAddress,
-          title: body.title.trim(),
-          description: body.description.trim(),
-          taskType: primaryTaskType,
-          requirements: body.requirements?.trim() || null,
-          rewardType: body.rewardType,
-          rewardAmount: body.rewardAmount.trim(),
-          rewardDescription: body.rewardDescription?.trim() || null,
-          verificationConfig: verificationConfig ?? undefined,
-          maxParticipants: body.maxParticipants ?? null,
-          isFeatured: body.isFeatured ?? false,
-          endsAt,
-        },
-        include: bountyListInclude,
+      const bounty = await prisma.$transaction(async (tx) => {
+        const row = await tx.bounty.create({
+          data: {
+            creatorWallet: wallet,
+            tokenId,
+            tokenAddress,
+            title: body.title.trim(),
+            description: body.description.trim(),
+            taskType: primaryTaskType,
+            requirements: body.requirements?.trim() || null,
+            rewardType: body.rewardType,
+            rewardAmount: body.rewardAmount.trim(),
+            rewardDescription: body.rewardDescription?.trim() || null,
+            verificationMethod,
+            verificationConfig: verificationConfig ?? undefined,
+            maxParticipants: body.maxParticipants ?? null,
+            isFeatured: body.isFeatured ?? false,
+            endsAt,
+          },
+        });
+
+        if (verificationMethod === "QUIZ" && body.quiz) {
+          await createQuizForBounty(tx, row.id, body.quiz);
+        }
+
+        return tx.bounty.findUniqueOrThrow({
+          where: { id: row.id },
+          include: bountyListInclude,
+        });
       });
 
       await logAdminAction(

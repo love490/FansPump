@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { adminFetch } from "@/lib/admin-session";
 import { formatAdminApiError } from "@/lib/admin/api-error";
 import { BountyTaskPicker } from "@/components/bounties/bounty-task-picker";
+import { QuizBuilder } from "@/components/quiz/quiz-builder";
 import {
   mergeBountyVerificationConfig,
   resolvePrimaryTaskType,
@@ -16,6 +17,7 @@ import {
   type BountyTaskStep,
   type SocialBountyActionId,
 } from "@/lib/bounty-task-config";
+import { defaultQuizDraft, quizDraftToPayload, validateQuizDraft, type QuizDraft } from "@/lib/quiz";
 import type { BountyRewardType, BountyTaskType } from "@/lib/bounties";
 
 type BountyRow = {
@@ -34,9 +36,11 @@ const emptyForm = {
   creatorWallet: "",
   title: "",
   description: "",
+  bountyKind: "standard" as "standard" | "quiz",
   taskTypes: ["CUSTOM"] as BountyTaskType[],
   socialActions: [] as SocialBountyActionId[],
   taskSteps: [] as BountyTaskStep[],
+  quiz: defaultQuizDraft(),
   rewardType: "OPN" as BountyRewardType,
   rewardAmount: "",
   rewardTokenSymbol: "",
@@ -85,7 +89,10 @@ export function EarnAdminSection() {
       return;
     }
 
-    const taskError = validateBountyTaskSelection(form.taskTypes, form.socialActions, form.taskSteps);
+    const taskError =
+      form.bountyKind === "quiz"
+        ? validateQuizDraft(form.quiz)
+        : validateBountyTaskSelection(form.taskTypes, form.socialActions, form.taskSteps);
     if (taskError) {
       setError(taskError);
       setLoading(false);
@@ -107,10 +114,14 @@ export function EarnAdminSection() {
       }
     }
 
-    const primaryTaskType = resolvePrimaryTaskType(form.taskTypes);
-    const verificationConfig = mergeBountyVerificationConfig(null, form.taskTypes, form.socialActions, {
-      taskSteps: form.taskSteps,
-    });
+    const primaryTaskType =
+      form.bountyKind === "quiz" ? "CUSTOM" : resolvePrimaryTaskType(form.taskTypes);
+    const verificationConfig =
+      form.bountyKind === "quiz"
+        ? null
+        : mergeBountyVerificationConfig(null, form.taskTypes, form.socialActions, {
+            taskSteps: form.taskSteps,
+          });
 
     try {
       const res = await adminFetch("/api/admin/bounties", {
@@ -121,9 +132,11 @@ export function EarnAdminSection() {
           title: form.title.trim(),
           description: form.description.trim(),
           taskType: primaryTaskType,
-          taskTypes: form.taskTypes,
-          socialActions: form.socialActions,
+          taskTypes: form.bountyKind === "quiz" ? ["CUSTOM"] : form.taskTypes,
+          socialActions: form.bountyKind === "quiz" ? [] : form.socialActions,
+          verificationMethod: form.bountyKind === "quiz" ? "QUIZ" : "MANUAL",
           verificationConfig,
+          quiz: form.bountyKind === "quiz" ? quizDraftToPayload(form.quiz) : undefined,
           rewardType: form.rewardType,
           rewardAmount: form.rewardAmount.trim(),
           rewardDescription:
@@ -214,15 +227,40 @@ export function EarnAdminSection() {
               />
             </div>
             <div className="space-y-2 sm:col-span-2">
-              <BountyTaskPicker
-                taskTypes={form.taskTypes}
-                socialActions={form.socialActions}
-                taskSteps={form.taskSteps}
-                onTaskTypesChange={(taskTypes) => setForm({ ...form, taskTypes })}
-                onSocialActionsChange={(socialActions) => setForm({ ...form, socialActions })}
-                onTaskStepsChange={(taskSteps) => setForm({ ...form, taskSteps })}
-              />
+              <Label>Bounty type</Label>
+              <select
+                value={form.bountyKind}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    bountyKind: e.target.value as "standard" | "quiz",
+                  })
+                }
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+              >
+                <option value="standard">Standard bounty</option>
+                <option value="quiz">Knowledge quiz</option>
+              </select>
             </div>
+            {form.bountyKind === "standard" ? (
+              <div className="space-y-2 sm:col-span-2">
+                <BountyTaskPicker
+                  taskTypes={form.taskTypes}
+                  socialActions={form.socialActions}
+                  taskSteps={form.taskSteps}
+                  onTaskTypesChange={(taskTypes) => setForm({ ...form, taskTypes })}
+                  onSocialActionsChange={(socialActions) => setForm({ ...form, socialActions })}
+                  onTaskStepsChange={(taskSteps) => setForm({ ...form, taskSteps })}
+                />
+              </div>
+            ) : (
+              <div className="space-y-2 sm:col-span-2">
+                <QuizBuilder
+                  value={form.quiz}
+                  onChange={(quiz: QuizDraft) => setForm({ ...form, quiz })}
+                />
+              </div>
+            )}
             <div className="space-y-2">
               <Label>Reward type</Label>
               <select

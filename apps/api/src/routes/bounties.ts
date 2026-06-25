@@ -26,6 +26,9 @@ import {
   parseVerificationConfig,
   type ParticipationProof,
 } from "@/lib/quests/verification-types";
+import { createQuizForBounty, getQuizByBountyId, gradeQuizAttempt, mapPublicQuiz, buildSubmitResult } from "@/lib/quiz/service";
+import { quizInputSchema, quizSubmitSchema } from "@/lib/quiz/schemas";
+import { validateQuizInput } from "@/lib/quiz/validate";
 import prisma from "../lib/prisma";
 import { asyncHandler, getRouteParam, queryToSearchParams } from "../lib/http-helpers";
 import { publicRateLimit } from "../middleware/rateLimit";
@@ -98,8 +101,9 @@ const createSchema = z.object({
   maxParticipants: z.number().int().min(1).max(10000).optional().nullable(),
   endsAt: z.string().datetime().optional().nullable(),
   tokenAddress: z.string().optional().nullable(),
-  verificationMethod: z.enum(["MANUAL", "ONCHAIN", "API"]).optional(),
+  verificationMethod: z.enum(["MANUAL", "ONCHAIN", "API", "QUIZ"]).optional(),
   verificationConfig: onchainConfigSchema,
+  quiz: quizInputSchema.optional(),
 });
 
 const authSchema = z.object({
@@ -281,23 +285,38 @@ router.post(
         res.status(400).json({ error: "On-chain quests require a requirement type" });
         return;
       }
+      if (verificationMethod === "QUIZ" && !parsed.quiz) {
+        res.status(400).json({ error: "Quiz quests require quiz questions" });
+        return;
+      }
 
       const taskTypes = parsed.taskTypes?.length ? parsed.taskTypes : [parsed.taskType];
       const socialActions = (parsed.socialActions ?? []) as SocialBountyActionId[];
       const taskSteps = parsed.verificationConfig?.taskSteps ?? [];
-      const taskError = validateBountyTaskSelection(taskTypes, socialActions, taskSteps);
-      if (taskError) {
-        res.status(400).json({ error: taskError });
-        return;
+      if (verificationMethod !== "QUIZ") {
+        const taskError = validateBountyTaskSelection(taskTypes, socialActions, taskSteps);
+        if (taskError) {
+          res.status(400).json({ error: taskError });
+          return;
+        }
       }
 
-      const primaryTaskType = resolvePrimaryTaskType(taskTypes);
-      const verificationConfig = mergeBountyVerificationConfig(
-        parsed.verificationConfig,
-        taskTypes,
-        socialActions,
-        { taskSteps }
-      );
+      if (verificationMethod === "QUIZ" && parsed.quiz) {
+        const quizError = validateQuizInput(parsed.quiz);
+        if (quizError) {
+          res.status(400).json({ error: quizError });
+          return;
+        }
+      }
+
+      const primaryTaskType =
+        verificationMethod === "QUIZ" ? "CUSTOM" : resolvePrimaryTaskType(taskTypes);
+      const verificationConfig =
+        verificationMethod === "QUIZ"
+          ? null
+          : mergeBountyVerificationConfig(parsed.verificationConfig, taskTypes, socialActions, {
+              taskSteps,
+            });
 
       const endsAt = parsed.endsAt ? new Date(parsed.endsAt) : null;
       if (endsAt && Number.isNaN(endsAt.getTime())) {
@@ -305,24 +324,34 @@ router.post(
         return;
       }
 
-      const bounty = await prisma.bounty.create({
-        data: {
-          creatorWallet: wallet,
-          tokenId,
-          tokenAddress,
-          title: parsed.title.trim(),
-          description: parsed.description.trim(),
-          taskType: primaryTaskType,
-          requirements: parsed.requirements?.trim() || null,
-          rewardType: parsed.rewardType,
-          rewardAmount: parsed.rewardAmount.trim(),
-          rewardDescription: parsed.rewardDescription?.trim() || null,
-          verificationMethod,
-          verificationConfig: verificationConfig ?? undefined,
-          maxParticipants: parsed.maxParticipants ?? null,
-          endsAt,
-        },
-        include: bountyListInclude,
+      const bounty = await prisma.$transaction(async (tx) => {
+        const row = await tx.bounty.create({
+          data: {
+            creatorWallet: wallet,
+            tokenId,
+            tokenAddress,
+            title: parsed.title.trim(),
+            description: parsed.description.trim(),
+            taskType: primaryTaskType,
+            requirements: parsed.requirements?.trim() || null,
+            rewardType: parsed.rewardType,
+            rewardAmount: parsed.rewardAmount.trim(),
+            rewardDescription: parsed.rewardDescription?.trim() || null,
+            verificationMethod,
+            verificationConfig: verificationConfig ?? undefined,
+            maxParticipants: parsed.maxParticipants ?? null,
+            endsAt,
+          },
+        });
+
+        if (verificationMethod === "QUIZ" && parsed.quiz) {
+          await createQuizForBounty(tx, row.id, parsed.quiz);
+        }
+
+        return tx.bounty.findUniqueOrThrow({
+          where: { id: row.id },
+          include: bountyListInclude,
+        });
       });
 
       res.json({ bounty: mapBountyRow(bounty) });
@@ -572,6 +601,184 @@ router.post(
       }
       console.error("[POST /api/bounties/:id/verify]", e);
       res.status(500).json({ error: "Failed to verify submission" });
+    }
+  })
+);
+
+router.get(
+  "/:id/quiz",
+  asyncHandler(async (req, res) => {
+    const id = getRouteParam(req.params.id);
+
+    try {
+      const bounty = await prisma.bounty.findUnique({ where: { id } });
+      if (!bounty) {
+        res.status(404).json({ error: "Quest not found" });
+        return;
+      }
+      if (bounty.verificationMethod !== "QUIZ") {
+        res.status(400).json({ error: "This quest is not a quiz" });
+        return;
+      }
+
+      const quiz = await getQuizByBountyId(prisma, id);
+      if (!quiz) {
+        res.status(404).json({ error: "Quiz not found" });
+        return;
+      }
+
+      res.json({ quiz: mapPublicQuiz(quiz) });
+    } catch (e) {
+      console.error("[GET /api/bounties/:id/quiz]", e);
+      res.status(500).json({ error: "Failed to load quiz" });
+    }
+  })
+);
+
+router.post(
+  "/:id/quiz/submit",
+  asyncHandler(async (req, res) => {
+    const id = getRouteParam(req.params.id);
+
+    try {
+      const body = quizSubmitSchema.parse(req.body);
+      const wallet = await requireCreatorActionAuth(body);
+
+      const bounty = await prisma.bounty.findUnique({ where: { id } });
+      if (!bounty) {
+        res.status(404).json({ error: "Quest not found" });
+        return;
+      }
+      if (bounty.verificationMethod !== "QUIZ") {
+        res.status(400).json({ error: "This quest is not a quiz" });
+        return;
+      }
+      if (resolveEffectiveStatus(bounty) !== "active") {
+        res.status(400).json({ error: "Quest is not active" });
+        return;
+      }
+
+      const quiz = await getQuizByBountyId(prisma, id);
+      if (!quiz) {
+        res.status(404).json({ error: "Quiz not found" });
+        return;
+      }
+
+      const participation = await prisma.bountyParticipation.findUnique({
+        where: { bountyId_walletAddress: { bountyId: id, walletAddress: wallet } },
+      });
+
+      if (!participation) {
+        res.status(400).json({ error: "Join the quest before taking the quiz" });
+        return;
+      }
+
+      if (participation.status === "CLAIMED") {
+        res.status(409).json({ error: "Reward already claimed" });
+        return;
+      }
+
+      if (participation.status === "VERIFIED") {
+        res.status(409).json({ error: "Quiz already passed — claim your reward" });
+        return;
+      }
+
+      if (quiz.oneRewardPerWallet) {
+        const priorPass = await prisma.quizAttempt.findFirst({
+          where: { bountyId: id, walletAddress: wallet, passed: true },
+        });
+        if (priorPass) {
+          res.status(409).json({ error: "You already passed this quiz" });
+          return;
+        }
+      }
+
+      const normalizedAnswers: Record<string, string> = {};
+      for (const [questionId, answer] of Object.entries(body.answers)) {
+        normalizedAnswers[questionId] = answer.toUpperCase();
+      }
+
+      for (const question of quiz.questions) {
+        if (!normalizedAnswers[question.id]) {
+          res.status(400).json({ error: "Answer every question before submitting" });
+          return;
+        }
+      }
+
+      const { results, score, passed } = gradeQuizAttempt(quiz, normalizedAnswers);
+      const totalQuestions = quiz.questions.length;
+
+      const attempt = await prisma.quizAttempt.create({
+        data: {
+          quizId: quiz.id,
+          bountyId: id,
+          walletAddress: wallet,
+          answersJson: normalizedAnswers,
+          resultsJson: results,
+          score,
+          totalQuestions,
+          passed,
+        },
+      });
+
+      let participationStatus: string = participation.status;
+
+      if (passed) {
+        const updated = await prisma.bountyParticipation.update({
+          where: { id: participation.id },
+          data: {
+            status: "VERIFIED",
+            verifiedAt: new Date(),
+            verifiedBy: "system:quiz",
+            proofJson: { quizAttemptId: attempt.id, score, totalQuestions } as Prisma.InputJsonValue,
+            rejectionReason: null,
+          },
+        });
+        participationStatus = updated.status;
+      } else if (!quiz.unlimitedAttempts) {
+        await prisma.bountyParticipation.update({
+          where: { id: participation.id },
+          data: {
+            status: "REJECTED",
+            rejectionReason: `Quiz failed: ${score}/${totalQuestions} correct`,
+            proofJson: { quizAttemptId: attempt.id, score, totalQuestions } as Prisma.InputJsonValue,
+          },
+        });
+        participationStatus = "REJECTED";
+      } else {
+        await prisma.bountyParticipation.update({
+          where: { id: participation.id },
+          data: {
+            proofJson: { quizAttemptId: attempt.id, score, totalQuestions, lastFailedAt: new Date().toISOString() } as Prisma.InputJsonValue,
+          },
+        });
+      }
+
+      res.json({
+        ok: true,
+        result: buildSubmitResult({
+          passed,
+          score,
+          totalQuestions,
+          results,
+          unlimitedAttempts: quiz.unlimitedAttempts,
+          participationStatus,
+        }),
+        participation: mapParticipation(
+          await prisma.bountyParticipation.findUniqueOrThrow({ where: { id: participation.id } })
+        ),
+      });
+    } catch (e) {
+      if (e instanceof CreatorAuthError) {
+        res.status(e.status).json({ error: e.message });
+        return;
+      }
+      if (e instanceof z.ZodError) {
+        res.status(400).json({ error: "Invalid quiz submission" });
+        return;
+      }
+      console.error("[POST /api/bounties/:id/quiz/submit]", e);
+      res.status(500).json({ error: "Failed to submit quiz" });
     }
   })
 );

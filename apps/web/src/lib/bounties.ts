@@ -8,7 +8,7 @@ export type BountyTaskType =
   | "COMMUNITY"
   | "CUSTOM";
 export type BountyRewardType = "OPN" | "TOKEN" | "XP" | "CUSTOM";
-export type BountyVerificationMethod = "MANUAL" | "ONCHAIN" | "API";
+export type BountyVerificationMethod = "MANUAL" | "ONCHAIN" | "API" | "QUIZ";
 export type BountyParticipationStatus =
   | "JOINED"
   | "SUBMITTED"
@@ -53,6 +53,7 @@ export const BOUNTY_REWARD_TYPES: { id: BountyRewardType; label: string }[] = [
 export const VERIFICATION_METHODS: { id: BountyVerificationMethod; label: string }[] = [
   { id: "MANUAL", label: "Manual review" },
   { id: "ONCHAIN", label: "Automatic on-chain" },
+  { id: "QUIZ", label: "Knowledge quiz" },
 ];
 
 export const ONCHAIN_REQUIREMENTS = [

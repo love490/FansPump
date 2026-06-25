@@ -113,6 +113,7 @@ enum BountyVerificationMethod {
   MANUAL
   ONCHAIN
   API
+  QUIZ
 }
 
 enum BountyParticipationStatus {
@@ -686,6 +687,8 @@ model Bounty {
   creator        User                  @relation(fields: [creatorWallet], references: [walletAddress], onDelete: Cascade)
   token          TokenProject?         @relation(fields: [tokenId], references: [id], onDelete: SetNull)
   participations BountyParticipation[]
+  quiz           BountyQuiz?
+  quizAttempts   QuizAttempt[]
 
   @@index([creatorWallet])
   @@index([tokenId])
@@ -717,6 +720,72 @@ model BountyParticipation {
   @@index([walletAddress])
   @@index([bountyId])
   @@map("bounty_participations")
+}
+
+model BountyQuiz {
+  id                   String   @id @default(cuid())
+  bountyId             String   @unique @map("bounty_id")
+  showCorrectOnFailure Boolean  @default(false) @map("show_correct_on_failure")
+  unlimitedAttempts    Boolean  @default(true) @map("unlimited_attempts")
+  requireWallet        Boolean  @default(true) @map("require_wallet")
+  oneRewardPerWallet   Boolean  @default(true) @map("one_reward_per_wallet")
+  passingScorePercent  Int      @default(100) @map("passing_score_percent")
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
+
+  bounty    Bounty         @relation(fields: [bountyId], references: [id], onDelete: Cascade)
+  questions QuizQuestion[]
+  attempts  QuizAttempt[]
+
+  @@map("bounty_quizzes")
+}
+
+model QuizQuestion {
+  id           String @id @default(cuid())
+  quizId       String @map("quiz_id")
+  sortOrder    Int    @map("sort_order")
+  questionText String @map("question_text") @db.Text
+  correctKey   String @map("correct_key")
+
+  quiz    BountyQuiz           @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  options QuizQuestionOption[]
+
+  @@index([quizId])
+  @@map("quiz_questions")
+}
+
+model QuizQuestionOption {
+  id         String @id @default(cuid())
+  questionId String @map("question_id")
+  optionKey  String @map("option_key")
+  optionText String @map("option_text") @db.Text
+  sortOrder  Int    @map("sort_order")
+
+  question QuizQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([questionId, optionKey])
+  @@index([questionId])
+  @@map("quiz_question_options")
+}
+
+model QuizAttempt {
+  id             String   @id @default(cuid())
+  quizId         String   @map("quiz_id")
+  bountyId       String   @map("bounty_id")
+  walletAddress  String   @map("wallet_address")
+  answersJson    Json     @map("answers_json")
+  resultsJson    Json?    @map("results_json")
+  score          Int
+  totalQuestions Int      @map("total_questions")
+  passed         Boolean
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  quiz   BountyQuiz @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  bounty Bounty     @relation(fields: [bountyId], references: [id], onDelete: Cascade)
+
+  @@index([bountyId, walletAddress])
+  @@index([quizId])
+  @@map("quiz_attempts")
 }
 
 enum LaunchpoolStatus {

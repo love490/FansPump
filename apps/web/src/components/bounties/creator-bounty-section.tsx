@@ -17,6 +17,7 @@ import {
 } from "@/lib/bounties";
 import { BountyCard } from "@/components/bounties/bounty-card";
 import { BountyTaskPicker } from "@/components/bounties/bounty-task-picker";
+import { QuizBuilder } from "@/components/quiz/quiz-builder";
 import {
   mergeBountyVerificationConfig,
   resolvePrimaryTaskType,
@@ -24,6 +25,12 @@ import {
   type BountyTaskStep,
   type SocialBountyActionId,
 } from "@/lib/bounty-task-config";
+import {
+  defaultQuizDraft,
+  quizDraftToPayload,
+  validateQuizDraft,
+  type QuizDraft,
+} from "@/lib/quiz";
 import { CircleDollarSign } from "lucide-react";
 
 type CreatorToken = {
@@ -67,6 +74,7 @@ export function CreatorBountySection({
   const [tokenAddress, setTokenAddress] = useState("");
   const [verificationMethod, setVerificationMethod] =
     useState<(typeof VERIFICATION_METHODS)[number]["id"]>("MANUAL");
+  const [quizDraft, setQuizDraft] = useState<QuizDraft>(defaultQuizDraft());
   const [onchainRequirement, setOnchainRequirement] =
     useState<(typeof ONCHAIN_REQUIREMENTS)[number]["id"]>("HOLD_TOKEN");
   const [onchainMinAmount, setOnchainMinAmount] = useState("1");
@@ -90,7 +98,10 @@ export function CreatorBountySection({
     setError(null);
     setMessage(null);
     try {
-      const taskError = validateBountyTaskSelection(taskTypes, socialActions, taskSteps);
+      const taskError =
+        verificationMethod === "QUIZ"
+          ? validateQuizDraft(quizDraft)
+          : validateBountyTaskSelection(taskTypes, socialActions, taskSteps);
       if (taskError) throw new Error(taskError);
 
       if (rewardType === "TOKEN" && !rewardTokenSymbol.trim() && !tokenAddress.trim()) {
@@ -105,7 +116,8 @@ export function CreatorBountySection({
         }
       }
 
-      const primaryTaskType = resolvePrimaryTaskType(taskTypes);
+      const primaryTaskType =
+        verificationMethod === "QUIZ" ? "CUSTOM" : resolvePrimaryTaskType(taskTypes);
       const onchainConfig =
         verificationMethod === "ONCHAIN"
           ? {
@@ -119,12 +131,10 @@ export function CreatorBountySection({
               minLpAmount: onchainRequirement === "ADD_LIQUIDITY" ? "1" : undefined,
             }
           : null;
-      const verificationConfig = mergeBountyVerificationConfig(
-        onchainConfig,
-        taskTypes,
-        socialActions,
-        { taskSteps }
-      );
+      const verificationConfig =
+        verificationMethod === "QUIZ"
+          ? null
+          : mergeBountyVerificationConfig(onchainConfig, taskTypes, socialActions, { taskSteps });
 
       const prefix = process.env.NEXT_PUBLIC_CREATOR_ACTION_MESSAGE_PREFIX ?? "FansPump Creator Action";
       const msg = `${prefix}\nCreate bounty\nWallet: ${address.toLowerCase()}\nTime: ${Date.now()}`;
@@ -156,6 +166,7 @@ export function CreatorBountySection({
           tokenAddress: tokenAddress || null,
           verificationMethod,
           verificationConfig,
+          quiz: verificationMethod === "QUIZ" ? quizDraftToPayload(quizDraft) : undefined,
         }),
       });
       const data = await res.json();
@@ -226,14 +237,18 @@ export function CreatorBountySection({
                 />
               </div>
               <div className="space-y-2 sm:col-span-2">
-                <BountyTaskPicker
-                  taskTypes={taskTypes}
-                  socialActions={socialActions}
-                  taskSteps={taskSteps}
-                  onTaskTypesChange={setTaskTypes}
-                  onSocialActionsChange={setSocialActions}
-                  onTaskStepsChange={setTaskSteps}
-                />
+                {verificationMethod === "QUIZ" ? (
+                  <QuizBuilder value={quizDraft} onChange={setQuizDraft} />
+                ) : (
+                  <BountyTaskPicker
+                    taskTypes={taskTypes}
+                    socialActions={socialActions}
+                    taskSteps={taskSteps}
+                    onTaskTypesChange={setTaskTypes}
+                    onSocialActionsChange={setSocialActions}
+                    onTaskStepsChange={setTaskSteps}
+                  />
+                )}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="bounty-max">Max participants (optional)</Label>
