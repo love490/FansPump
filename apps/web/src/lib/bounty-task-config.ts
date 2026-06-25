@@ -21,12 +21,14 @@ export type BountyTaskStep = {
   instruction: string;
   linkUrl?: string;
   buttonLabel?: string;
+  xpPoints?: number;
 };
 
 export type BountyTaskConfig = {
   taskTypes?: BountyTaskType[];
   socialActions?: SocialBountyActionId[];
   taskSteps?: BountyTaskStep[];
+  quizXpPoints?: number;
   requirementType?: string;
   tokenAddress?: string;
   minAmount?: string;
@@ -231,6 +233,9 @@ export function validateBountyTaskSelection(
         return "Task links must start with http:// or https://";
       }
     }
+    if (typeof step.xpPoints !== "number" || !Number.isInteger(step.xpPoints) || step.xpPoints < 1) {
+      return "Set XP points (1 or more) for each task step";
+    }
   }
 
   for (const actionId of socialActions) {
@@ -241,6 +246,10 @@ export function validateBountyTaskSelection(
   }
 
   return null;
+}
+
+export function sumStepXpPoints(steps: BountyTaskStep[]): number {
+  return steps.reduce((sum, step) => sum + (step.xpPoints ?? 0), 0);
 }
 
 export function syncSocialTaskSteps(

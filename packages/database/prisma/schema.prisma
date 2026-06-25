@@ -671,6 +671,7 @@ model Bounty {
   rewardType        BountyRewardType @map("reward_type")
   rewardAmount      String           @map("reward_amount")
   rewardDescription String?          @map("reward_description")
+  xpReward          Int              @default(0) @map("xp_reward")
   verificationMethod BountyVerificationMethod @default(MANUAL) @map("verification_method")
   verificationConfig Json?           @map("verification_config")
   isFeatured        Boolean          @default(false) @map("is_featured")
@@ -708,6 +709,7 @@ model BountyParticipation {
   proofJson       Json?                     @map("proof_json")
   verifiedAt      DateTime?                 @map("verified_at")
   verifiedBy      String?                   @map("verified_by")
+  xpAwarded       Int                       @default(0) @map("xp_awarded")
   claimedAt       DateTime?                 @map("claimed_at")
   rejectionReason String?                   @map("rejection_reason") @db.Text
   createdAt       DateTime                  @default(now()) @map("created_at")

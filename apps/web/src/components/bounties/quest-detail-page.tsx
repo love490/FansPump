@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useAccount, useSignMessage } from "wagmi";
 import { apiUrl } from "@/lib/api";
@@ -19,8 +19,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CreatorProfileLink } from "@/components/profile/creator-profile-link";
 import { BountyTaskBadges } from "@/components/bounties/bounty-task-badges";
-import { BountyTaskRunner } from "@/components/bounties/bounty-task-runner";
-import { QuizRunner } from "@/components/quiz/quiz-runner";
+import { QuestStepRunner } from "@/components/bounties/quest-step-runner";
+import { hasOnchainBonusReward, resolveQuestSteps, totalQuestXp } from "@/lib/bounty-step-progress";
 import { SignInModal } from "@/components/auth/sign-in-modal";
 import { useRequireSignIn } from "@/hooks/useRequireSignIn";
 import { Calendar, Clock, Gift, Users, ArrowLeft } from "lucide-react";
@@ -155,8 +155,19 @@ export function QuestDetailPage({ questId }: { questId: string }) {
   const remaining = timeRemaining(bounty.endsAt);
   const status = participation?.status;
   const isOnchain = bounty.verificationMethod === "ONCHAIN";
-  const isQuiz = bounty.verificationMethod === "QUIZ";
   const config = bounty.verificationConfig as { requirementType?: string } | null;
+  const onchainBonus = hasOnchainBonusReward(bounty.rewardType, bounty.rewardAmount);
+  const questSteps = useMemo(
+    () =>
+      resolveQuestSteps({
+        taskType: bounty.taskType,
+        verificationMethod: bounty.verificationMethod,
+        verificationConfig: bounty.verificationConfig,
+        xpReward: bounty.xpReward ?? 0,
+      }),
+    [bounty]
+  );
+  const xpTotal = totalQuestXp(questSteps);
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6 lg:px-8">
@@ -180,9 +191,12 @@ export function QuestDetailPage({ questId }: { questId: string }) {
             </div>
             <div className="rounded-lg border border-primary/20 bg-primary/5 px-4 py-3 text-right">
               <p className="flex items-center justify-end gap-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                <Gift className="h-3 w-3" /> Reward
+                <Gift className="h-3 w-3" /> Earn
               </p>
-              <p className="text-lg font-bold text-primary">{reward}</p>
+              <p className="text-lg font-bold text-primary">{xpTotal} XP</p>
+              {onchainBonus && (
+                <p className="mt-1 text-xs text-muted-foreground">+ {reward} on-chain bonus</p>
+              )}
             </div>
           </div>
         </CardHeader>
@@ -190,7 +204,18 @@ export function QuestDetailPage({ questId }: { questId: string }) {
         <CardContent className="space-y-6">
           <p className="text-sm text-muted-foreground">{bounty.description}</p>
 
-          {!isQuiz && <BountyTaskRunner bounty={bounty} />}
+          {participation && address && participation.status !== "REJECTED" && (
+            <QuestStepRunner
+              bounty={bounty}
+              questId={questId}
+              participation={participation}
+              walletAddress={address}
+              signAction={signAction}
+              onUpdate={setParticipation}
+              onRefresh={() => void load()}
+              onError={setError}
+            />
+          )}
 
           {bounty.requirements && (
             <div className="rounded-lg border bg-muted/30 p-4 text-sm">
@@ -258,39 +283,9 @@ export function QuestDetailPage({ questId }: { questId: string }) {
               )
             )}
 
-            {participation?.status === "JOINED" && isQuiz && address && (
-              <QuizRunner
-                bountyId={questId}
-                walletAddress={address}
-                onClaimReady={() => void load()}
-              />
-            )}
-
-            {participation?.status === "JOINED" && !isQuiz && (
+            {participation?.status === "VERIFIED" && onchainBonus && !participation.claimedAt && (
               <div className="space-y-3">
-                {!isOnchain && (
-                  <>
-                    <div className="space-y-2">
-                      <Label htmlFor="proof-url">Proof URL</Label>
-                      <Input
-                        id="proof-url"
-                        value={proofUrl}
-                        onChange={(e) => setProofUrl(e.target.value)}
-                        placeholder="https://x.com/your-post"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="proof-note">Notes (optional)</Label>
-                      <Input
-                        id="proof-note"
-                        value={proofNote}
-                        onChange={(e) => setProofNote(e.target.value)}
-                        placeholder="Additional details for the creator"
-                      />
-                    </div>
-                  </>
-                )}
-                {isOnchain && config?.requirementType === "SWAP" && (
+                {config?.requirementType === "SWAP" && (
                   <div className="space-y-2">
                     <Label htmlFor="tx-hash">Swap transaction hash</Label>
                     <Input
@@ -302,29 +297,18 @@ export function QuestDetailPage({ questId }: { questId: string }) {
                   </div>
                 )}
                 <Button disabled={busy === "submit"} onClick={() => void handleSubmit()}>
-                  {busy === "submit"
-                    ? "Submitting…"
-                    : isOnchain
-                      ? "Verify on-chain"
-                      : "Submit for review"}
+                  {busy === "submit" ? "Verifying…" : "Verify on-chain bonus eligibility"}
+                </Button>
+                <Button disabled={busy === "claim"} onClick={() => void handleClaim()}>
+                  {busy === "claim" ? "Claiming…" : `Claim on-chain bonus (${reward})`}
                 </Button>
               </div>
             )}
 
-            {participation?.status === "SUBMITTED" && (
-              <p className="text-sm text-muted-foreground">
-                Waiting for creator to review your submission.
+            {participation?.status === "CLAIMED" && onchainBonus && (
+              <p className="text-sm font-medium text-emerald-600">
+                On-chain bonus claimed. Connect your wallet if the creator distributes manually.
               </p>
-            )}
-
-            {participation?.status === "VERIFIED" && (
-              <Button disabled={busy === "claim"} onClick={() => void handleClaim()}>
-                {busy === "claim" ? "Claiming…" : "Claim reward"}
-              </Button>
-            )}
-
-            {participation?.status === "CLAIMED" && (
-              <p className="text-sm font-medium text-emerald-600">Reward claimed successfully.</p>
             )}
           </div>
         </CardContent>

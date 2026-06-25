@@ -54,7 +54,7 @@ export function BountyTaskStepEditor({
           <div>
             <Label>Social task details</Label>
             <p className="text-xs text-muted-foreground">
-              Add the task wording and link. Participants will tap the button to open the link.
+              Add the task wording, link, and XP points you want to award. Participants only earn the XP you set.
             </p>
           </div>
           {socialSteps.map((step) => {
@@ -83,6 +83,25 @@ export function BountyTaskStepEditor({
                       onTaskStepsChange(updateStep(taskSteps, step.id, { linkUrl: e.target.value }))
                     }
                     placeholder={meta?.linkPlaceholder ?? "https://"}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor={`${step.id}-xp`}>XP points</Label>
+                  <Input
+                    id={`${step.id}-xp`}
+                    type="number"
+                    min={0}
+                    max={10000}
+                    value={step.xpPoints ?? ""}
+                    onChange={(e) =>
+                      onTaskStepsChange(
+                        updateStep(taskSteps, step.id, {
+                          xpPoints: Math.max(1, Number(e.target.value) || 0),
+                        })
+                      )
+                    }
+                    placeholder="e.g. 15"
+                    required
                   />
                 </div>
                 <div className="space-y-2">
@@ -152,6 +171,25 @@ export function BountyTaskStepEditor({
                     onTaskStepsChange(updateStep(taskSteps, step.id, { linkUrl: e.target.value }))
                   }
                   placeholder="https://"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor={`${step.id}-xp`}>XP points</Label>
+                <Input
+                  id={`${step.id}-xp`}
+                  type="number"
+                  min={0}
+                  max={10000}
+                  value={step.xpPoints ?? ""}
+                  onChange={(e) =>
+                    onTaskStepsChange(
+                      updateStep(taskSteps, step.id, {
+                        xpPoints: Math.max(1, Number(e.target.value) || 0),
+                      })
+                    )
+                  }
+                  placeholder="e.g. 20"
+                  required
                 />
               </div>
               <div className="space-y-2">

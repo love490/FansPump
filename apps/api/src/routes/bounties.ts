@@ -29,6 +29,18 @@ import {
 import { createQuizForBounty, getQuizByBountyId, gradeQuizAttempt, mapPublicQuiz, buildSubmitResult } from "@/lib/quiz/service";
 import { quizInputSchema, quizSubmitSchema } from "@/lib/quiz/schemas";
 import { validateQuizInput } from "@/lib/quiz/validate";
+import { awardBountyCompletionXp, getCreatorBountyLeaderboard } from "@/lib/bounties/xp";
+import {
+  allStepsClaimed,
+  mergeStepProof,
+  parseStepProof,
+  QUIZ_STEP_ID,
+  resolveQuestSteps,
+  stepXpPoints,
+  sumStepXpPoints,
+  totalQuestXp,
+  hasOnchainBonusReward,
+} from "@/lib/bounties/step-progress";
 import prisma from "../lib/prisma";
 import { asyncHandler, getRouteParam, queryToSearchParams } from "../lib/http-helpers";
 import { publicRateLimit } from "../middleware/rateLimit";
@@ -69,6 +81,7 @@ const taskStepSchema = z.object({
   instruction: z.string().min(1).max(500),
   linkUrl: z.string().max(500).optional(),
   buttonLabel: z.string().max(40).optional(),
+  xpPoints: z.number().int().min(0).max(10000).optional(),
 });
 
 const onchainConfigSchema = z
@@ -98,12 +111,14 @@ const createSchema = z.object({
   rewardType: z.enum(["OPN", "TOKEN", "CUSTOM", "XP"]),
   rewardAmount: z.string().min(1).max(64),
   rewardDescription: z.string().max(200).optional().nullable(),
+  xpReward: z.number().int().min(0).max(100000).optional(),
   maxParticipants: z.number().int().min(1).max(10000).optional().nullable(),
   endsAt: z.string().datetime().optional().nullable(),
   tokenAddress: z.string().optional().nullable(),
   verificationMethod: z.enum(["MANUAL", "ONCHAIN", "API", "QUIZ"]).optional(),
   verificationConfig: onchainConfigSchema,
   quiz: quizInputSchema.optional(),
+  quizXpPoints: z.number().int().min(1).max(10000).optional(),
 });
 
 const authSchema = z.object({
@@ -139,6 +154,7 @@ function mapParticipation(p: {
   verifiedAt?: Date | null;
   claimedAt?: Date | null;
   rejectionReason?: string | null;
+  xpAwarded?: number;
 }) {
   return {
     status: p.status,
@@ -146,6 +162,7 @@ function mapParticipation(p: {
     verifiedAt: p.verifiedAt?.toISOString() ?? null,
     claimedAt: p.claimedAt?.toISOString() ?? null,
     rejectionReason: p.rejectionReason ?? null,
+    xpAwarded: p.xpAwarded ?? 0,
   };
 }
 
@@ -191,6 +208,29 @@ router.get(
     } catch (e) {
       console.error("[GET /api/bounties]", e);
       res.status(500).json({ error: "Failed to load quests" });
+    }
+  })
+);
+
+router.get(
+  "/leaderboard",
+  asyncHandler(async (req, res) => {
+    const searchParams = queryToSearchParams(req.query);
+    const creatorWallet = searchParams.get("creator")?.toLowerCase();
+    const tokenAddress = searchParams.get("token")?.toLowerCase() ?? undefined;
+    const limit = Math.min(Number(searchParams.get("limit") ?? 50), 100);
+
+    if (!creatorWallet || !/^0x[a-f0-9]{40}$/.test(creatorWallet)) {
+      res.status(400).json({ error: "Valid creator wallet required" });
+      return;
+    }
+
+    try {
+      const data = await getCreatorBountyLeaderboard(creatorWallet, { tokenAddress, limit });
+      res.json(data);
+    } catch (e) {
+      console.error("[GET /api/bounties/leaderboard]", e);
+      res.status(500).json({ error: "Failed to load leaderboard" });
     }
   })
 );
@@ -311,7 +351,7 @@ router.post(
 
       const primaryTaskType =
         verificationMethod === "QUIZ" ? "CUSTOM" : resolvePrimaryTaskType(taskTypes);
-      const verificationConfig =
+      let verificationConfig =
         verificationMethod === "QUIZ"
           ? null
           : mergeBountyVerificationConfig(parsed.verificationConfig, taskTypes, socialActions, {
@@ -322,6 +362,22 @@ router.post(
       if (endsAt && Number.isNaN(endsAt.getTime())) {
         res.status(400).json({ error: "Invalid end date" });
         return;
+      }
+
+      let xpReward = 0;
+      if (verificationMethod === "QUIZ") {
+        if (!parsed.quizXpPoints || parsed.quizXpPoints < 1) {
+          res.status(400).json({ error: "Set XP points for the quiz (1 or more)" });
+          return;
+        }
+        xpReward = parsed.quizXpPoints;
+        verificationConfig = { quizXpPoints: parsed.quizXpPoints };
+      } else {
+        xpReward = sumStepXpPoints(taskSteps);
+        if (xpReward < 1) {
+          res.status(400).json({ error: "Set XP points on each task step (1 or more)" });
+          return;
+        }
       }
 
       const bounty = await prisma.$transaction(async (tx) => {
@@ -337,6 +393,7 @@ router.post(
             rewardType: parsed.rewardType,
             rewardAmount: parsed.rewardAmount.trim(),
             rewardDescription: parsed.rewardDescription?.trim() || null,
+            xpReward,
             verificationMethod,
             verificationConfig: verificationConfig ?? undefined,
             maxParticipants: parsed.maxParticipants ?? null,
@@ -441,6 +498,221 @@ router.post(
   })
 );
 
+async function loadActiveParticipation(bountyId: string, wallet: string) {
+  const bounty = await prisma.bounty.findUnique({ where: { id: bountyId } });
+  if (!bounty) return { error: "not_found" as const };
+  if (resolveEffectiveStatus(bounty) !== "active") {
+    return { error: "inactive" as const };
+  }
+  const participation = await prisma.bountyParticipation.findUnique({
+    where: { bountyId_walletAddress: { bountyId, walletAddress: wallet } },
+  });
+  if (!participation) return { error: "not_joined" as const };
+  return { bounty, participation };
+}
+
+router.post(
+  "/:id/steps/:stepId/visit",
+  asyncHandler(async (req, res) => {
+    const id = getRouteParam(req.params.id);
+    const stepId = getRouteParam(req.params.stepId);
+
+    try {
+      const body = authSchema.parse(req.body);
+      const wallet = await requireCreatorActionAuth(body);
+      const loaded = await loadActiveParticipation(id, wallet);
+      if ("error" in loaded) {
+        const code = loaded.error;
+        if (code === "not_found") res.status(404).json({ error: "Quest not found" });
+        else if (code === "inactive") res.status(400).json({ error: "Quest is not active" });
+        else res.status(400).json({ error: "Join the quest first" });
+        return;
+      }
+
+      const { bounty, participation } = loaded;
+      const steps = resolveQuestSteps(bounty);
+      if (!steps.some((s) => s.id === stepId)) {
+        res.status(400).json({ error: "Invalid quest step" });
+        return;
+      }
+
+      const proof = parseStepProof(participation.proofJson);
+      const stepProgress = { ...(proof.stepProgress ?? {}) };
+      const existing = stepProgress[stepId] ?? {};
+      stepProgress[stepId] = {
+        ...existing,
+        visitedAt: existing.visitedAt ?? new Date().toISOString(),
+      };
+
+      const updated = await prisma.bountyParticipation.update({
+        where: { id: participation.id },
+        data: {
+          proofJson: mergeStepProof(participation.proofJson, { stepProgress }) as Prisma.InputJsonValue,
+        },
+      });
+
+      res.json({ ok: true, participation: mapParticipation(updated) });
+    } catch (e) {
+      if (e instanceof CreatorAuthError) {
+        res.status(e.status).json({ error: e.message });
+        return;
+      }
+      if (e instanceof z.ZodError) {
+        res.status(400).json({ error: "Invalid request" });
+        return;
+      }
+      console.error("[POST /api/bounties/:id/steps/:stepId/visit]", e);
+      res.status(500).json({ error: "Failed to record step visit" });
+    }
+  })
+);
+
+router.post(
+  "/:id/steps/:stepId/claim",
+  asyncHandler(async (req, res) => {
+    const id = getRouteParam(req.params.id);
+    const stepId = getRouteParam(req.params.stepId);
+
+    try {
+      const body = authSchema.parse(req.body);
+      const wallet = await requireCreatorActionAuth(body);
+      const loaded = await loadActiveParticipation(id, wallet);
+      if ("error" in loaded) {
+        const code = loaded.error;
+        if (code === "not_found") res.status(404).json({ error: "Quest not found" });
+        else if (code === "inactive") res.status(400).json({ error: "Quest is not active" });
+        else res.status(400).json({ error: "Join the quest first" });
+        return;
+      }
+
+      const { bounty, participation } = loaded;
+      const steps = resolveQuestSteps(bounty);
+      const step = steps.find((s) => s.id === stepId);
+      if (!step) {
+        res.status(400).json({ error: "Invalid quest step" });
+        return;
+      }
+
+      const proof = parseStepProof(participation.proofJson);
+      const entry = proof.stepProgress?.[stepId];
+      if (!entry?.visitedAt) {
+        res.status(400).json({ error: "Complete the action before claiming this step" });
+        return;
+      }
+      if (entry.claimedAt) {
+        res.json({ ok: true, participation: mapParticipation(participation), alreadyClaimed: true });
+        return;
+      }
+
+      const stepProgress = { ...(proof.stepProgress ?? {}) };
+      stepProgress[stepId] = { ...entry, claimedAt: new Date().toISOString() };
+
+      const updated = await prisma.bountyParticipation.update({
+        where: { id: participation.id },
+        data: {
+          proofJson: mergeStepProof(participation.proofJson, { stepProgress }) as Prisma.InputJsonValue,
+        },
+      });
+
+      res.json({
+        ok: true,
+        participation: mapParticipation(updated),
+        stepXp: stepXpPoints(step),
+        allStepsClaimed: allStepsClaimed(steps, parseStepProof(updated.proofJson)),
+      });
+    } catch (e) {
+      if (e instanceof CreatorAuthError) {
+        res.status(e.status).json({ error: e.message });
+        return;
+      }
+      if (e instanceof z.ZodError) {
+        res.status(400).json({ error: "Invalid request" });
+        return;
+      }
+      console.error("[POST /api/bounties/:id/steps/:stepId/claim]", e);
+      res.status(500).json({ error: "Failed to claim step" });
+    }
+  })
+);
+
+router.post(
+  "/:id/claim-xp",
+  asyncHandler(async (req, res) => {
+    const id = getRouteParam(req.params.id);
+
+    try {
+      const body = authSchema.parse(req.body);
+      const wallet = await requireCreatorActionAuth(body);
+      const loaded = await loadActiveParticipation(id, wallet);
+      if ("error" in loaded) {
+        const code = loaded.error;
+        if (code === "not_found") res.status(404).json({ error: "Quest not found" });
+        else if (code === "inactive") res.status(400).json({ error: "Quest is not active" });
+        else res.status(400).json({ error: "Join the quest first" });
+        return;
+      }
+
+      const { bounty, participation } = loaded;
+      const steps = resolveQuestSteps(bounty);
+      const proof = parseStepProof(participation.proofJson);
+
+      if (participation.xpAwarded > 0 || proof.xpClaimedAt) {
+        res.status(409).json({ error: "XP already claimed for this quest" });
+        return;
+      }
+
+      if (!allStepsClaimed(steps, proof)) {
+        res.status(400).json({ error: "Complete and claim every step before collecting XP" });
+        return;
+      }
+
+      const xpTotal = totalQuestXp(steps);
+      if (xpTotal <= 0) {
+        res.status(400).json({ error: "This quest has no XP reward" });
+        return;
+      }
+
+      const hasBonus = hasOnchainBonusReward(bounty.rewardType, bounty.rewardAmount);
+      const nextStatus = hasBonus ? "VERIFIED" : "CLAIMED";
+
+      const updated = await prisma.bountyParticipation.update({
+        where: { id: participation.id },
+        data: {
+          status: nextStatus,
+          verifiedAt: new Date(),
+          verifiedBy: "system:steps",
+          claimedAt: hasBonus ? undefined : new Date(),
+          proofJson: mergeStepProof(participation.proofJson, {
+            xpClaimedAt: new Date().toISOString(),
+          }) as Prisma.InputJsonValue,
+        },
+      });
+
+      const xpEarned = await awardBountyCompletionXp(updated.id, { xpAmount: xpTotal });
+
+      res.json({
+        ok: true,
+        participation: mapParticipation(
+          await prisma.bountyParticipation.findUniqueOrThrow({ where: { id: participation.id } })
+        ),
+        xpEarned,
+        hasOnchainBonus: hasBonus,
+      });
+    } catch (e) {
+      if (e instanceof CreatorAuthError) {
+        res.status(e.status).json({ error: e.message });
+        return;
+      }
+      if (e instanceof z.ZodError) {
+        res.status(400).json({ error: "Invalid request" });
+        return;
+      }
+      console.error("[POST /api/bounties/:id/claim-xp]", e);
+      res.status(500).json({ error: "Failed to claim XP" });
+    }
+  })
+);
+
 router.post(
   "/:id/submit",
   asyncHandler(async (req, res) => {
@@ -471,7 +743,16 @@ router.post(
         return;
       }
 
-      if (participation.status === "VERIFIED" || participation.status === "CLAIMED") {
+      if (participation.status === "CLAIMED") {
+        res.status(409).json({ error: "Quest already completed" });
+        return;
+      }
+
+      const hasBonus = hasOnchainBonusReward(bounty.rewardType, bounty.rewardAmount);
+      if (
+        participation.status === "VERIFIED" &&
+        !(bounty.verificationMethod === "ONCHAIN" && hasBonus && participation.xpAwarded > 0)
+      ) {
         res.status(409).json({ error: "Quest already verified" });
         return;
       }
@@ -513,18 +794,31 @@ router.post(
           return;
         }
 
+        const alreadyVerified = participation.status === "VERIFIED";
         const updated = await prisma.bountyParticipation.update({
           where: { id: participation.id },
           data: {
-            status: "VERIFIED",
-            proofJson: { ...proof, onchain: result.details } as Prisma.InputJsonValue,
-            verifiedAt: new Date(),
-            verifiedBy: "system:onchain",
+            status: alreadyVerified ? "VERIFIED" : "VERIFIED",
+            proofJson: {
+              ...parseStepProof(participation.proofJson),
+              ...proof,
+              onchain: result.details,
+            } as Prisma.InputJsonValue,
+            verifiedAt: participation.verifiedAt ?? new Date(),
+            verifiedBy: alreadyVerified ? participation.verifiedBy : "system:onchain",
             rejectionReason: null,
           },
         });
 
-        res.json({ ok: true, participation: mapParticipation(updated), autoVerified: true });
+        const xpEarned =
+          updated.xpAwarded > 0 ? updated.xpAwarded : await awardBountyCompletionXp(updated.id);
+
+        res.json({
+          ok: true,
+          participation: mapParticipation({ ...updated, xpAwarded: xpEarned || updated.xpAwarded }),
+          autoVerified: true,
+          xpEarned: alreadyVerified ? 0 : xpEarned,
+        });
         return;
       }
 
@@ -589,7 +883,16 @@ router.post(
             },
       });
 
-      res.json({ ok: true, participation: mapParticipation(updated) });
+      let xpEarned = 0;
+      if (body.approve) {
+        xpEarned = await awardBountyCompletionXp(updated.id);
+      }
+
+      res.json({
+        ok: true,
+        participation: mapParticipation({ ...updated, xpAwarded: xpEarned || updated.xpAwarded }),
+        xpEarned,
+      });
     } catch (e) {
       if (e instanceof CreatorAuthError) {
         res.status(e.status).json({ error: e.message });
@@ -724,17 +1027,40 @@ router.post(
       let participationStatus: string = participation.status;
 
       if (passed) {
-        const updated = await prisma.bountyParticipation.update({
+        const now = new Date().toISOString();
+        const stepProgress = {
+          ...(parseStepProof(participation.proofJson).stepProgress ?? {}),
+          [QUIZ_STEP_ID]: { visitedAt: now, claimedAt: now },
+        };
+        await prisma.bountyParticipation.update({
           where: { id: participation.id },
           data: {
-            status: "VERIFIED",
-            verifiedAt: new Date(),
-            verifiedBy: "system:quiz",
-            proofJson: { quizAttemptId: attempt.id, score, totalQuestions } as Prisma.InputJsonValue,
+            proofJson: {
+              ...mergeStepProof(participation.proofJson, { stepProgress }),
+              quizAttemptId: attempt.id,
+              score,
+              totalQuestions,
+            } as Prisma.InputJsonValue,
             rejectionReason: null,
           },
         });
-        participationStatus = updated.status;
+        participationStatus = participation.status;
+        res.json({
+          ok: true,
+          result: buildSubmitResult({
+            passed,
+            score,
+            totalQuestions,
+            results,
+            unlimitedAttempts: quiz.unlimitedAttempts,
+            participationStatus,
+          }),
+          participation: mapParticipation(
+            await prisma.bountyParticipation.findUniqueOrThrow({ where: { id: participation.id } })
+          ),
+          quizStepClaimed: true,
+        });
+        return;
       } else if (!quiz.unlimitedAttempts) {
         await prisma.bountyParticipation.update({
           where: { id: participation.id },
@@ -803,7 +1129,17 @@ router.post(
       }
 
       if (participation.status !== "VERIFIED") {
-        res.status(400).json({ error: "Quest must be verified before claiming" });
+        res.status(400).json({ error: "Complete XP claim before claiming the on-chain bonus" });
+        return;
+      }
+
+      if (!hasOnchainBonusReward(participation.bounty.rewardType, participation.bounty.rewardAmount)) {
+        res.status(400).json({ error: "This quest has no on-chain bonus reward" });
+        return;
+      }
+
+      if (participation.xpAwarded <= 0) {
+        res.status(400).json({ error: "Claim your XP before claiming the on-chain bonus" });
         return;
       }
 
@@ -824,6 +1160,7 @@ router.post(
           description: participation.bounty.rewardDescription,
           tokenAddress: participation.bounty.tokenAddress,
         },
+        onchain: true,
       });
     } catch (e) {
       if (e instanceof CreatorAuthError) {

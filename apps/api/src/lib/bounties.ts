@@ -6,6 +6,11 @@ import type {
   BountyParticipationStatus,
   Prisma,
 } from "@iopn/database";
+import {
+  hasOnchainBonusReward,
+  resolveQuestSteps,
+  totalQuestXp,
+} from "@/lib/bounties/step-progress";
 
 export type BountyTab =
   | "trending"
@@ -57,6 +62,7 @@ export type BountyListItem = {
   rewardType: BountyRewardType;
   rewardAmount: string;
   rewardDescription: string | null;
+  xpReward: number;
   verificationMethod: BountyVerificationMethod;
   verificationConfig: unknown | null;
   isFeatured: boolean;
@@ -137,6 +143,7 @@ export function mapBountyRow(
     rewardType: b.rewardType,
     rewardAmount: b.rewardAmount,
     rewardDescription: b.rewardDescription,
+    xpReward: b.xpReward,
     verificationMethod: b.verificationMethod,
     verificationConfig: b.verificationConfig,
     isFeatured: b.isFeatured,
@@ -205,18 +212,41 @@ export function bountyTabOrderBy(tab: BountyTab): Prisma.BountyOrderByWithRelati
 }
 
 export function formatBountyReward(
-  bounty: Pick<BountyListItem, "rewardType" | "rewardAmount" | "rewardDescription" | "tokenSymbol">
+  bounty: Pick<
+    BountyListItem,
+    | "rewardType"
+    | "rewardAmount"
+    | "rewardDescription"
+    | "tokenSymbol"
+    | "xpReward"
+    | "taskType"
+    | "verificationMethod"
+    | "verificationConfig"
+  >
 ) {
-  if (bounty.rewardType === "CUSTOM" && bounty.rewardDescription) {
-    return bounty.rewardDescription;
+  const steps = resolveQuestSteps({
+    taskType: bounty.taskType,
+    verificationMethod: bounty.verificationMethod,
+    verificationConfig: bounty.verificationConfig,
+    xpReward: bounty.xpReward ?? 0,
+  });
+  const xpTotal = totalQuestXp(steps);
+  const onchainBonus = hasOnchainBonusReward(bounty.rewardType, bounty.rewardAmount);
+
+  if (onchainBonus) {
+    let bonus: string;
+    if (bounty.rewardType === "CUSTOM" && bounty.rewardDescription) {
+      bonus = bounty.rewardDescription;
+    } else if (bounty.rewardType === "TOKEN") {
+      const symbol = bounty.tokenSymbol ?? bounty.rewardDescription?.trim();
+      bonus = symbol
+        ? `${bounty.rewardAmount} ${symbol.toUpperCase()}`
+        : `${bounty.rewardAmount} tokens`;
+    } else {
+      bonus = `${bounty.rewardAmount} ${bounty.rewardType}`;
+    }
+    return `${xpTotal} XP + ${bonus}`;
   }
-  if (bounty.rewardType === "TOKEN") {
-    const symbol = bounty.tokenSymbol ?? bounty.rewardDescription?.trim();
-    if (symbol) return `${bounty.rewardAmount} ${symbol.toUpperCase()}`;
-    return `${bounty.rewardAmount} tokens`;
-  }
-  if (bounty.rewardType === "XP") {
-    return `${bounty.rewardAmount} XP`;
-  }
-  return `${bounty.rewardAmount} ${bounty.rewardType}`;
+
+  return `${xpTotal} XP`;
 }

@@ -1,3 +1,5 @@
+import { resolveQuestSteps, totalQuestXp, hasOnchainBonusReward } from "@/lib/bounty-step-progress";
+
 export type BountyStatus = "ACTIVE" | "ENDED" | "COMPLETED" | "CANCELLED";
 export type BountyTaskType =
   | "SOCIAL"
@@ -77,6 +79,7 @@ export type BountyListItem = {
   rewardType: BountyRewardType;
   rewardAmount: string;
   rewardDescription: string | null;
+  xpReward?: number;
   verificationMethod: BountyVerificationMethod;
   verificationConfig: unknown | null;
   isFeatured: boolean;
@@ -100,23 +103,46 @@ export type BountyParticipationView = {
   verifiedAt: string | null;
   claimedAt: string | null;
   rejectionReason: string | null;
+  xpAwarded?: number;
+};
+
+export type BountyLeaderboardEntry = {
+  rank: number;
+  walletAddress: string;
+  username: string | null;
+  profileImageUrl: string | null;
+  totalXp: number;
+  questsCompleted: number;
 };
 
 export function formatBountyReward(
-  bounty: Pick<BountyListItem, "rewardType" | "rewardAmount" | "rewardDescription" | "tokenSymbol">
+  bounty: Pick<BountyListItem, "rewardType" | "rewardAmount" | "rewardDescription" | "tokenSymbol" | "xpReward" | "taskType" | "verificationMethod" | "verificationConfig">
 ) {
-  if (bounty.rewardType === "CUSTOM" && bounty.rewardDescription) {
-    return bounty.rewardDescription;
+  const steps = resolveQuestSteps({
+    taskType: bounty.taskType,
+    verificationMethod: bounty.verificationMethod,
+    verificationConfig: bounty.verificationConfig,
+    xpReward: bounty.xpReward ?? 0,
+  });
+  const xpTotal = totalQuestXp(steps);
+  const onchainBonus = hasOnchainBonusReward(bounty.rewardType, bounty.rewardAmount);
+
+  if (onchainBonus) {
+    let bonus: string;
+    if (bounty.rewardType === "CUSTOM" && bounty.rewardDescription) {
+      bonus = bounty.rewardDescription;
+    } else if (bounty.rewardType === "TOKEN") {
+      const symbol = bounty.tokenSymbol ?? bounty.rewardDescription?.trim();
+      bonus = symbol
+        ? `${bounty.rewardAmount} ${symbol.toUpperCase()}`
+        : `${bounty.rewardAmount} tokens`;
+    } else {
+      bonus = `${bounty.rewardAmount} ${bounty.rewardType}`;
+    }
+    return `${xpTotal} XP + ${bonus}`;
   }
-  if (bounty.rewardType === "TOKEN") {
-    const symbol = bounty.tokenSymbol ?? bounty.rewardDescription?.trim();
-    if (symbol) return `${bounty.rewardAmount} ${symbol.toUpperCase()}`;
-    return `${bounty.rewardAmount} tokens`;
-  }
-  if (bounty.rewardType === "XP") {
-    return `${bounty.rewardAmount} XP`;
-  }
-  return `${bounty.rewardAmount} ${bounty.rewardType}`;
+
+  return `${xpTotal} XP`;
 }
 
 export function formatBountyParticipantCount(

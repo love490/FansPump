@@ -16,6 +16,7 @@ import {
   type BountyTaskType,
 } from "@/lib/bounties";
 import { BountyCard } from "@/components/bounties/bounty-card";
+import { BountyXpLeaderboard } from "@/components/bounties/bounty-xp-leaderboard";
 import { BountyTaskPicker } from "@/components/bounties/bounty-task-picker";
 import { QuizBuilder } from "@/components/quiz/quiz-builder";
 import {
@@ -65,8 +66,9 @@ export function CreatorBountySection({
   const [socialActions, setSocialActions] = useState<SocialBountyActionId[]>([]);
   const [taskSteps, setTaskSteps] = useState<BountyTaskStep[]>([]);
   const [requirements, setRequirements] = useState("");
-  const [rewardType, setRewardType] = useState<(typeof BOUNTY_REWARD_TYPES)[number]["id"]>("OPN");
-  const [rewardAmount, setRewardAmount] = useState("");
+  const [rewardType, setRewardType] = useState<(typeof BOUNTY_REWARD_TYPES)[number]["id"]>("XP");
+  const [rewardAmount, setRewardAmount] = useState("0");
+  const [quizXpPoints, setQuizXpPoints] = useState("");
   const [rewardDescription, setRewardDescription] = useState("");
   const [rewardTokenSymbol, setRewardTokenSymbol] = useState("");
   const [maxParticipants, setMaxParticipants] = useState("");
@@ -106,6 +108,13 @@ export function CreatorBountySection({
 
       if (rewardType === "TOKEN" && !rewardTokenSymbol.trim() && !tokenAddress.trim()) {
         throw new Error("Enter a token symbol (e.g. WIF, MAGO) or select a listed token");
+      }
+
+      if (verificationMethod === "QUIZ") {
+        const parsedQuizXp = Number(quizXpPoints);
+        if (!Number.isInteger(parsedQuizXp) || parsedQuizXp < 1 || parsedQuizXp > 10000) {
+          throw new Error("Set quiz XP points (1–10,000)");
+        }
       }
 
       let parsedMaxParticipants: number | null = null;
@@ -155,6 +164,8 @@ export function CreatorBountySection({
           requirements: requirements || null,
           rewardType,
           rewardAmount,
+          quizXpPoints:
+            verificationMethod === "QUIZ" ? Number(quizXpPoints) : undefined,
           rewardDescription:
             rewardType === "TOKEN"
               ? rewardTokenSymbol.trim().toUpperCase() || null
@@ -180,6 +191,7 @@ export function CreatorBountySection({
       setTaskSteps([]);
       setRequirements("");
       setRewardAmount("");
+      setQuizXpPoints("");
       setRewardDescription("");
       setRewardTokenSymbol("");
       setMaxParticipants("");
@@ -263,7 +275,7 @@ export function CreatorBountySection({
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="bounty-reward-type">Reward type</Label>
+                <Label htmlFor="bounty-reward-type">Optional on-chain bonus</Label>
                 <select
                   id="bounty-reward-type"
                   value={rewardType}
@@ -277,8 +289,25 @@ export function CreatorBountySection({
                   ))}
                 </select>
               </div>
+              {verificationMethod === "QUIZ" && (
+                <div className="space-y-2 sm:col-span-2">
+                  <Label htmlFor="bounty-quiz-xp">Quiz XP points</Label>
+                  <Input
+                    id="bounty-quiz-xp"
+                    type="number"
+                    min={1}
+                    max={10000}
+                    value={quizXpPoints}
+                    onChange={(e) => setQuizXpPoints(e.target.value)}
+                    placeholder="e.g. 25"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    You decide how much XP participants earn for passing the quiz.
+                  </p>
+                </div>
+              )}
               <div className="space-y-2">
-                <Label htmlFor="bounty-reward-amount">Reward amount</Label>
+                <Label htmlFor="bounty-reward-amount">Bonus amount (optional)</Label>
                 <Input
                   id="bounty-reward-amount"
                   value={rewardAmount}
@@ -431,6 +460,10 @@ export function CreatorBountySection({
           ))}
         </div>
       )}
+
+      <div className="mt-6">
+        <BountyXpLeaderboard creatorWallet={creatorWallet} />
+      </div>
     </section>
   );
 }

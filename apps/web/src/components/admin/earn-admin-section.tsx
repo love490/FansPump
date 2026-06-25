@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,6 +18,7 @@ import {
   type SocialBountyActionId,
 } from "@/lib/bounty-task-config";
 import { defaultQuizDraft, quizDraftToPayload, validateQuizDraft, type QuizDraft } from "@/lib/quiz";
+import { BountyXpLeaderboard } from "@/components/bounties/bounty-xp-leaderboard";
 import type { BountyRewardType, BountyTaskType } from "@/lib/bounties";
 
 type BountyRow = {
@@ -41,8 +42,9 @@ const emptyForm = {
   socialActions: [] as SocialBountyActionId[],
   taskSteps: [] as BountyTaskStep[],
   quiz: defaultQuizDraft(),
-  rewardType: "OPN" as BountyRewardType,
-  rewardAmount: "",
+  rewardType: "XP" as BountyRewardType,
+  rewardAmount: "0",
+  quizXpPoints: "",
   rewardTokenSymbol: "",
   maxParticipants: "",
   tokenAddress: "",
@@ -56,6 +58,25 @@ export function EarnAdminSection() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [leaderboardWallet, setLeaderboardWallet] = useState("");
+
+  const creatorOptions = useMemo(() => {
+    const wallets = new Set(bounties.map((b) => b.creatorWallet.toLowerCase()));
+    const draft = form.creatorWallet.trim().toLowerCase();
+    if (/^0x[a-f0-9]{40}$/.test(draft)) wallets.add(draft);
+    return [...wallets];
+  }, [bounties, form.creatorWallet]);
+
+  useEffect(() => {
+    const draft = form.creatorWallet.trim().toLowerCase();
+    if (/^0x[a-f0-9]{40}$/.test(draft)) {
+      setLeaderboardWallet(draft);
+      return;
+    }
+    if (!leaderboardWallet && creatorOptions.length > 0) {
+      setLeaderboardWallet(creatorOptions[0]);
+    }
+  }, [form.creatorWallet, creatorOptions, leaderboardWallet]);
 
   const load = useCallback(() => {
     adminFetch("/api/admin/bounties")
@@ -114,6 +135,15 @@ export function EarnAdminSection() {
       }
     }
 
+    if (form.bountyKind === "quiz") {
+      const parsedQuizXp = Number(form.quizXpPoints);
+      if (!Number.isInteger(parsedQuizXp) || parsedQuizXp < 1 || parsedQuizXp > 10000) {
+        setError("Set quiz XP points (1–10,000)");
+        setLoading(false);
+        return;
+      }
+    }
+
     const primaryTaskType =
       form.bountyKind === "quiz" ? "CUSTOM" : resolvePrimaryTaskType(form.taskTypes);
     const verificationConfig =
@@ -138,7 +168,8 @@ export function EarnAdminSection() {
           verificationConfig,
           quiz: form.bountyKind === "quiz" ? quizDraftToPayload(form.quiz) : undefined,
           rewardType: form.rewardType,
-          rewardAmount: form.rewardAmount.trim(),
+          rewardAmount: form.rewardAmount.trim() || "0",
+          quizXpPoints: form.bountyKind === "quiz" ? Number(form.quizXpPoints) : undefined,
           rewardDescription:
             form.rewardType === "TOKEN" ? form.rewardTokenSymbol.trim().toUpperCase() || null : null,
           maxParticipants: form.maxParticipants.trim() ? Number(form.maxParticipants) : null,
@@ -255,6 +286,18 @@ export function EarnAdminSection() {
               </div>
             ) : (
               <div className="space-y-2 sm:col-span-2">
+                <Label>Quiz XP points</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  max={10000}
+                  value={form.quizXpPoints}
+                  onChange={(e) => setForm({ ...form, quizXpPoints: e.target.value })}
+                  placeholder="e.g. 25"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Creator decides how much XP participants earn for passing the quiz.
+                </p>
                 <QuizBuilder
                   value={form.quiz}
                   onChange={(quiz: QuizDraft) => setForm({ ...form, quiz })}
@@ -262,7 +305,7 @@ export function EarnAdminSection() {
               </div>
             )}
             <div className="space-y-2">
-              <Label>Reward type</Label>
+              <Label>Optional on-chain bonus type</Label>
               <select
                 value={form.rewardType}
                 onChange={(e) =>
@@ -276,11 +319,11 @@ export function EarnAdminSection() {
               </select>
             </div>
             <div className="space-y-2">
-              <Label>Reward amount</Label>
+              <Label>Bonus amount (optional)</Label>
               <Input
                 value={form.rewardAmount}
                 onChange={(e) => setForm({ ...form, rewardAmount: e.target.value })}
-                placeholder="e.g. 100 or wei amount"
+                placeholder="0 — XP is set per task above"
               />
             </div>
             {form.rewardType === "TOKEN" && (
@@ -397,6 +440,33 @@ export function EarnAdminSection() {
           </Card>
         ))}
       </div>
+
+      {creatorOptions.length > 0 && (
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="space-y-2">
+              <Label>Leaderboard creator</Label>
+              <select
+                value={leaderboardWallet}
+                onChange={(e) => setLeaderboardWallet(e.target.value)}
+                className="flex h-10 min-w-[280px] rounded-md border border-input bg-background px-3 text-sm font-mono"
+              >
+                {creatorOptions.map((wallet) => (
+                  <option key={wallet} value={wallet}>
+                    {wallet}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          {leaderboardWallet && (
+            <BountyXpLeaderboard
+              creatorWallet={leaderboardWallet}
+              description="Combined XP rankings for all quests published by this creator or admin account."
+            />
+          )}
+        </div>
+      )}
     </div>
   );
 }

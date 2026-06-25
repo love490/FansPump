@@ -39,12 +39,14 @@ export type BountyTaskStep = {
   instruction: string;
   linkUrl?: string;
   buttonLabel?: string;
+  xpPoints?: number;
 };
 
 export type BountyTaskConfig = {
   taskTypes?: BountyTaskType[];
   socialActions?: SocialBountyActionId[];
   taskSteps?: BountyTaskStep[];
+  quizXpPoints?: number;
   requirementType?: string;
   tokenAddress?: string;
   minAmount?: string;
@@ -227,6 +229,9 @@ export function validateBountyTaskSelection(
       if (!isValidHttpUrl(step.linkUrl.trim())) {
         return "Task links must start with http:// or https://";
       }
+    }
+    if (typeof step.xpPoints !== "number" || !Number.isInteger(step.xpPoints) || step.xpPoints < 1) {
+      return "Set XP points (1 or more) for each task step";
     }
   }
 

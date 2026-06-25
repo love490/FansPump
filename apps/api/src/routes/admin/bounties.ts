@@ -23,6 +23,7 @@ import { requireAdminSessionWithCsrf, requirePermission } from "../../lib/admin/
 import { logAdminAction } from "../../lib/admin/express-audit";
 import { handleAdminError } from "../../lib/admin/handle-error";
 import { zodErrorMessage } from "../../lib/admin/zod-error";
+import { sumStepXpPoints } from "../../lib/bounties/step-progress";
 
 const taskTypeEnum = z.enum([
   "SOCIAL",
@@ -73,12 +74,14 @@ const createSchema = z.object({
   rewardType: z.enum(["OPN", "TOKEN", "CUSTOM", "XP"]),
   rewardAmount: z.string().min(1).max(64),
   rewardDescription: z.string().max(200).optional().nullable(),
+  xpReward: z.number().int().min(0).max(100000).optional(),
   maxParticipants: z.number().int().min(1).max(10000).optional().nullable(),
   endsAt: z.string().datetime().optional().nullable(),
   tokenAddress: z.string().optional().nullable(),
   isFeatured: z.boolean().optional(),
   verificationMethod: z.enum(["MANUAL", "ONCHAIN", "API", "QUIZ"]).optional(),
   quiz: quizInputSchema.optional(),
+  quizXpPoints: z.number().int().min(1).max(10000).optional(),
 });
 
 const patchSchema = z.object({
@@ -185,7 +188,7 @@ router.post(
 
       const primaryTaskType =
         verificationMethod === "QUIZ" ? "CUSTOM" : resolvePrimaryTaskType(taskTypes);
-      const verificationConfig =
+      let verificationConfig =
         verificationMethod === "QUIZ"
           ? null
           : mergeBountyVerificationConfig(null, taskTypes, socialActions, {
@@ -193,6 +196,22 @@ router.post(
             });
 
       const endsAt = body.endsAt ? new Date(body.endsAt) : null;
+
+      let xpReward = 0;
+      if (verificationMethod === "QUIZ") {
+        if (!body.quizXpPoints || body.quizXpPoints < 1) {
+          res.status(400).json({ error: "Set XP points for the quiz (1 or more)" });
+          return;
+        }
+        xpReward = body.quizXpPoints;
+        verificationConfig = { quizXpPoints: body.quizXpPoints };
+      } else {
+        xpReward = sumStepXpPoints(taskSteps);
+        if (xpReward < 1) {
+          res.status(400).json({ error: "Set XP points on each task step (1 or more)" });
+          return;
+        }
+      }
 
       const bounty = await prisma.$transaction(async (tx) => {
         const row = await tx.bounty.create({
@@ -207,6 +226,7 @@ router.post(
             rewardType: body.rewardType,
             rewardAmount: body.rewardAmount.trim(),
             rewardDescription: body.rewardDescription?.trim() || null,
+            xpReward,
             verificationMethod,
             verificationConfig: verificationConfig ?? undefined,
             maxParticipants: body.maxParticipants ?? null,
