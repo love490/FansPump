@@ -22,6 +22,7 @@ import { AddressCopyButton } from "@/components/ui/address-copy-button";
 import { useActiveWallet } from "@/hooks/useActiveWallet";
 import { shortenAddress, cn } from "@/lib/utils";
 import { liquidityUrl, tokenLiquidityViewUrl, TOOLS_LOCK_PATH } from "@/lib/navigation/liquidity-routes";
+import { swapPageHref, NATIVE_OPN_ID, isNativeOpnToken } from "@/lib/tokens/token-route";
 import { OPN_EXPLORER_BASE } from "@/lib/wagmi";
 import { ExternalLink, Star, ShoppingCart, TrendingDown, ArrowLeftRight, Droplets, FileCode } from "lucide-react";
 
@@ -47,6 +48,10 @@ interface TokenDetail {
   creatorFollowers?: number;
   buyTaxBps?: number | null;
   sellTaxBps?: number | null;
+  isNative?: boolean;
+  isExternal?: boolean;
+  isIndexed?: boolean;
+  contractAddress?: string;
 }
 
 export default function TokenPage() {
@@ -126,6 +131,16 @@ export default function TokenPage() {
 
   const featureFlags = Number(token.featureFlags);
   const isCreator = wallet?.toLowerCase() === token.creatorAddress?.toLowerCase();
+  const zeroAddress = "0x0000000000000000000000000000000000000000";
+  const isNative = token.isNative ?? isNativeOpnToken(address, token.symbol);
+  const isIndexed = token.isIndexed ?? !token.isExternal;
+  const contractAddress = token.contractAddress || (isNative ? "" : address);
+  const swapTarget = swapPageHref(contractAddress || NATIVE_OPN_ID, token.symbol);
+  const explorerAddress = isNative ? null : (contractAddress || address);
+  const hasCreator =
+    Boolean(token.creatorAddress) &&
+    token.creatorAddress.toLowerCase() !== zeroAddress &&
+    isIndexed;
 
   async function handleFavoriteClick() {
     if (watchlistBusy) return;
@@ -167,17 +182,23 @@ export default function TokenPage() {
               {token.name}
             </h1>
             <div className="flex min-w-0 items-center gap-0.5">
-              <span className="truncate font-mono text-xs text-muted-foreground" title={address}>
-                {shortenAddress(address, 6)}
-              </span>
-              <AddressCopyButton value={address} className="h-6 w-6" />
+              {isNative ? (
+                <span className="text-xs text-muted-foreground">Native gas token · OPN Chain</span>
+              ) : (
+                <>
+                  <span className="truncate font-mono text-xs text-muted-foreground" title={explorerAddress ?? address}>
+                    {shortenAddress(explorerAddress ?? address, 6)}
+                  </span>
+                  <AddressCopyButton value={explorerAddress ?? address} className="h-6 w-6" />
+                </>
+              )}
             </div>
             {token.category && token.category !== "OTHER" && (
               <Badge variant="outline" className="mt-2">
                 {TOKEN_CATEGORY_LABELS[token.category as TokenCategoryId]}
               </Badge>
             )}
-            {token.creatorAddress && (
+            {hasCreator && (
               <p className="mt-2 text-sm text-muted-foreground">
                 Creator{" "}
                 <CreatorProfileLink
@@ -193,47 +214,53 @@ export default function TokenPage() {
         </div>
         <div className="flex flex-wrap gap-2">
           <Button asChild size="sm">
-            <Link href={`/swap/${address}?mode=buy`}>
+            <Link href={`${swapTarget}?mode=buy`}>
               <ShoppingCart className="h-4 w-4" /> Buy Token
             </Link>
           </Button>
           <Button asChild variant="outline" size="sm">
-            <Link href={`/swap/${address}?mode=sell`}>
+            <Link href={`${swapTarget}?mode=sell`}>
               <TrendingDown className="h-4 w-4" /> Sell Token
             </Link>
           </Button>
           <Button asChild variant="outline" size="sm">
-            <Link href={`/swap/${address}`}>
+            <Link href={swapTarget}>
               <ArrowLeftRight className="h-4 w-4" /> Swap
             </Link>
           </Button>
-          <Button asChild variant="outline" size="sm">
-            <Link href={isCreator ? liquidityUrl({ token: address }) : tokenLiquidityViewUrl(address)}>
-              <Droplets className="h-4 w-4" /> {isCreator ? "Add Liquidity" : "View Liquidity"}
-            </Link>
-          </Button>
-          <Button asChild variant="outline" size="sm">
-            <a href={`${OPN_EXPLORER_BASE.replace(/\/$/, "")}/address/${address}`} target="_blank" rel="noopener noreferrer">
-              <FileCode className="h-4 w-4" /> View Contract
-            </a>
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={watchlistBusy}
-            onClick={() => void handleFavoriteClick()}
-            aria-label={
-              !hasWallet
-                ? "Sign in to add favorites"
-                : isWatchlisted
-                  ? "Remove from favorites"
-                  : "Add to favorites"
-            }
-          >
-            <Star className={cn("h-4 w-4", isWatchlisted && "fill-amber-400 text-amber-400")} />
-            {isWatchlisted ? "Favorited" : "Favorite"}
-          </Button>
-          {isCreator && (
+          {!isNative && explorerAddress && (
+            <>
+              <Button asChild variant="outline" size="sm">
+                <Link href={isCreator ? liquidityUrl({ token: explorerAddress }) : tokenLiquidityViewUrl(explorerAddress)}>
+                  <Droplets className="h-4 w-4" /> {isCreator ? "Add Liquidity" : "View Liquidity"}
+                </Link>
+              </Button>
+              <Button asChild variant="outline" size="sm">
+                <a href={`${OPN_EXPLORER_BASE.replace(/\/$/, "")}/address/${explorerAddress}`} target="_blank" rel="noopener noreferrer">
+                  <FileCode className="h-4 w-4" /> View Contract
+                </a>
+              </Button>
+            </>
+          )}
+          {isIndexed && (
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={watchlistBusy}
+              onClick={() => void handleFavoriteClick()}
+              aria-label={
+                !hasWallet
+                  ? "Sign in to add favorites"
+                  : isWatchlisted
+                    ? "Remove from favorites"
+                    : "Add to favorites"
+              }
+            >
+              <Star className={cn("h-4 w-4", isWatchlisted && "fill-amber-400 text-amber-400")} />
+              {isWatchlisted ? "Favorited" : "Favorite"}
+            </Button>
+          )}
+          {isCreator && isIndexed && (
             <>
               <Button asChild variant="outline" size="sm">
                 <Link href={TOOLS_LOCK_PATH}>
@@ -261,29 +288,39 @@ export default function TokenPage() {
       />
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
-        <TrustScorePanel tokenAddress={address} />
-        <TokenHealthPanel
-          tokenAddress={address}
-          featureFlags={featureFlags}
-          buyTaxBps={token.buyTaxBps}
-          sellTaxBps={token.sellTaxBps}
-        />
+        {!isNative && explorerAddress && (
+          <>
+            <TrustScorePanel tokenAddress={explorerAddress} />
+            <TokenHealthPanel
+              tokenAddress={explorerAddress}
+              featureFlags={featureFlags}
+              buyTaxBps={token.buyTaxBps}
+              sellTaxBps={token.sellTaxBps}
+            />
+          </>
+        )}
       </div>
 
-      <div className="mt-8">
-        <TokenAnalyticsSection tokenAddress={address} />
-      </div>
+      {!isNative && explorerAddress && (
+        <div className="mt-8">
+          <TokenAnalyticsSection tokenAddress={explorerAddress} />
+        </div>
+      )}
 
-      <AnnouncementsSection tokenAddress={address} creatorAddress={token.creatorAddress} />
+      {hasCreator && (
+        <AnnouncementsSection tokenAddress={explorerAddress ?? address} creatorAddress={token.creatorAddress} />
+      )}
 
-      <Card className="mt-8 overflow-hidden">
-        <CardHeader>
-          <CardTitle>Community sentiment</CardTitle>
-        </CardHeader>
-        <CardContent className="overflow-hidden">
-          <VoteButtons tokenId={token.id} walletAddress={wallet} />
-        </CardContent>
-      </Card>
+      {isIndexed && (
+        <Card className="mt-8 overflow-hidden">
+          <CardHeader>
+            <CardTitle>Community sentiment</CardTitle>
+          </CardHeader>
+          <CardContent className="overflow-hidden">
+            <VoteButtons tokenId={token.id} walletAddress={wallet} />
+          </CardContent>
+        </Card>
+      )}
 
       <div className="mt-6 flex flex-wrap gap-4">
         {token.github && (

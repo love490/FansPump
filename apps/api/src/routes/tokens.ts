@@ -6,12 +6,17 @@ import { isTokenCategory } from "@iopn/shared";
 import { getActiveChainId } from "@/lib/chain-config/opn";
 import {
   getPopularRegistryTokens,
-  registryToSwapToken,
   searchRegistryTokens,
 } from "@/lib/token-registry";
 import { buildDiscoverWhere, parseDiscoverFilters } from "@/lib/discover-filters";
 import { mapTokenListRow, mapTokenListRowSafe, tokenListSelect } from "@/lib/analytics/token-list";
 import { initializeTokenAnalytics } from "@/lib/analytics/token-init";
+import { resolveTokenDetail } from "@/lib/tokens/resolve-token";
+import {
+  fetchRegistrySpotPrices,
+  fetchSpotPricesForAddresses,
+} from "@/lib/tokens/spot-price";
+import { normalizeTokenRouteParam, NATIVE_OPN_ID } from "@/lib/tokens/token-address";
 import {
   buildHomePreviewSections,
   sortTokensNewest,
@@ -207,62 +212,81 @@ router.get(
 );
 
 router.get(
+  "/spot-prices",
+  asyncHandler(async (req, res) => {
+    const searchParams = queryToSearchParams(req.query);
+    const symbols = searchParams.get("symbols")?.split(",").map((s) => s.trim().toUpperCase()) ?? [];
+    const addresses =
+      searchParams.get("addresses")?.split(",").map((s) => s.trim().toLowerCase()) ?? [];
+
+    try {
+      const registry = await fetchRegistrySpotPrices();
+      const byAddress = addresses.length > 0 ? await fetchSpotPricesForAddresses(addresses) : {};
+
+      const prices: Record<string, number> = { ...registry };
+      for (const [addr, price] of Object.entries(byAddress)) {
+        prices[addr] = price;
+      }
+      for (const sym of symbols) {
+        if (registry[sym] != null) prices[sym] = registry[sym];
+      }
+
+      setCacheControl(res, "public, s-maxage=30, stale-while-revalidate=60");
+      res.json({ prices });
+    } catch (e) {
+      console.error("[GET /api/tokens/spot-prices]", e);
+      res.status(500).json({ error: "Failed to load spot prices" });
+    }
+  })
+);
+
+router.get(
   "/:address",
   asyncHandler(async (req, res) => {
     try {
-      const address = getRouteParam(req.params.address);
-      const token = await prisma.tokenProject.findUnique({
-        where: { contractAddress: address.toLowerCase() },
-        include: {
-          creator: { include: { verification: true } },
-          votes: true,
-          liquidityLocks: { select: { id: true }, take: 1 },
-          lpBurns: { select: { id: true }, take: 1 },
-        },
-      });
+      const raw = getRouteParam(req.params.address);
+      const normalized = normalizeTokenRouteParam(raw);
+      if (!normalized) {
+        res.status(400).json({ error: "Invalid token address" });
+        return;
+      }
 
+      const token = await resolveTokenDetail(raw);
       if (!token) {
         res.status(404).json({ error: "Token not found" });
         return;
       }
 
-      await prisma.tokenProject.update({
-        where: { id: token.id },
-        data: { viewCount: { increment: 1 } },
-      });
+      if (token.isIndexed && token.contractAddress) {
+        await prisma.tokenProject.update({
+          where: { contractAddress: token.contractAddress },
+          data: { viewCount: { increment: 1 } },
+        }).catch(() => undefined);
 
-      const voteCounts = token.votes.reduce(
-        (acc, v) => {
-          acc[v.voteType] = (acc[v.voteType] ?? 0) + 1;
-          return acc;
-        },
-        {} as Record<string, number>
-      );
+        const dbToken = await prisma.tokenProject.findUnique({
+          where: { contractAddress: token.contractAddress },
+          include: { votes: true },
+        });
+        if (dbToken) {
+          const voteCounts = dbToken.votes.reduce(
+            (acc, v) => {
+              acc[v.voteType] = (acc[v.voteType] ?? 0) + 1;
+              return acc;
+            },
+            {} as Record<string, number>
+          );
+          res.json({ token: { ...token, voteCounts } });
+          return;
+        }
+      }
 
-      const creatorFollowers = await prisma.creatorFollow.count({
-        where: { creatorWallet: token.creatorAddress.toLowerCase() },
-      });
-
-      const { votes, liquidityLocks, lpBurns, ...tokenFields } = token;
-
-      res.json({
-        token: {
-          ...tokenFields,
-          featureFlags: token.featureFlags.toString(),
-          createdAt: token.createdAt.toISOString(),
-          creatorFollowers,
-          creatorVerified: !!token.creator?.verification,
-          creatorUsername: token.creator?.username ?? null,
-          liquidityLocked: liquidityLocks.length > 0 || lpBurns.length > 0,
-          voteCounts,
-        },
-      });
+      res.json({ token });
     } catch (e) {
       console.error("[GET /api/tokens/:address]", e);
       const detail = e instanceof Error ? e.message : String(e);
       res.status(500).json({
         error: "Database error",
-        ...(process.env.NODE_ENV !== "production" ? { detail } : {}),
+        detail: process.env.NODE_ENV === "development" ? detail : undefined,
       });
     }
   })
@@ -296,9 +320,17 @@ router.get(
     }
 
     if (section === "registry") {
-      const registry = getPopularRegistryTokens()
-        .map(registryToSwapToken)
-        .filter((t): t is NonNullable<typeof t> => t !== null);
+      const registry = getPopularRegistryTokens().map((t) => ({
+        contractAddress: t.isNative ? NATIVE_OPN_ID : t.contractAddress,
+        name: t.name,
+        symbol: t.symbol,
+        logoUrl: t.logoUrl ?? null,
+        id: t.id,
+        chainId,
+        creatorVerified: t.verified,
+        isFeatured: t.verified,
+        featureFlags: "0",
+      }));
       res.json({ tokens: registry, source: "registry" });
       return;
     }
@@ -435,21 +467,45 @@ router.get(
 
       if (q) {
         const registryHits = searchRegistryTokens(q)
-          .map(registryToSwapToken)
-          .filter((t): t is NonNullable<typeof t> => t !== null)
           .map((t) => ({
-            ...t,
-            id: t.contractAddress,
+            contractAddress: t.isNative ? NATIVE_OPN_ID : t.contractAddress,
+            name: t.name,
+            symbol: t.symbol,
+            logoUrl: t.logoUrl ?? null,
+            id: t.id,
             chainId,
-            creatorVerified: false,
-            isFeatured: false,
+            creatorVerified: t.verified,
+            isFeatured: t.verified,
             featureFlags: "0",
           }));
+
         const seen = new Set(enriched.map((t) => t.contractAddress.toLowerCase()));
         const merged = [
           ...registryHits.filter((t) => !seen.has(t.contractAddress.toLowerCase())),
           ...enriched,
         ];
+
+        const qLower = q.toLowerCase();
+        if (
+          isAddress(q) &&
+          !merged.some((t) => t.contractAddress.toLowerCase() === qLower)
+        ) {
+          const resolved = await resolveTokenDetail(q);
+          if (resolved) {
+            merged.unshift({
+              id: resolved.id,
+              contractAddress: resolved.contractAddress || resolved.id,
+              name: resolved.name,
+              symbol: resolved.symbol,
+              logoUrl: resolved.logoUrl ?? null,
+              chainId,
+              creatorVerified: resolved.creatorVerified ?? false,
+              isFeatured: false,
+              featureFlags: resolved.featureFlags,
+            });
+          }
+        }
+
         setCacheControl(res, cacheControl);
         res.json({ tokens: merged.slice(0, limit) });
         return;

@@ -18,7 +18,10 @@ import {
   sortMarketRows,
   type MarketSortKey,
   type MarketTableRow,
+  type SpotPriceMap,
 } from "@/lib/tokens/market-metrics";
+import { swapPageHref, tokenPageHref } from "@/lib/tokens/token-route";
+import { apiUrl } from "@/lib/api";
 import type { TokenCardData } from "@/components/tokens/token-card";
 import type { HomeMarketTabId } from "@/lib/tokens/home-market-tabs";
 
@@ -90,15 +93,11 @@ function ChangeCell({ value }: { value: number }) {
 }
 
 function swapHref(row: MarketTableRow) {
-  if (!row.contractAddress || row.contractAddress === "native-opn" || row.symbol === "OPN") {
-    return "/swap";
-  }
-  return `/swap/${row.contractAddress}`;
+  return swapPageHref(row.contractAddress, row.symbol);
 }
 
 function tokenHref(row: MarketTableRow) {
-  if (!row.contractAddress || row.isBaseToken) return swapHref(row);
-  return `/token/${row.contractAddress}`;
+  return tokenPageHref(row.contractAddress, row.symbol);
 }
 
 function mobileSortLabel(key: MarketSortKey): string {
@@ -178,6 +177,34 @@ export function TokenMarketTable({
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [mobileSortKey, setMobileSortKey] = useState<MarketSortKey>("change24h");
   const [page, setPage] = useState(1);
+  const [spotPrices, setSpotPrices] = useState<SpotPriceMap>({});
+
+  useEffect(() => {
+    const symbols = ["OPN", "WOPN", "USDT", "USDC", "OPNT"];
+    const addresses = [
+      ...new Set(
+        tokens
+          .map((t) => t.contractAddress?.toLowerCase())
+          .filter((a): a is string => Boolean(a && a.startsWith("0x")))
+      ),
+    ].slice(0, 30);
+
+    const params = new URLSearchParams();
+    params.set("symbols", symbols.join(","));
+    if (addresses.length > 0) params.set("addresses", addresses.join(","));
+
+    const controller = new AbortController();
+    fetch(apiUrl(`/api/tokens/spot-prices?${params.toString()}`), { signal: controller.signal })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data?.prices && typeof data.prices === "object") {
+          setSpotPrices(data.prices as SpotPriceMap);
+        }
+      })
+      .catch(() => undefined);
+
+    return () => controller.abort();
+  }, [tokens]);
 
   const mobileFilterValue =
     activeTab && MOBILE_FILTER_IDS.has(activeTab as HomeMarketTabId)
@@ -185,15 +212,15 @@ export function TokenMarketTable({
       : MOBILE_FILTERS[0].id;
 
   const rows = useMemo(() => {
-    const built = buildMarketTableRows(tokens, { includeBaseTokens });
+    const built = buildMarketTableRows(tokens, { includeBaseTokens, spotPrices });
     if (sortKey === "rank") return built;
     return sortMarketRows(built, sortKey, sortDir);
-  }, [tokens, includeBaseTokens, sortKey, sortDir]);
+  }, [tokens, includeBaseTokens, sortKey, sortDir, spotPrices]);
 
   const mobileRows = useMemo(() => {
-    const built = buildMarketTableRows(tokens, { includeBaseTokens });
+    const built = buildMarketTableRows(tokens, { includeBaseTokens, spotPrices });
     return sortMarketRows(built, mobileSortKey, "desc");
-  }, [tokens, includeBaseTokens, mobileSortKey]);
+  }, [tokens, includeBaseTokens, mobileSortKey, spotPrices]);
 
   const pagination = useMemo(() => getPageSlice(rows, page, pageSize), [rows, page, pageSize]);
   const mobilePagination = useMemo(

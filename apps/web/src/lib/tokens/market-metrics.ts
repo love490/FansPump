@@ -1,5 +1,8 @@
 import type { TokenCardData } from "@/components/tokens/token-card";
 import { getPopularRegistryTokens, type RegistryToken } from "@/lib/token-registry";
+import { NATIVE_OPN_ID } from "@/lib/tokens/token-route";
+
+export type SpotPriceMap = Record<string, number>;
 
 export type MarketTableRow = {
   id: string;
@@ -91,7 +94,7 @@ export function registryToTokenCardData(token: RegistryToken): TokenCardData {
   const baseVolume = isStable ? 45_000_000 : seededFloat(seed, 500_000, 8_000_000);
   return {
     id: token.id,
-    contractAddress: token.contractAddress || token.id,
+    contractAddress: token.isNative ? NATIVE_OPN_ID : token.contractAddress,
     name: token.name,
     symbol: token.symbol,
     logoUrl: token.logoUrl,
@@ -106,12 +109,28 @@ export function registryToTokenCardData(token: RegistryToken): TokenCardData {
   };
 }
 
+function resolveSpotPrice(token: TokenCardData, spotPrices?: SpotPriceMap): number | null {
+  if (!spotPrices) return null;
+  const sym = token.symbol.toUpperCase();
+  if (spotPrices[sym] != null && spotPrices[sym] > 0) return spotPrices[sym];
+  const addr = (token.contractAddress || "").toLowerCase();
+  if (addr && spotPrices[addr] != null && spotPrices[addr] > 0) return spotPrices[addr];
+  if (token.id === NATIVE_OPN_ID && spotPrices.OPN != null && spotPrices.OPN > 0) {
+    return spotPrices.OPN;
+  }
+  return null;
+}
+
 function isRegistryOrNativeToken(token: TokenCardData): boolean {
   if (token.id.startsWith("native-")) return true;
   return getPopularRegistryTokens().some((r) => r.id === token.id);
 }
 
-export function tokenToMarketRow(token: TokenCardData, rank: number): MarketTableRow {
+export function tokenToMarketRow(
+  token: TokenCardData,
+  rank: number,
+  spotPrices?: SpotPriceMap
+): MarketTableRow {
   const key = (token.contractAddress || token.id || token.symbol).toLowerCase();
   const seed = hashSeed(key);
   const isStable =
@@ -119,8 +138,9 @@ export function tokenToMarketRow(token: TokenCardData, rank: number): MarketTabl
     token.symbol.toUpperCase() === "USDC" ||
     token.symbol.toUpperCase() === "OPNT";
 
-  const stable = isStable ? stablecoinMetrics(token.symbol) : null;
-  const price = stable?.price ?? derivePrice(token, seed);
+  const spotPrice = resolveSpotPrice(token, spotPrices);
+  const stable = isStable && spotPrice == null ? stablecoinMetrics(token.symbol) : null;
+  const price = spotPrice ?? stable?.price ?? derivePrice(token, seed);
   const change1h = stable?.change1h ?? deriveChange(token, seed, 1);
   const change24h = stable?.change24h ?? deriveChange(token, seed, 24);
   const change7d = stable?.change7d ?? deriveChange(token, seed, 168);
@@ -146,9 +166,10 @@ export function tokenToMarketRow(token: TokenCardData, rank: number): MarketTabl
 
 export function buildMarketTableRows(
   tokens: TokenCardData[],
-  options?: { includeBaseTokens?: boolean }
+  options?: { includeBaseTokens?: boolean; spotPrices?: SpotPriceMap }
 ): MarketTableRow[] {
   const includeBase = options?.includeBaseTokens ?? true;
+  const spotPrices = options?.spotPrices;
   const baseCards = includeBase ? getPopularRegistryTokens().map(registryToTokenCardData) : [];
   const seen = new Set<string>();
   const merged: TokenCardData[] = [];
@@ -161,7 +182,7 @@ export function buildMarketTableRows(
     merged.push(token);
   }
 
-  return merged.map((token, index) => tokenToMarketRow(token, index + 1));
+  return merged.map((token, index) => tokenToMarketRow(token, index + 1, spotPrices));
 }
 
 export function formatMarketPrice(value: number): string {

@@ -9,6 +9,7 @@ import { Search, X, Loader2, ChevronDown } from "lucide-react";
 import { shortenAddress } from "@/lib/utils";
 import { isValidTokenAddress } from "@/lib/swap/routerAdapter";
 import { getActiveChainId } from "@/lib/chain-config/opn";
+import { tokenPageHref } from "@/lib/tokens/token-route";
 import { TokenLogo } from "@/components/tokens/token-logo";
 
 type SearchToken = {
@@ -112,9 +113,9 @@ export function TokenSearch() {
     setQuickOpen(false);
   }
 
-  function goToToken(address: string) {
+  function goToToken(address: string, symbol?: string) {
     close();
-    router.push(`/token/${address}`);
+    router.push(tokenPageHref(address, symbol));
   }
 
   const trimmed = query.trim();
@@ -192,7 +193,7 @@ export function TokenSearch() {
                           <button
                             key={`quick-${token.contractAddress}`}
                             type="button"
-                            onClick={() => goToToken(token.contractAddress)}
+                            onClick={() => goToToken(token.contractAddress, token.symbol)}
                             className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-left hover:bg-muted"
                           >
                             <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary/10 text-[10px] font-bold text-primary">
@@ -263,7 +264,7 @@ export function TokenSearch() {
                 <button
                   key={token.contractAddress}
                   type="button"
-                  onClick={() => goToToken(token.contractAddress)}
+                  onClick={() => goToToken(token.contractAddress, token.symbol)}
                   className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left hover:bg-muted"
                 >
                   <TokenLogo
