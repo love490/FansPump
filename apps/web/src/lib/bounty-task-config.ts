@@ -213,7 +213,7 @@ export function validateBountyTaskSelection(
 
   const customSteps = taskSteps.filter((s) => s.kind === "custom" || s.kind === "question");
   if (taskTypes.includes("CUSTOM") && !taskTypes.includes("SOCIAL") && customSteps.length === 0) {
-    return "Add at least one custom or quiz task";
+    return "Add at least one custom task";
   }
 
   for (const step of taskSteps) {

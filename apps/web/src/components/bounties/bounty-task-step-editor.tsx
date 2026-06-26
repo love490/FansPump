@@ -28,17 +28,16 @@ export function BountyTaskStepEditor({
   onTaskStepsChange,
 }: BountyTaskStepEditorProps) {
   const socialSteps = taskSteps.filter((s) => s.kind === "social");
-  const extraSteps = taskSteps.filter((s) => s.kind !== "social");
+  const customSteps = taskSteps.filter((s) => s.kind === "custom");
 
-  function addCustomStep(kind: "custom" | "question") {
+  function addCustomStep() {
     onTaskStepsChange([
       ...taskSteps,
       {
-        id: `step-${kind}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-        kind,
+        id: `step-custom-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        kind: "custom",
         instruction: "",
-        linkUrl: "",
-        buttonLabel: kind === "question" ? "Next" : "Open link",
+        buttonLabel: "Continue",
       },
     ]);
   }
@@ -123,54 +122,25 @@ export function BountyTaskStepEditor({
 
       {showCustomTasks && (
         <div className="space-y-3 rounded-lg border border-dashed border-border p-3">
-          <div>
-            <Label>Custom / quiz tasks</Label>
-            <p className="text-xs text-muted-foreground">
-              Add extra steps such as custom actions or quiz prompts. Participants move through them one
-              by one (1/5, 2/5, …).
-            </p>
-          </div>
+          <Label>Custom tasks</Label>
 
-          {(() => {
-            let quizCount = 0;
-            let customCount = 0;
-            return extraSteps.map((step) => {
-              const stepLabel =
-                step.kind === "question"
-                  ? `Quiz ${++quizCount}`
-                  : `Custom task ${++customCount}`;
-              return (
+          {customSteps.map((step, index) => (
             <div key={step.id} className="space-y-3 rounded-lg border border-border bg-background p-3">
               <div className="flex items-center justify-between gap-2">
-                <p className="text-sm font-medium">{stepLabel}</p>
+                <p className="text-sm font-medium">Custom task {index + 1}</p>
                 <Button type="button" size="sm" variant="ghost" onClick={() => removeStep(step.id)}>
                   Remove
                 </Button>
               </div>
               <div className="space-y-2">
-                <Label htmlFor={`${step.id}-instruction`}>Task / quiz prompt</Label>
+                <Label htmlFor={`${step.id}-instruction`}>Task instruction</Label>
                 <Input
                   id={`${step.id}-instruction`}
                   value={step.instruction}
                   onChange={(e) =>
                     onTaskStepsChange(updateStep(taskSteps, step.id, { instruction: e.target.value }))
                   }
-                  placeholder={
-                    step.kind === "question"
-                      ? "What is your favorite feature?"
-                      : "Share this post with your friends"
-                  }
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor={`${step.id}-link`}>Link URL (optional)</Label>
-                <Input
-                  id={`${step.id}-link`}
-                  value={step.linkUrl ?? ""}
-                  onChange={(e) =>
-                    onTaskStepsChange(updateStep(taskSteps, step.id, { linkUrl: e.target.value }))
-                  }
-                  placeholder="https://"
+                  placeholder="Share this post with your friends"
                 />
               </div>
               <div className="space-y-2">
@@ -200,22 +170,15 @@ export function BountyTaskStepEditor({
                   onChange={(e) =>
                     onTaskStepsChange(updateStep(taskSteps, step.id, { buttonLabel: e.target.value }))
                   }
-                  placeholder={step.kind === "question" ? "Next" : "Open link"}
+                  placeholder="Continue"
                 />
               </div>
             </div>
-              );
-            });
-          })()}
+          ))}
 
-          <div className="flex flex-wrap gap-2">
-            <Button type="button" size="sm" variant="outline" onClick={() => addCustomStep("custom")}>
-              Add custom task
-            </Button>
-            <Button type="button" size="sm" variant="outline" onClick={() => addCustomStep("question")}>
-              Add quiz
-            </Button>
-          </div>
+          <Button type="button" size="sm" variant="outline" onClick={addCustomStep}>
+            Add custom task
+          </Button>
         </div>
       )}
     </div>

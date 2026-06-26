@@ -48,7 +48,7 @@ export function buildNativeOpnDetail(): ResolvedTokenDetail {
     chainId: getActiveChainId(),
     featureFlags: "0",
     creatorAddress: ZERO,
-    description: "Native gas token of OPN Chain. Wrap to WOPN for DEX trading at 1:1.",
+    description: "Native gas token of OPN Chain.",
     isNative: true,
     isExternal: true,
     isIndexed: false,

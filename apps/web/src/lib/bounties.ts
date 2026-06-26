@@ -55,7 +55,7 @@ export const BOUNTY_REWARD_TYPES: { id: BountyRewardType; label: string }[] = [
 export const VERIFICATION_METHODS: { id: BountyVerificationMethod; label: string }[] = [
   { id: "MANUAL", label: "Manual review" },
   { id: "ONCHAIN", label: "Automatic on-chain" },
-  { id: "QUIZ", label: "Knowledge quiz" },
+  { id: "QUIZ", label: "Quiz" },
 ];
 
 export const ONCHAIN_REQUIREMENTS = [
@@ -151,7 +151,7 @@ export function formatBountyParticipantCount(
   noun: "joined" | "participants" = "joined"
 ): string {
   if (maxParticipants == null) {
-    return `${participantCount} ${noun} · Unlimited`;
+    return `${participantCount} ${noun}`;
   }
   return `${participantCount}/${maxParticipants} ${noun}`;
 }

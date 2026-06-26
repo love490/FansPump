@@ -19,7 +19,8 @@ import {
 } from "@/lib/bounty-task-config";
 import { defaultQuizDraft, quizDraftToPayload, validateQuizDraft, type QuizDraft } from "@/lib/quiz";
 import { BountyXpLeaderboard } from "@/components/bounties/bounty-xp-leaderboard";
-import type { BountyRewardType, BountyTaskType } from "@/lib/bounties";
+import type { BountyRewardType, BountyTaskType, BountyVerificationMethod } from "@/lib/bounties";
+import { VERIFICATION_METHODS } from "@/lib/bounties";
 import { shortenAddress } from "@/lib/utils";
 
 type BountyRow = {
@@ -39,7 +40,7 @@ type BountyRow = {
 const emptyForm = {
   title: "",
   description: "",
-  bountyKind: "standard" as "standard" | "quiz",
+  verificationMethod: "MANUAL" as BountyVerificationMethod,
   taskTypes: ["CUSTOM"] as BountyTaskType[],
   socialActions: [] as SocialBountyActionId[],
   taskSteps: [] as BountyTaskStep[],
@@ -100,7 +101,7 @@ export function EarnAdminSection() {
     }
 
     const taskError =
-      form.bountyKind === "quiz"
+      form.verificationMethod === "QUIZ"
         ? validateQuizDraft(form.quiz)
         : validateBountyTaskSelection(form.taskTypes, form.socialActions, form.taskSteps);
     if (taskError) {
@@ -124,7 +125,7 @@ export function EarnAdminSection() {
       }
     }
 
-    if (form.bountyKind === "quiz") {
+    if (form.verificationMethod === "QUIZ") {
       const parsedQuizXp = Number(form.quizXpPoints);
       if (!Number.isInteger(parsedQuizXp) || parsedQuizXp < 1 || parsedQuizXp > 10000) {
         setError("Set quiz XP points (1–10,000)");
@@ -134,9 +135,9 @@ export function EarnAdminSection() {
     }
 
     const primaryTaskType =
-      form.bountyKind === "quiz" ? "CUSTOM" : resolvePrimaryTaskType(form.taskTypes);
+      form.verificationMethod === "QUIZ" ? "CUSTOM" : resolvePrimaryTaskType(form.taskTypes);
     const verificationConfig =
-      form.bountyKind === "quiz"
+      form.verificationMethod === "QUIZ"
         ? null
         : mergeBountyVerificationConfig(null, form.taskTypes, form.socialActions, {
             taskSteps: form.taskSteps,
@@ -150,14 +151,14 @@ export function EarnAdminSection() {
           title: form.title.trim(),
           description: form.description.trim(),
           taskType: primaryTaskType,
-          taskTypes: form.bountyKind === "quiz" ? ["CUSTOM"] : form.taskTypes,
-          socialActions: form.bountyKind === "quiz" ? [] : form.socialActions,
-          verificationMethod: form.bountyKind === "quiz" ? "QUIZ" : "MANUAL",
+          taskTypes: form.verificationMethod === "QUIZ" ? ["CUSTOM"] : form.taskTypes,
+          socialActions: form.verificationMethod === "QUIZ" ? [] : form.socialActions,
+          verificationMethod: form.verificationMethod,
           verificationConfig,
-          quiz: form.bountyKind === "quiz" ? quizDraftToPayload(form.quiz) : undefined,
+          quiz: form.verificationMethod === "QUIZ" ? quizDraftToPayload(form.quiz) : undefined,
           rewardType: form.rewardType,
           rewardAmount: form.rewardAmount.trim() || "0",
-          quizXpPoints: form.bountyKind === "quiz" ? Number(form.quizXpPoints) : undefined,
+          quizXpPoints: form.verificationMethod === "QUIZ" ? Number(form.quizXpPoints) : undefined,
           rewardDescription:
             form.rewardType === "TOKEN" ? form.rewardTokenSymbol.trim().toUpperCase() || null : null,
           maxParticipants: form.maxParticipants.trim() ? Number(form.maxParticipants) : null,
@@ -237,22 +238,25 @@ export function EarnAdminSection() {
               />
             </div>
             <div className="space-y-2 sm:col-span-2">
-              <Label>Bounty type</Label>
+              <Label>Quest type</Label>
               <select
-                value={form.bountyKind}
+                value={form.verificationMethod}
                 onChange={(e) =>
                   setForm({
                     ...form,
-                    bountyKind: e.target.value as "standard" | "quiz",
+                    verificationMethod: e.target.value as BountyVerificationMethod,
                   })
                 }
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
               >
-                <option value="standard">Standard bounty</option>
-                <option value="quiz">Knowledge quiz</option>
+                {VERIFICATION_METHODS.filter((m) => m.id === "MANUAL" || m.id === "QUIZ").map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.id === "QUIZ" ? "Quiz (multiple choice)" : "Tasks (social & custom)"}
+                  </option>
+                ))}
               </select>
             </div>
-            {form.bountyKind === "standard" ? (
+            {form.verificationMethod === "MANUAL" ? (
               <div className="space-y-2 sm:col-span-2">
                 <BountyTaskPicker
                   taskTypes={form.taskTypes}
@@ -275,7 +279,7 @@ export function EarnAdminSection() {
                   placeholder="e.g. 25"
                 />
                 <p className="text-xs text-muted-foreground">
-                  Creator decides how much XP participants earn for passing the quiz.
+                  Set how much XP participants earn for passing the quiz.
                 </p>
                 <QuizBuilder
                   value={form.quiz}
