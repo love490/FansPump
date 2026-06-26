@@ -218,7 +218,9 @@ function StepRow({
                       : "Action completed — claim your points"
                     : isQuizStep
                       ? "Tap Start quiz to begin"
-                      : "Tap the action button to start"}
+                      : step.linkUrl?.trim()
+                        ? "Tap the button to open the page"
+                        : "Tap the button when you've completed this task"}
           </p>
           {verifyError && !claimed && (
             <p className="mt-1 text-xs text-red-600">{verifyError}</p>

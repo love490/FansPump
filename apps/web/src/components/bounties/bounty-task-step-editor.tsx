@@ -37,6 +37,7 @@ export function BountyTaskStepEditor({
         id: `step-custom-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         kind: "custom",
         instruction: "",
+        linkUrl: "",
         buttonLabel: "Continue",
       },
     ]);
@@ -122,7 +123,12 @@ export function BountyTaskStepEditor({
 
       {showCustomTasks && (
         <div className="space-y-3 rounded-lg border border-dashed border-border p-3">
-          <Label>Custom tasks</Label>
+          <div>
+            <Label>Custom tasks</Label>
+            <p className="text-xs text-muted-foreground">
+              Add instructions and XP. Optionally link to a website or page — participants open it with your button label.
+            </p>
+          </div>
 
           {customSteps.map((step, index) => (
             <div key={step.id} className="space-y-3 rounded-lg border border-border bg-background p-3">
@@ -141,6 +147,18 @@ export function BountyTaskStepEditor({
                     onTaskStepsChange(updateStep(taskSteps, step.id, { instruction: e.target.value }))
                   }
                   placeholder="Share this post with your friends"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor={`${step.id}-link`}>Link URL (optional)</Label>
+                <Input
+                  id={`${step.id}-link`}
+                  type="url"
+                  value={step.linkUrl ?? ""}
+                  onChange={(e) =>
+                    onTaskStepsChange(updateStep(taskSteps, step.id, { linkUrl: e.target.value }))
+                  }
+                  placeholder="https://example.com/page"
                 />
               </div>
               <div className="space-y-2">
@@ -170,7 +188,7 @@ export function BountyTaskStepEditor({
                   onChange={(e) =>
                     onTaskStepsChange(updateStep(taskSteps, step.id, { buttonLabel: e.target.value }))
                   }
-                  placeholder="Continue"
+                  placeholder={step.linkUrl?.trim() ? "Visit site" : "Continue"}
                 />
               </div>
             </div>

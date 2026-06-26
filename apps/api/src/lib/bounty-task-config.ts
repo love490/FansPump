@@ -172,6 +172,9 @@ export function stepButtonLabel(step: BountyTaskStep): string {
     return SOCIAL_ACTION_META[step.actionId].defaultButton;
   }
   if (step.kind === "question") return "Next";
+  if (step.kind === "custom") {
+    return step.linkUrl?.trim() ? "Visit site" : "Continue";
+  }
   return "Open link";
 }
 
