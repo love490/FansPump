@@ -17,6 +17,7 @@ import { Star, Download, AlertTriangle } from "lucide-react";
 import { useAccount } from "wagmi";
 import { LaunchpoolAdminSection } from "@/components/admin/launchpool-admin-section";
 import { EarnAdminSection } from "@/components/admin/earn-admin-section";
+import { PromoCardsSection } from "@/components/admin/promo-cards-section";
 import { invalidatePlatformBrandingCache } from "@/hooks/usePlatformBranding";
 import { formatAdminApiError } from "@/lib/admin/api-error";
 import Image from "next/image";
@@ -889,8 +890,10 @@ export function RolesSection() {
 }
 
 export function AnnouncementsModerationSection() {
-  const [rows, setRows] = useState<{ id: string; title: string; tokenSymbol: string; creatorWallet: string; isHidden: boolean; createdAt: string }[]>([]);
+  const [rows, setRows] = useState<{ id: string; title: string; content?: string; tokenSymbol: string; creatorWallet: string; isHidden: boolean; createdAt: string }[]>([]);
   const [form, setForm] = useState({ tokenAddress: "", title: "", content: "", type: "GENERAL" });
+  const [editId, setEditId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState({ title: "", content: "" });
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -945,9 +948,29 @@ export function AnnouncementsModerationSection() {
     }
   }
 
+  async function saveAnnouncementEdit(id: string) {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await adminFetch("/api/admin/announcements", {
+        method: "PATCH",
+        body: JSON.stringify({ id, title: editForm.title, content: editForm.content }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(formatAdminApiError(data, "Update failed"));
+      setEditId(null);
+      load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Update failed");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
     <div className="space-y-4">
       <h2 className="text-2xl font-bold">Announcement Moderation</h2>
+      <PromoCardsSection />
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Create token announcement</CardTitle>
@@ -1019,7 +1042,13 @@ export function AnnouncementsModerationSection() {
             )}
             {rows.map((r) => (
               <tr key={r.id} className="border-b">
-                <td className="p-3">{r.title}</td>
+                <td className="p-3">
+                  {editId === r.id ? (
+                    <Input value={editForm.title} onChange={(e) => setEditForm({ ...editForm, title: e.target.value })} />
+                  ) : (
+                    r.title
+                  )}
+                </td>
                 <td className="p-3">{r.tokenSymbol}</td>
                 <td className="p-3 font-mono text-xs">{r.creatorWallet.slice(0, 10)}…</td>
                 <td className="p-3">
@@ -1029,6 +1058,28 @@ export function AnnouncementsModerationSection() {
                 </td>
                 <td className="p-3">
                   <div className="flex flex-wrap gap-2">
+                    {editId === r.id ? (
+                      <>
+                        <Button size="sm" disabled={loading} onClick={() => void saveAnnouncementEdit(r.id)}>
+                          Save
+                        </Button>
+                        <Button size="sm" variant="outline" disabled={loading} onClick={() => setEditId(null)}>
+                          Cancel
+                        </Button>
+                      </>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={loading}
+                        onClick={() => {
+                          setEditId(r.id);
+                          setEditForm({ title: r.title, content: r.content ?? "" });
+                        }}
+                      >
+                        Edit
+                      </Button>
+                    )}
                     <Button size="sm" variant="outline" disabled={loading} onClick={() => toggle(r.id, !r.isHidden)}>
                       {r.isHidden ? "Restore" : "Hide"}
                     </Button>

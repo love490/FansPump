@@ -9,6 +9,7 @@ export const SETTING_KEYS = {
   TREASURY: "treasury",
   BRIDGE: "bridge",
   SECURITY: "security",
+  PROMO_CARDS: "promo_cards",
 } as const;
 
 export type SystemConfig = {
@@ -69,6 +70,23 @@ export type SecurityConfig = {
   tradingPaused: boolean;
   claimsPaused: boolean;
 };
+
+export type ExplorePromoCardEntry = {
+  id: string;
+  enabled: boolean;
+  label: string;
+  headline: string;
+  subtitle: string;
+  href: string;
+  sortOrder: number;
+  bountyId?: string | null;
+};
+
+export type PromoCardsConfig = {
+  cards: ExplorePromoCardEntry[];
+};
+
+export const DEFAULT_PROMO_CARDS: PromoCardsConfig = { cards: [] };
 
 export const DEFAULT_SYSTEM: SystemConfig = {
   platformName: "FansPump",
@@ -178,4 +196,7 @@ export const platformSettings = {
   getSecurity: () => getPlatformSetting(SETTING_KEYS.SECURITY, DEFAULT_SECURITY),
   setSecurity: (value: SecurityConfig, updatedBy?: string) =>
     setPlatformSetting(SETTING_KEYS.SECURITY, value, updatedBy),
+  getPromoCards: () => getPlatformSetting(SETTING_KEYS.PROMO_CARDS, DEFAULT_PROMO_CARDS),
+  setPromoCards: (value: PromoCardsConfig, updatedBy?: string) =>
+    setPlatformSetting(SETTING_KEYS.PROMO_CARDS, value, updatedBy),
 };

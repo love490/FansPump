@@ -28,7 +28,6 @@ export type BountyTab =
   | "ending_soon";
 
 export const BOUNTY_TABS: { id: BountyTab; label: string }[] = [
-  { id: "featured", label: "Featured" },
   { id: "newest", label: "Newest" },
   { id: "trending", label: "Trending" },
   { id: "ending_soon", label: "Ending Soon" },

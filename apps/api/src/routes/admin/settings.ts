@@ -17,6 +17,7 @@ import {
   type TreasuryConfig,
   type BridgeConfig,
   type SecurityConfig,
+  type PromoCardsConfig,
 } from "../../lib/admin/platform-settings";
 import { STAKING_CONFIG_KEY } from "../../lib/staking/config";
 import { getPublicV2FeatureFlags } from "../../lib/v2/feature-flags";
@@ -142,6 +143,21 @@ const securitySchema = z.object({
     tradingPaused: z.boolean(),
     claimsPaused: z.boolean(),
   }),
+});
+
+const promoCardSchema = z.object({
+  id: z.string().min(1),
+  enabled: z.boolean(),
+  label: z.string().min(1).max(40),
+  headline: z.string().min(1).max(120),
+  subtitle: z.string().max(200),
+  href: z.string().min(1).max(500),
+  sortOrder: z.number().int().min(0).max(1000),
+  bountyId: z.string().nullable().optional(),
+});
+
+const promoCardsSchema = z.object({
+  cards: z.array(promoCardSchema).max(24),
 });
 
 type V2FeatureFlagOverrides = {
@@ -461,6 +477,34 @@ router.patch(
         return;
       }
       throw e;
+    }
+  })
+);
+
+router.get(
+  "/promo-cards",
+  asyncHandler(async (req, res) => {
+    try {
+      await requirePermission(req, "announcements", "GET");
+      const promoCards = await platformSettings.getPromoCards();
+      res.json({ promoCards });
+    } catch (e) {
+      handleAdminError(res, e, "Failed to load promo cards");
+    }
+  })
+);
+
+router.patch(
+  "/promo-cards",
+  asyncHandler(async (req, res) => {
+    try {
+      const { email, admin, parsedBody } = await requirePermission(req, "announcements", "PATCH");
+      const promoCards = promoCardsSchema.parse(parsedBody) as PromoCardsConfig;
+      await platformSettings.setPromoCards(promoCards, email);
+      await logAdminAction(email, "PROMO_CARDS_UPDATED", { count: promoCards.cards.length }, req, admin.id);
+      res.json({ ok: true, promoCards });
+    } catch (e) {
+      handleAdminError(res, e, "Failed to save promo cards");
     }
   })
 );

@@ -39,7 +39,12 @@ function apiBaseUrl(): string {
 }
 
 export function oauthCallbackUrl(provider: OAuthProvider): string {
-  return `${apiBaseUrl()}/api/auth/oauth/${provider}/callback`;
+  const explicit = process.env.OAUTH_CALLBACK_BASE_URL?.replace(/\/$/, "");
+  if (explicit) {
+    return `${explicit}/api/auth/oauth/${provider}/callback`;
+  }
+  // OAuth starts on the web app (/api proxy); callback must share that origin so state cookies match.
+  return `${appBaseUrl()}/api/auth/oauth/${provider}/callback`;
 }
 
 export function oauthSuccessRedirect(path = "/?signed_in=1"): string {

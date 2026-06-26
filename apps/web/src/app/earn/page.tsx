@@ -17,7 +17,7 @@ export default function EarnPage() {
   const { address } = useAccount();
   const { signMessageAsync } = useSignMessage();
   const { signInOpen, setSignInOpen, withSignIn } = useRequireSignIn();
-  const [tab, setTab] = useState<BountyTab>("featured");
+  const [tab, setTab] = useState<BountyTab>("newest");
   const [bounties, setBounties] = useState<BountyListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [joiningId, setJoiningId] = useState<string | null>(null);
@@ -82,14 +82,14 @@ export default function EarnPage() {
         </p>
       </header>
 
-      <div className="-mx-4 mb-6 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0">
+      <div className="mb-6 flex flex-wrap gap-2">
         {BOUNTY_TABS.map((t) => (
           <button
             key={t.id}
             type="button"
             onClick={() => setTab(t.id)}
             className={cn(
-              "shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors sm:text-sm",
+              "rounded-full border px-3 py-1.5 text-xs font-medium transition-colors sm:text-sm",
               tab === t.id
                 ? "border-primary bg-primary text-primary-foreground"
                 : "border-border bg-muted hover:bg-muted/80"

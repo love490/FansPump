@@ -1,5 +1,6 @@
 import { Router } from "express";
-import { platformSettings, DEFAULT_SYSTEM, SETTING_KEYS, getPlatformSetting } from "@/lib/admin/platform-settings";
+import { platformSettings, DEFAULT_SYSTEM, SETTING_KEYS, getPlatformSetting, DEFAULT_PROMO_CARDS } from "@/lib/admin/platform-settings";
+import { resolvePublicPromoCards } from "@/lib/admin/promo-cards";
 import prisma from "../lib/prisma";
 import { asyncHandler, setCacheControl } from "../lib/http-helpers";
 import { publicRateLimit } from "../middleware/rateLimit";
@@ -64,20 +65,30 @@ router.get(
         },
       });
 
+      const banner = system.announcementBanner?.trim() ?? "";
+      const legacyAnnouncements = announcements.map((a) => ({
+        id: a.id,
+        title: a.title,
+        tokenSymbol: a.token.symbol,
+        tokenName: a.token.name,
+        href: `/token/${a.token.contractAddress}`,
+      }));
+      const promoConfig = await getPlatformSetting(SETTING_KEYS.PROMO_CARDS, DEFAULT_PROMO_CARDS);
+      const cards = resolvePublicPromoCards({
+        config: promoConfig,
+        banner,
+        announcements: legacyAnnouncements,
+      });
+
       setCacheControl(res, "public, s-maxage=30, stale-while-revalidate=60");
       res.json({
-        banner: system.announcementBanner?.trim() ?? "",
-        announcements: announcements.map((a) => ({
-          id: a.id,
-          title: a.title,
-          tokenSymbol: a.token.symbol,
-          tokenName: a.token.name,
-          href: `/token/${a.token.contractAddress}`,
-        })),
+        banner,
+        cards,
+        announcements: legacyAnnouncements,
       });
     } catch (e) {
       console.error("[GET /api/platform/promo]", e);
-      res.json({ banner: "", announcements: [] });
+      res.json({ banner: "", cards: [], announcements: [] });
     }
   })
 );

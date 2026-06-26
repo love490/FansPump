@@ -99,8 +99,14 @@ export function SignInModal({
   const [error, setError] = useState<string | null>(null);
   const [devCode, setDevCode] = useState<string | null>(null);
 
+  function oauthReturnPath(): string {
+    if (typeof window === "undefined") return "/";
+    return window.location.pathname + window.location.search + window.location.hash;
+  }
+
   async function handleOAuth(provider: OAuthProvider) {
     setError(null);
+    const returnTo = oauthReturnPath();
     try {
       const res = await fetch(apiUrl(`/api/auth/providers`), { credentials: "include" });
       const data = (await res.json()) as { oauth?: Record<string, boolean> };
@@ -108,9 +114,9 @@ export function SignInModal({
         setError(`${SOCIAL_PROVIDERS.find((p) => p.id === provider)?.label} sign-in is not configured yet`);
         return;
       }
-      window.location.href = oauthSignInUrl(provider);
+      window.location.href = oauthSignInUrl(provider, { returnTo });
     } catch {
-      window.location.href = oauthSignInUrl(provider);
+      window.location.href = oauthSignInUrl(provider, { returnTo });
     }
   }
 

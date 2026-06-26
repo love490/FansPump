@@ -55,7 +55,6 @@ const emptyForm = {
   maxParticipants: "",
   tokenAddress: "",
   endsAt: "",
-  isFeatured: false,
 };
 
 export function EarnAdminSection() {
@@ -170,7 +169,6 @@ export function EarnAdminSection() {
           maxParticipants: form.maxParticipants.trim() ? Number(form.maxParticipants) : null,
           tokenAddress: form.tokenAddress.trim() || null,
           endsAt: form.endsAt ? new Date(form.endsAt).toISOString() : null,
-          isFeatured: form.isFeatured,
         }),
       });
       const data = await res.json();
@@ -224,8 +222,8 @@ export function EarnAdminSection() {
         <CardHeader>
           <CardTitle>Earn — All quests</CardTitle>
           <CardDescription>
-            Manage every bounty on the public Earn page. Combine social tasks, custom steps, and quiz
-            questions in one quest.
+            Manage every bounty on the public Earn page. Feature quests on the home strip under Admin →
+            Announcements → Explore promo cards.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -318,14 +316,6 @@ export function EarnAdminSection() {
                 onChange={(e) => setForm({ ...form, endsAt: e.target.value })}
               />
             </div>
-            <label className="flex items-center gap-2 text-sm sm:col-span-2">
-              <input
-                type="checkbox"
-                checked={form.isFeatured}
-                onChange={(e) => setForm({ ...form, isFeatured: e.target.checked })}
-              />
-              Featured on Earn page
-            </label>
           </div>
           {message && <p className="text-sm text-emerald-600">{message}</p>}
           {error && <p className="text-sm text-red-600">{error}</p>}
@@ -360,19 +350,9 @@ export function EarnAdminSection() {
                 </p>
                 <div className="mt-2 flex flex-wrap gap-2">
                   <Badge variant="secondary">{bounty.status}</Badge>
-                  {bounty.isFeatured && <Badge>Featured</Badge>}
                 </div>
               </div>
               <div className="flex flex-wrap gap-2">
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  disabled={loading}
-                  onClick={() => void patchBounty(bounty.id, { isFeatured: !bounty.isFeatured })}
-                >
-                  {bounty.isFeatured ? "Unfeature" : "Feature"}
-                </Button>
                 {(["ACTIVE", "ENDED", "COMPLETED", "CANCELLED"] as const).map((status) => (
                   <Button
                     key={status}

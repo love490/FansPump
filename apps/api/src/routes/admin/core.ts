@@ -676,6 +676,7 @@ router.get(
           tokenSymbol: a.token.symbol,
           creatorWallet: a.creatorWallet,
           title: a.title,
+          content: a.content,
           type: a.type,
           isHidden: a.isHidden,
           createdAt: a.createdAt.toISOString(),
@@ -697,16 +698,40 @@ router.patch(
     try {
       const { parsedBody } = await requirePermission(req, "announcements", "PATCH");
       const id = String(parsedBody.id ?? "");
-      const isHidden = Boolean(parsedBody.isHidden);
+      const isHidden = parsedBody.isHidden;
+      const title = typeof parsedBody.title === "string" ? parsedBody.title.trim() : undefined;
+      const content = typeof parsedBody.content === "string" ? parsedBody.content.trim() : undefined;
 
       if (!id) {
         res.status(400).json({ error: "id required" });
         return;
       }
 
+      const data: { isHidden?: boolean; title?: string; content?: string } = {};
+      if (typeof isHidden === "boolean") data.isHidden = isHidden;
+      if (title !== undefined) {
+        if (title.length < 3) {
+          res.status(400).json({ error: "Title must be at least 3 characters" });
+          return;
+        }
+        data.title = title;
+      }
+      if (content !== undefined) {
+        if (content.length < 10) {
+          res.status(400).json({ error: "Content must be at least 10 characters" });
+          return;
+        }
+        data.content = content;
+      }
+
+      if (Object.keys(data).length === 0) {
+        res.status(400).json({ error: "No fields to update" });
+        return;
+      }
+
       const announcement = await prisma.tokenAnnouncement.update({
         where: { id },
-        data: { isHidden },
+        data,
       });
 
       res.json({

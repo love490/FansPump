@@ -14,7 +14,6 @@ import {
   TrendingUp,
   Eye,
 } from "lucide-react";
-import { HorizontalMarquee } from "@/components/ui/horizontal-marquee";
 import { fetchDiscoverTokens } from "@/lib/tokens-api";
 import { cn } from "@/lib/utils";
 
@@ -41,9 +40,9 @@ type DiscoverSlide = {
 
 type PromoNewsItem = {
   id: string;
-  title: string;
-  tokenSymbol: string;
-  tokenName: string;
+  label: string;
+  headline: string;
+  subtitle: string;
   href: string;
 };
 
@@ -226,7 +225,6 @@ export function ExplorePromoCards() {
   const [earnHeadline, setEarnHeadline] = useState("$100,000");
   const [poolHeadline, setPoolHeadline] = useState("$250,000");
   const [newsItems, setNewsItems] = useState<PromoNewsItem[]>([]);
-  const [banner, setBanner] = useState("");
   const [discoverSlides, setDiscoverSlides] = useState<DiscoverSlide[]>(() =>
     shuffleSlides(
       DISCOVER_SLIDES.map((slide) => ({
@@ -241,8 +239,40 @@ export function ExplorePromoCards() {
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
         if (!data) return;
-        setBanner(String(data.banner ?? ""));
-        setNewsItems(Array.isArray(data.announcements) ? data.announcements : []);
+        const cards = Array.isArray(data.cards) ? data.cards : [];
+        if (cards.length > 0) {
+          setNewsItems(
+            cards.map((card: PromoNewsItem) => ({
+              id: card.id,
+              label: card.label || "News",
+              headline: card.headline,
+              subtitle: card.subtitle,
+              href: card.href,
+            }))
+          );
+          return;
+        }
+        const legacy = Array.isArray(data.announcements) ? data.announcements : [];
+        const items: PromoNewsItem[] = [];
+        if (data.banner?.trim()) {
+          items.push({
+            id: "platform-banner",
+            label: "News",
+            headline: String(data.banner).trim(),
+            subtitle: "Platform announcement",
+            href: "/discover?section=new",
+          });
+        }
+        for (const item of legacy) {
+          items.push({
+            id: item.id,
+            label: "News",
+            headline: item.title,
+            subtitle: `${item.tokenSymbol} · ${item.tokenName}`,
+            href: item.href,
+          });
+        }
+        setNewsItems(items);
       })
       .catch(() => {});
 
@@ -309,33 +339,16 @@ export function ExplorePromoCards() {
   }, []);
 
   const newsCards = useMemo(() => {
-    const cards: PromoCardData[] = [];
-
-    if (banner) {
-      cards.push({
-        id: "platform-banner",
-        href: "/discover?section=new",
-        label: "News",
-        headline: truncateText(banner, 48),
-        subtitle: "Platform announcement",
-        icon: Megaphone,
-        gradient: "from-sky-500/15 via-primary/10 to-transparent",
-        iconBg: "bg-sky-500/15 text-sky-600 dark:text-sky-400",
-      });
-    }
-
-    for (const item of newsItems) {
-      cards.push({
-        id: item.id,
-        href: item.href,
-        label: "News",
-        headline: truncateText(item.title, 48),
-        subtitle: `${item.tokenSymbol} · ${item.tokenName}`,
-        icon: Megaphone,
-        gradient: "from-sky-500/15 via-primary/10 to-transparent",
-        iconBg: "bg-sky-500/15 text-sky-600 dark:text-sky-400",
-      });
-    }
+    const cards: PromoCardData[] = newsItems.map((item) => ({
+      id: item.id,
+      href: item.href,
+      label: item.label,
+      headline: truncateText(item.headline, 48),
+      subtitle: item.subtitle,
+      icon: Megaphone,
+      gradient: "from-sky-500/15 via-primary/10 to-transparent",
+      iconBg: "bg-sky-500/15 text-sky-600 dark:text-sky-400",
+    }));
 
     if (cards.length === 0) {
       cards.push({
@@ -351,7 +364,7 @@ export function ExplorePromoCards() {
     }
 
     return cards;
-  }, [banner, newsItems]);
+  }, [newsItems]);
 
   const earnCard = useMemo<PromoCardData>(
     () => ({
@@ -381,16 +394,14 @@ export function ExplorePromoCards() {
     [poolHeadline]
   );
 
-  const marqueeDuration = Math.max((newsCards.length + 2) * 14, 42);
-
   return (
-    <HorizontalMarquee durationSeconds={marqueeDuration} className="-mx-1 px-1">
+    <div className="-mx-1 flex flex-wrap gap-4 px-1">
       {newsCards.map((card) => (
         <PromoCardShell key={card.id} card={card} />
       ))}
       <PromoCardShell card={earnCard} />
       <PromoCardShell card={poolCard} />
       <DiscoverPromoCard slides={discoverSlides} />
-    </HorizontalMarquee>
+    </div>
   );
 }
