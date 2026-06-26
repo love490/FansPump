@@ -87,6 +87,10 @@ export function defaultQuizDraft(): QuizDraft {
   };
 }
 
+export function quizDraftHasContent(draft: QuizDraft): boolean {
+  return draft.questions.some((q) => q.questionText.trim().length > 0);
+}
+
 export function quizDraftToPayload(draft: QuizDraft) {
   return {
     settings: draft.settings,

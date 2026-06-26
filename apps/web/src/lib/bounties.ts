@@ -37,11 +37,6 @@ export const BOUNTY_TABS: { id: BountyTab; label: string }[] = [
 
 export const BOUNTY_TASK_TYPES: { id: BountyTaskType; label: string }[] = [
   { id: "SOCIAL", label: "Social" },
-  { id: "ENGAGEMENT", label: "Engagement" },
-  { id: "GROWTH", label: "Growth" },
-  { id: "COMMUNITY", label: "Community" },
-  { id: "CONTENT", label: "Content" },
-  { id: "REFERRAL", label: "Referral" },
   { id: "CUSTOM", label: "Custom" },
 ];
 

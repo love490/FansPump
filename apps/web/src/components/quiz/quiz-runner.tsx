@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSignMessage } from "wagmi";
 import { apiUrl } from "@/lib/api";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import type { PublicQuiz, QuizSubmitResult } from "@/lib/quiz";
 import { Check, X } from "lucide-react";
@@ -12,6 +13,7 @@ type QuizRunnerProps = {
   bountyId: string;
   walletAddress: string;
   onClaimReady?: () => void;
+  onProgressChange?: (current: number, total: number) => void;
 };
 
 type Phase = "loading" | "quiz" | "results" | "error";
@@ -20,6 +22,7 @@ export function QuizRunner({
   bountyId,
   walletAddress,
   onClaimReady,
+  onProgressChange,
 }: QuizRunnerProps) {
   const { signMessageAsync } = useSignMessage();
   const [quiz, setQuiz] = useState<PublicQuiz | null>(null);
@@ -54,12 +57,19 @@ export function QuizRunner({
 
   const currentQuestion = quiz?.questions[currentIndex];
   const totalQuestions = quiz?.questions.length ?? 0;
+
+  useEffect(() => {
+    if (phase === "quiz" && totalQuestions > 0) {
+      onProgressChange?.(currentIndex + 1, totalQuestions);
+    }
+  }, [phase, currentIndex, totalQuestions, onProgressChange]);
+
   const allAnswered = useMemo(() => {
     if (!quiz) return false;
     return quiz.questions.every((q) => answers[q.id]?.trim());
   }, [quiz, answers]);
 
-  const isLastQuestion = currentIndex >= totalQuestions - 1;
+  const isLastQuestion = totalQuestions > 0 && currentIndex >= totalQuestions - 1;
 
   async function signAction(action: string) {
     const prefix = process.env.NEXT_PUBLIC_CREATOR_ACTION_MESSAGE_PREFIX ?? "FansPump Creator Action";
@@ -83,6 +93,9 @@ export function QuizRunner({
       if (!res.ok) throw new Error(data.error ?? "Quiz submission failed");
       setSubmitResult(data.result);
       setPhase("results");
+      if (data.result?.passed) {
+        onClaimReady?.();
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Quiz submission failed");
     } finally {
@@ -96,6 +109,11 @@ export function QuizRunner({
     setSubmitResult(null);
     setPhase("quiz");
     setError(null);
+  }
+
+  function handleNext() {
+    if (!currentQuestion || !answers[currentQuestion.id]) return;
+    setCurrentIndex((i) => Math.min(i + 1, totalQuestions - 1));
   }
 
   if (phase === "loading") {
@@ -147,7 +165,7 @@ export function QuizRunner({
                   )}
                   <div className="min-w-0">
                     <p className="font-medium">
-                      Q{index + 1}. {question?.questionText}
+                      {index + 1}/{submitResult.totalQuestions}. {question?.questionText}
                     </p>
                     <p className="mt-1 text-muted-foreground">
                       Your answer: {result.selectedKey}
@@ -167,12 +185,10 @@ export function QuizRunner({
         </div>
 
         {submitResult.passed ? (
-          <Button type="button" onClick={() => onClaimReady?.()}>
-            Continue to claim reward
-          </Button>
+          <p className="text-sm font-medium text-emerald-600">Quiz step complete — claim your XP below.</p>
         ) : submitResult.canRetry ? (
           <Button type="button" onClick={handleRestart}>
-            Restart quiz
+            Try again
           </Button>
         ) : (
           <p className="text-sm text-muted-foreground">No more attempts allowed for this quiz.</p>
@@ -183,24 +199,28 @@ export function QuizRunner({
     );
   }
 
-  if (!currentQuestion) return null;
+  if (!currentQuestion || totalQuestions === 0) return null;
 
   const selected = answers[currentQuestion.id] ?? "";
 
   return (
-    <div className="space-y-4 rounded-xl border p-4">
-      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-        Question {currentIndex + 1}/{totalQuestions}
-      </p>
-      <p className="text-base font-semibold">{currentQuestion.questionText}</p>
+    <div className="space-y-4 rounded-xl border bg-muted/20 p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <Badge variant="secondary" className="tabular-nums font-semibold">
+          {currentIndex + 1}/{totalQuestions}
+        </Badge>
+        <p className="text-xs text-muted-foreground">Choose an option, then tap Next</p>
+      </div>
 
-      <div className="space-y-2">
+      <p className="text-base font-semibold leading-snug">{currentQuestion.questionText}</p>
+
+      <div className="space-y-2" role="radiogroup" aria-label={`Question ${currentIndex + 1}`}>
         {currentQuestion.options.map((opt) => (
           <label
             key={opt.key}
             className={cn(
-              "flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors",
-              selected === opt.key ? "border-primary bg-primary/5" : "hover:bg-muted/40"
+              "flex cursor-pointer items-start gap-3 rounded-lg border bg-background p-3 transition-colors",
+              selected === opt.key ? "border-primary bg-primary/5 ring-1 ring-primary/30" : "hover:bg-muted/40"
             )}
           >
             <input
@@ -220,31 +240,29 @@ export function QuizRunner({
         ))}
       </div>
 
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         {currentIndex > 0 && (
           <Button
             type="button"
             variant="outline"
+            size="sm"
             onClick={() => setCurrentIndex((i) => i - 1)}
           >
-            Previous
+            Back
           </Button>
         )}
         {!isLastQuestion ? (
-          <Button
-            type="button"
-            disabled={!selected}
-            onClick={() => setCurrentIndex((i) => i + 1)}
-          >
-            Next question
+          <Button type="button" size="sm" disabled={!selected} onClick={handleNext}>
+            Next
           </Button>
         ) : (
           <Button
             type="button"
-            disabled={!allAnswered || busy}
+            size="sm"
+            disabled={!selected || busy}
             onClick={() => void handleSubmit()}
           >
-            {busy ? "Checking…" : "Submit"}
+            {busy ? "Checking…" : "Finish quiz"}
           </Button>
         )}
       </div>

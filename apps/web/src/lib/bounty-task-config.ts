@@ -121,37 +121,45 @@ export function getBountyTaskSteps(input: {
   return steps;
 }
 
+export function deriveTaskTypes(
+  socialActions: SocialBountyActionId[],
+  taskSteps: BountyTaskStep[]
+): BountyTaskType[] {
+  const types: BountyTaskType[] = [];
+  if (socialActions.length > 0) types.push("SOCIAL");
+  if (taskSteps.some((s) => s.kind === "custom")) types.push("CUSTOM");
+  if (types.length === 0) types.push("CUSTOM");
+  return types;
+}
+
 export function getBountyTaskDisplayLabels(input: {
   taskType: BountyTaskType;
+  verificationMethod?: string;
   verificationConfig?: unknown | null;
 }): string[] {
   const steps = getBountyTaskSteps(input);
+  const labels: string[] = [];
+
   if (steps.length > 0) {
-    return steps.map((step) => step.instruction.trim() || stepButtonLabel(step));
+    for (const step of steps) {
+      if (step.kind === "social") {
+        const action = SOCIAL_BOUNTY_ACTIONS.find((a) => a.id === step.actionId);
+        labels.push(action?.label ?? (step.instruction.trim() || stepButtonLabel(step)));
+      } else if (step.kind === "custom") {
+        labels.push(step.instruction.trim() || "Custom task");
+      }
+    }
   }
 
   const config = parseBountyTaskConfig(input.verificationConfig);
-  const labels: string[] = [];
-
-  for (const actionId of config.socialActions ?? []) {
-    const action = SOCIAL_BOUNTY_ACTIONS.find((a) => a.id === actionId);
-    if (action) labels.push(action.label);
+  if (input.verificationMethod === "QUIZ" || config.quizXpPoints) {
+    labels.push("Quiz");
   }
 
-  const taskTypes =
-    config.taskTypes?.length && config.taskTypes.length > 0
-      ? config.taskTypes
-      : [input.taskType];
+  if (labels.length > 0) return labels;
 
-  for (const type of taskTypes) {
-    if (type === "SOCIAL" && (config.socialActions?.length ?? 0) > 0) continue;
-    const label = BOUNTY_TASK_TYPES.find((t) => t.id === type)?.label;
-    if (label) labels.push(label);
-  }
-
-  return labels.length > 0
-    ? labels
-    : [BOUNTY_TASK_TYPES.find((t) => t.id === input.taskType)?.label ?? input.taskType];
+  const fallback = BOUNTY_TASK_TYPES.find((t) => t.id === input.taskType)?.label;
+  return fallback ? [fallback] : [input.taskType];
 }
 
 export function stepButtonLabel(step: BountyTaskStep): string {
@@ -200,20 +208,17 @@ function isValidHttpUrl(value: string): boolean {
 }
 
 export function validateBountyTaskSelection(
-  taskTypes: BountyTaskType[],
   socialActions: SocialBountyActionId[],
-  taskSteps: BountyTaskStep[] = []
+  taskSteps: BountyTaskStep[] = [],
+  options?: { hasQuiz?: boolean }
 ): string | null {
-  if (taskTypes.length === 0) {
-    return "Select at least one task type";
-  }
-  if (taskTypes.includes("SOCIAL") && socialActions.length === 0) {
-    return "Select at least one social action (follow, like, join Telegram, etc.)";
-  }
+  const customSteps = taskSteps.filter((s) => s.kind === "custom");
+  const hasSocial = socialActions.length > 0;
+  const hasCustom = customSteps.length > 0;
+  const hasQuiz = options?.hasQuiz ?? false;
 
-  const customSteps = taskSteps.filter((s) => s.kind === "custom" || s.kind === "question");
-  if (taskTypes.includes("CUSTOM") && !taskTypes.includes("SOCIAL") && customSteps.length === 0) {
-    return "Add at least one custom task";
+  if (!hasSocial && !hasCustom && !hasQuiz) {
+    return "Add at least one task: social action, custom step, or quiz question";
   }
 
   for (const step of taskSteps) {

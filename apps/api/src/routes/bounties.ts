@@ -14,11 +14,13 @@ import {
   type BountyTab,
 } from "@/lib/bounties";
 import {
+  deriveTaskTypes,
   mergeBountyVerificationConfig,
   resolvePrimaryTaskType,
   validateBountyTaskSelection,
   type SocialBountyActionId,
 } from "@/lib/bounty-task-config";
+import { composeBountyQuest } from "@/lib/bounties/quest-compose";
 import { getPublicClient } from "@/lib/rpc-client";
 import { verifyOnchainRequirement } from "@/lib/quests/onchain-verify";
 import {
@@ -44,6 +46,7 @@ import {
 } from "@/lib/bounties/step-progress";
 import { verifySocialBountyStep } from "@/lib/bounties/social-step-verify";
 import prisma from "../lib/prisma";
+import type { BountyVerificationMethod } from "@iopn/database";
 import { asyncHandler, getRouteParam, queryToSearchParams } from "../lib/http-helpers";
 import { publicRateLimit } from "../middleware/rateLimit";
 
@@ -322,64 +325,65 @@ router.post(
         }
       }
 
-      const verificationMethod = parsed.verificationMethod ?? "MANUAL";
-      if (verificationMethod === "ONCHAIN" && !parsed.verificationConfig?.requirementType) {
+      const verificationMethodInput = parsed.verificationMethod ?? "MANUAL";
+      if (verificationMethodInput === "ONCHAIN" && !parsed.verificationConfig?.requirementType) {
         res.status(400).json({ error: "On-chain quests require a requirement type" });
         return;
       }
-      if (verificationMethod === "QUIZ" && !parsed.quiz) {
+
+      const socialActions = (parsed.socialActions ?? []) as SocialBountyActionId[];
+      const taskSteps = parsed.verificationConfig?.taskSteps ?? [];
+      const hasQuiz = Boolean(parsed.quiz);
+
+      if (hasQuiz && !parsed.quiz) {
         res.status(400).json({ error: "Quiz quests require quiz questions" });
         return;
       }
 
-      const taskTypes = parsed.taskTypes?.length ? parsed.taskTypes : [parsed.taskType];
-      const socialActions = (parsed.socialActions ?? []) as SocialBountyActionId[];
-      const taskSteps = parsed.verificationConfig?.taskSteps ?? [];
-      if (verificationMethod !== "QUIZ") {
-        const taskError = validateBountyTaskSelection(taskTypes, socialActions, taskSteps);
-        if (taskError) {
-          res.status(400).json({ error: taskError });
-          return;
-        }
+      const taskError = validateBountyTaskSelection(socialActions, taskSteps, { hasQuiz });
+      if (taskError) {
+        res.status(400).json({ error: taskError });
+        return;
       }
 
-      if (verificationMethod === "QUIZ" && parsed.quiz) {
+      if (hasQuiz && parsed.quiz) {
         const quizError = validateQuizInput(parsed.quiz);
         if (quizError) {
           res.status(400).json({ error: quizError });
           return;
         }
+        const parsedQuizXp = parsed.quizXpPoints;
+        if (!parsedQuizXp || parsedQuizXp < 1) {
+          res.status(400).json({ error: "Set XP points for the quiz (1 or more)" });
+          return;
+        }
       }
 
-      const primaryTaskType =
-        verificationMethod === "QUIZ" ? "CUSTOM" : resolvePrimaryTaskType(taskTypes);
-      let verificationConfig =
-        verificationMethod === "QUIZ"
-          ? null
-          : mergeBountyVerificationConfig(parsed.verificationConfig, taskTypes, socialActions, {
-              taskSteps,
-            });
+      const composed = composeBountyQuest({
+        socialActions,
+        taskSteps,
+        quizXpPoints: parsed.quizXpPoints,
+        hasQuiz,
+        baseVerificationMethod: verificationMethodInput,
+        existingConfig: parsed.verificationConfig,
+      });
+
+      const verificationMethod: BountyVerificationMethod = composed.verificationMethod;
+      const primaryTaskType = composed.primaryTaskType;
+      let verificationConfig = composed.verificationConfig;
+      let xpReward = composed.xpReward;
+
+      if (xpReward < 1) {
+        res.status(400).json({ error: "Set XP points on each task step (1 or more)" });
+        return;
+      }
+
+      const taskTypes = composed.taskTypes;
 
       const endsAt = parsed.endsAt ? new Date(parsed.endsAt) : null;
       if (endsAt && Number.isNaN(endsAt.getTime())) {
         res.status(400).json({ error: "Invalid end date" });
         return;
-      }
-
-      let xpReward = 0;
-      if (verificationMethod === "QUIZ") {
-        if (!parsed.quizXpPoints || parsed.quizXpPoints < 1) {
-          res.status(400).json({ error: "Set XP points for the quiz (1 or more)" });
-          return;
-        }
-        xpReward = parsed.quizXpPoints;
-        verificationConfig = { quizXpPoints: parsed.quizXpPoints };
-      } else {
-        xpReward = sumStepXpPoints(taskSteps);
-        if (xpReward < 1) {
-          res.status(400).json({ error: "Set XP points on each task step (1 or more)" });
-          return;
-        }
       }
 
       const bounty = await prisma.$transaction(async (tx) => {
@@ -403,7 +407,7 @@ router.post(
           },
         });
 
-        if (verificationMethod === "QUIZ" && parsed.quiz) {
+        if (hasQuiz && parsed.quiz) {
           await createQuizForBounty(tx, row.id, parsed.quiz);
         }
 

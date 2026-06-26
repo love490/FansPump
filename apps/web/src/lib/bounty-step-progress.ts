@@ -35,25 +35,24 @@ export function resolveQuestSteps(input: {
 }): BountyTaskStep[] {
   const config = parseBountyTaskConfig(input.verificationConfig);
 
-  if (input.verificationMethod === "QUIZ") {
-    const quizXp = config.quizXpPoints ?? input.xpReward ?? 0;
-    return [
-      {
-        id: QUIZ_STEP_ID,
-        kind: "question",
-        instruction: "Complete the knowledge quiz",
-        buttonLabel: "Start quiz",
-        xpPoints: quizXp,
-      },
-    ];
-  }
-
-  const steps = getBountyTaskSteps({
+  const taskSteps = getBountyTaskSteps({
     taskType: input.taskType as Parameters<typeof getBountyTaskSteps>[0]["taskType"],
     verificationConfig: input.verificationConfig,
   });
 
-  if (steps.length > 0) return steps;
+  if (input.verificationMethod === "QUIZ") {
+    const quizXp = config.quizXpPoints ?? 0;
+    const quizStep: BountyTaskStep = {
+      id: QUIZ_STEP_ID,
+      kind: "question",
+      instruction: "Complete the quiz",
+      buttonLabel: "Start quiz",
+      xpPoints: quizXp,
+    };
+    return quizXp > 0 || taskSteps.length > 0 ? [...taskSteps, quizStep] : [quizStep];
+  }
+
+  if (taskSteps.length > 0) return taskSteps;
 
   return [
     {

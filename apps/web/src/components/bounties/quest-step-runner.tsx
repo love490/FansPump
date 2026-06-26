@@ -60,7 +60,6 @@ export function QuestStepRunner({
   const xpTotal = totalQuestXp(steps);
   const stepsDone = allStepsClaimed(steps, proof);
   const xpClaimed = (participation.xpAwarded ?? 0) > 0 || Boolean(proof.xpClaimedAt);
-  const isQuiz = bounty.verificationMethod === "QUIZ";
 
   async function postStep(path: string, actionLabel: string) {
     setBusy(path);
@@ -127,7 +126,7 @@ export function QuestStepRunner({
             step={step}
             entry={proof.stepProgress?.[step.id]}
             busy={busy}
-            isQuiz={isQuiz && step.id === QUIZ_STEP_ID}
+            isQuizStep={step.id === QUIZ_STEP_ID}
             questId={questId}
             walletAddress={walletAddress}
             onQuizComplete={() => onRefresh()}
@@ -169,7 +168,7 @@ function StepRow({
   step,
   entry,
   busy,
-  isQuiz,
+  isQuizStep,
   questId,
   walletAddress,
   onQuizComplete,
@@ -179,13 +178,14 @@ function StepRow({
   step: BountyTaskStep;
   entry?: { visitedAt?: string; verifiedAt?: string; verifyError?: string; claimedAt?: string };
   busy: string | null;
-  isQuiz: boolean;
+  isQuizStep: boolean;
   questId: string;
   walletAddress: string;
   onQuizComplete: () => void;
   onVisit: () => void;
   onClaim: () => void;
 }) {
+  const [quizProgress, setQuizProgress] = useState<{ current: number; total: number } | null>(null);
   const isSocial = step.kind === "social";
   const label = stepButtonLabel(step);
   const xp = stepXpPoints(step);
@@ -208,11 +208,17 @@ function StepRow({
           <p className="mt-1 text-xs text-muted-foreground">
             {claimed
               ? "Step XP claimed"
-              : visited
-                ? isSocial
-                  ? "Action opened — claim to verify and collect points"
-                  : "Action completed — claim your points"
-                : "Tap the action button to start"}
+              : isQuizStep && visited && quizProgress
+                ? `Question ${quizProgress.current}/${quizProgress.total} — pick an option, then Next`
+                : isQuizStep && visited
+                  ? "Answer each question one by one"
+                  : visited
+                    ? isSocial
+                      ? "Action opened — claim to verify and collect points"
+                      : "Action completed — claim your points"
+                    : isQuizStep
+                      ? "Tap Start quiz to begin"
+                      : "Tap the action button to start"}
           </p>
           {verifyError && !claimed && (
             <p className="mt-1 text-xs text-red-600">{verifyError}</p>
@@ -221,12 +227,13 @@ function StepRow({
         <Badge variant="outline">{xp} XP</Badge>
       </div>
 
-      {isQuiz && !claimed ? (
+      {isQuizStep && !claimed && visited ? (
         <div className="mt-3">
           <QuizRunner
             bountyId={questId}
             walletAddress={walletAddress}
             onClaimReady={onQuizComplete}
+            onProgressChange={(current, total) => setQuizProgress({ current, total })}
           />
         </div>
       ) : (
@@ -241,7 +248,11 @@ function StepRow({
             </Button>
           ) : (
             <Button type="button" size="sm" disabled={visitBusy} onClick={onVisit}>
-              {visitBusy ? "Opening…" : `${label} · ${xp} XP`}
+              {visitBusy
+                ? "Starting…"
+                : isQuizStep
+                  ? `Start quiz · ${xp} XP`
+                  : `${label} · ${xp} XP`}
             </Button>
           )}
         </div>

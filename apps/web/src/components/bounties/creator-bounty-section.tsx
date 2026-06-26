@@ -11,15 +11,13 @@ import { Label } from "@/components/ui/label";
 import {
   BOUNTY_REWARD_TYPES,
   ONCHAIN_REQUIREMENTS,
-  VERIFICATION_METHODS,
   type BountyListItem,
-  type BountyTaskType,
 } from "@/lib/bounties";
 import { BountyCard } from "@/components/bounties/bounty-card";
 import { BountyXpLeaderboard } from "@/components/bounties/bounty-xp-leaderboard";
 import { BountyTaskPicker } from "@/components/bounties/bounty-task-picker";
-import { QuizBuilder } from "@/components/quiz/quiz-builder";
 import {
+  deriveTaskTypes,
   mergeBountyVerificationConfig,
   resolvePrimaryTaskType,
   validateBountyTaskSelection,
@@ -28,6 +26,7 @@ import {
 } from "@/lib/bounty-task-config";
 import {
   defaultQuizDraft,
+  quizDraftHasContent,
   quizDraftToPayload,
   validateQuizDraft,
   type QuizDraft,
@@ -62,7 +61,6 @@ export function CreatorBountySection({
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [taskTypes, setTaskTypes] = useState<BountyTaskType[]>(["CUSTOM"]);
   const [socialActions, setSocialActions] = useState<SocialBountyActionId[]>([]);
   const [taskSteps, setTaskSteps] = useState<BountyTaskStep[]>([]);
   const [requirements, setRequirements] = useState("");
@@ -75,7 +73,7 @@ export function CreatorBountySection({
   const [endsAt, setEndsAt] = useState("");
   const [tokenAddress, setTokenAddress] = useState("");
   const [verificationMethod, setVerificationMethod] =
-    useState<(typeof VERIFICATION_METHODS)[number]["id"]>("MANUAL");
+    useState<"MANUAL" | "ONCHAIN">("MANUAL");
   const [quizDraft, setQuizDraft] = useState<QuizDraft>(defaultQuizDraft());
   const [onchainRequirement, setOnchainRequirement] =
     useState<(typeof ONCHAIN_REQUIREMENTS)[number]["id"]>("HOLD_TOKEN");
@@ -100,21 +98,21 @@ export function CreatorBountySection({
     setError(null);
     setMessage(null);
     try {
-      const taskError =
-        verificationMethod === "QUIZ"
-          ? validateQuizDraft(quizDraft)
-          : validateBountyTaskSelection(taskTypes, socialActions, taskSteps);
+      const hasQuiz = quizDraftHasContent(quizDraft);
+      const taskError = validateBountyTaskSelection(socialActions, taskSteps, { hasQuiz });
       if (taskError) throw new Error(taskError);
 
-      if (rewardType === "TOKEN" && !rewardTokenSymbol.trim() && !tokenAddress.trim()) {
-        throw new Error("Enter a token symbol (e.g. WIF, MAGO) or select a listed token");
-      }
-
-      if (verificationMethod === "QUIZ") {
+      if (hasQuiz) {
+        const quizError = validateQuizDraft(quizDraft);
+        if (quizError) throw new Error(quizError);
         const parsedQuizXp = Number(quizXpPoints);
         if (!Number.isInteger(parsedQuizXp) || parsedQuizXp < 1 || parsedQuizXp > 10000) {
           throw new Error("Set quiz XP points (1–10,000)");
         }
+      }
+
+      if (rewardType === "TOKEN" && !rewardTokenSymbol.trim() && !tokenAddress.trim()) {
+        throw new Error("Enter a token symbol (e.g. WIF, MAGO) or select a listed token");
       }
 
       let parsedMaxParticipants: number | null = null;
@@ -125,8 +123,8 @@ export function CreatorBountySection({
         }
       }
 
-      const primaryTaskType =
-        verificationMethod === "QUIZ" ? "CUSTOM" : resolvePrimaryTaskType(taskTypes);
+      const taskTypes = deriveTaskTypes(socialActions, taskSteps);
+      const primaryTaskType = resolvePrimaryTaskType(taskTypes);
       const onchainConfig =
         verificationMethod === "ONCHAIN"
           ? {
@@ -140,10 +138,12 @@ export function CreatorBountySection({
               minLpAmount: onchainRequirement === "ADD_LIQUIDITY" ? "1" : undefined,
             }
           : null;
-      const verificationConfig =
-        verificationMethod === "QUIZ"
-          ? null
-          : mergeBountyVerificationConfig(onchainConfig, taskTypes, socialActions, { taskSteps });
+      const verificationConfig = mergeBountyVerificationConfig(
+        onchainConfig,
+        taskTypes,
+        socialActions,
+        { taskSteps }
+      );
 
       const prefix = process.env.NEXT_PUBLIC_CREATOR_ACTION_MESSAGE_PREFIX ?? "FansPump Creator Action";
       const msg = `${prefix}\nCreate bounty\nWallet: ${address.toLowerCase()}\nTime: ${Date.now()}`;
@@ -164,8 +164,7 @@ export function CreatorBountySection({
           requirements: requirements || null,
           rewardType,
           rewardAmount,
-          quizXpPoints:
-            verificationMethod === "QUIZ" ? Number(quizXpPoints) : undefined,
+          quizXpPoints: hasQuiz ? Number(quizXpPoints) : undefined,
           rewardDescription:
             rewardType === "TOKEN"
               ? rewardTokenSymbol.trim().toUpperCase() || null
@@ -177,7 +176,7 @@ export function CreatorBountySection({
           tokenAddress: tokenAddress || null,
           verificationMethod,
           verificationConfig,
-          quiz: verificationMethod === "QUIZ" ? quizDraftToPayload(quizDraft) : undefined,
+          quiz: hasQuiz ? quizDraftToPayload(quizDraft) : undefined,
         }),
       });
       const data = await res.json();
@@ -186,7 +185,6 @@ export function CreatorBountySection({
       setMessage("Bounty created.");
       setTitle("");
       setDescription("");
-      setTaskTypes(["CUSTOM"]);
       setSocialActions([]);
       setTaskSteps([]);
       setRequirements("");
@@ -249,18 +247,16 @@ export function CreatorBountySection({
                 />
               </div>
               <div className="space-y-2 sm:col-span-2">
-                {verificationMethod === "QUIZ" ? (
-                  <QuizBuilder value={quizDraft} onChange={setQuizDraft} />
-                ) : (
-                  <BountyTaskPicker
-                    taskTypes={taskTypes}
-                    socialActions={socialActions}
-                    taskSteps={taskSteps}
-                    onTaskTypesChange={setTaskTypes}
-                    onSocialActionsChange={setSocialActions}
-                    onTaskStepsChange={setTaskSteps}
-                  />
-                )}
+                <BountyTaskPicker
+                  socialActions={socialActions}
+                  taskSteps={taskSteps}
+                  quiz={quizDraft}
+                  quizXpPoints={quizXpPoints}
+                  onSocialActionsChange={setSocialActions}
+                  onTaskStepsChange={setTaskSteps}
+                  onQuizChange={setQuizDraft}
+                  onQuizXpPointsChange={setQuizXpPoints}
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="bounty-max">Max participants (optional)</Label>
@@ -289,30 +285,13 @@ export function CreatorBountySection({
                   ))}
                 </select>
               </div>
-              {verificationMethod === "QUIZ" && (
-                <div className="space-y-2 sm:col-span-2">
-                  <Label htmlFor="bounty-quiz-xp">Quiz XP points</Label>
-                  <Input
-                    id="bounty-quiz-xp"
-                    type="number"
-                    min={1}
-                    max={10000}
-                    value={quizXpPoints}
-                    onChange={(e) => setQuizXpPoints(e.target.value)}
-                    placeholder="e.g. 25"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    You decide how much XP participants earn for passing the quiz.
-                  </p>
-                </div>
-              )}
               <div className="space-y-2">
                 <Label htmlFor="bounty-reward-amount">Bonus amount (optional)</Label>
                 <Input
                   id="bounty-reward-amount"
                   value={rewardAmount}
                   onChange={(e) => setRewardAmount(e.target.value)}
-                  placeholder="100"
+                  placeholder="0"
                 />
               </div>
               {rewardType === "CUSTOM" && (
@@ -337,9 +316,6 @@ export function CreatorBountySection({
                       placeholder="WIF, MAGO, PEPE…"
                       maxLength={20}
                     />
-                    <p className="text-xs text-muted-foreground">
-                      Shown on Earn as the reward token (e.g. 100 MAGO).
-                    </p>
                   </div>
                   {creatorTokens.length > 0 && (
                     <div className="space-y-2">
@@ -372,15 +348,12 @@ export function CreatorBountySection({
                   id="bounty-verification"
                   value={verificationMethod}
                   onChange={(e) =>
-                    setVerificationMethod(e.target.value as typeof verificationMethod)
+                    setVerificationMethod(e.target.value as "MANUAL" | "ONCHAIN")
                   }
                   className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                 >
-                  {VERIFICATION_METHODS.map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.label}
-                    </option>
-                  ))}
+                  <option value="MANUAL">Manual review</option>
+                  <option value="ONCHAIN">Automatic on-chain</option>
                 </select>
               </div>
               {verificationMethod === "ONCHAIN" && (

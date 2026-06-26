@@ -5,7 +5,7 @@ import type { BountyListItem } from "@/lib/bounties";
 export function BountyTaskBadges({
   bounty,
 }: {
-  bounty: Pick<BountyListItem, "taskType" | "verificationConfig">;
+  bounty: Pick<BountyListItem, "taskType" | "verificationMethod" | "verificationConfig">;
 }) {
   const labels = getBountyTaskDisplayLabels(bounty);
 
