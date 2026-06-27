@@ -429,7 +429,7 @@ export function CreatorBountySection({
       ) : (
         <div className="space-y-3">
           {bounties.map((bounty) => (
-            <BountyCard key={bounty.id} bounty={bounty} showJoin={false} />
+            <BountyCard key={bounty.id} bounty={bounty} />
           ))}
         </div>
       )}

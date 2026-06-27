@@ -4,72 +4,25 @@ import { apiUrl } from "@/lib/api";
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useAccount, useSignMessage } from "wagmi";
 import { BOUNTY_TABS, type BountyListItem, type BountyTab } from "@/lib/bounties";
 import { BountyCard } from "@/components/bounties/bounty-card";
-import { SignInModal } from "@/components/auth/sign-in-modal";
 import { Button } from "@/components/ui/button";
 import { CircleDollarSign } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useRequireSignIn } from "@/hooks/useRequireSignIn";
 
 export default function EarnPage() {
-  const { address } = useAccount();
-  const { signMessageAsync } = useSignMessage();
-  const { signInOpen, setSignInOpen, withSignIn } = useRequireSignIn();
   const [tab, setTab] = useState<BountyTab>("newest");
   const [bounties, setBounties] = useState<BountyListItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [joiningId, setJoiningId] = useState<string | null>(null);
-  const [joinError, setJoinError] = useState<string | null>(null);
 
   useEffect(() => {
     setLoading(true);
-    setJoinError(null);
     fetch(apiUrl(`/api/bounties?tab=${tab}&limit=40`))
       .then((r) => r.json())
       .then((d) => setBounties(d.bounties ?? []))
       .catch(() => setBounties([]))
       .finally(() => setLoading(false));
   }, [tab]);
-
-  async function joinBounty(bountyId: string) {
-    withSignIn(async () => {
-      if (!address) return;
-      setJoiningId(bountyId);
-      setJoinError(null);
-      try {
-        const prefix = process.env.NEXT_PUBLIC_CREATOR_ACTION_MESSAGE_PREFIX ?? "FansPump Creator Action";
-        const message = `${prefix}\nJoin bounty: ${bountyId}\nWallet: ${address.toLowerCase()}\nTime: ${Date.now()}`;
-        const signature = await signMessageAsync({ message });
-        const res = await fetch(apiUrl(`/api/bounties/${bountyId}/join`), {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ walletAddress: address, message, signature }),
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error ?? "Failed to join bounty");
-        setBounties((prev) =>
-          prev.map((b) =>
-            b.id === bountyId
-              ? {
-                  ...b,
-                  participantCount: b.participantCount + 1,
-                  spotsLeft:
-                    b.maxParticipants != null ? Math.max(0, (b.spotsLeft ?? 0) - 1) : null,
-                  isFull:
-                    b.maxParticipants != null && b.participantCount + 1 >= b.maxParticipants,
-                }
-              : b
-          )
-        );
-      } catch (e) {
-        setJoinError(e instanceof Error ? e.message : "Failed to join bounty");
-      } finally {
-        setJoiningId(null);
-      }
-    });
-  }
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6 lg:px-8">
@@ -100,8 +53,6 @@ export default function EarnPage() {
         ))}
       </div>
 
-      {joinError && <p className="mb-4 text-sm text-red-600">{joinError}</p>}
-
       {loading ? (
         <p className="text-muted-foreground">Loading bounties…</p>
       ) : bounties.length === 0 ? (
@@ -114,16 +65,10 @@ export default function EarnPage() {
       ) : (
         <div className="space-y-4">
           {bounties.map((bounty) => (
-            <BountyCard
-              key={bounty.id}
-              bounty={bounty}
-              joining={joiningId === bounty.id}
-              onJoin={joinBounty}
-            />
+            <BountyCard key={bounty.id} bounty={bounty} />
           ))}
         </div>
       )}
-      <SignInModal open={signInOpen} onOpenChange={setSignInOpen} />
     </div>
   );
 }

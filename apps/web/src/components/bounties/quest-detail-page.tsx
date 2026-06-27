@@ -21,14 +21,22 @@ import { CreatorProfileLink } from "@/components/profile/creator-profile-link";
 import { BountyTaskBadges } from "@/components/bounties/bounty-task-badges";
 import { QuestStepRunner } from "@/components/bounties/quest-step-runner";
 import { hasOnchainBonusReward, resolveQuestSteps, totalQuestXp } from "@/lib/bounty-step-progress";
-import { SignInModal } from "@/components/auth/sign-in-modal";
 import { useRequireSignIn } from "@/hooks/useRequireSignIn";
 import { Calendar, Clock, Gift, Users, ArrowLeft } from "lucide-react";
 
+const EMPTY_PARTICIPATION: BountyParticipationView = {
+  status: "JOINED",
+  proofJson: null,
+  verifiedAt: null,
+  claimedAt: null,
+  rejectionReason: null,
+  xpAwarded: 0,
+};
+
 export function QuestDetailPage({ questId }: { questId: string }) {
-  const { address } = useAccount();
+  const { address: connectedAddress } = useAccount();
   const { signMessageAsync } = useSignMessage();
-  const { canParticipate, signInOpen, setSignInOpen, withSignIn } = useRequireSignIn();
+  const { canParticipate } = useRequireSignIn();
   const [bounty, setBounty] = useState<BountyListItem | null>(null);
   const [participation, setParticipation] = useState<BountyParticipationView | null>(null);
   const [loading, setLoading] = useState(true);
@@ -41,7 +49,7 @@ export function QuestDetailPage({ questId }: { questId: string }) {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const walletQuery = address ? `?wallet=${address.toLowerCase()}` : "";
+      const walletQuery = connectedAddress ? `?wallet=${connectedAddress.toLowerCase()}` : "";
       const res = await fetch(apiUrl(`/api/bounties/${questId}${walletQuery}`));
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Failed to load quest");
@@ -52,7 +60,7 @@ export function QuestDetailPage({ questId }: { questId: string }) {
     } finally {
       setLoading(false);
     }
-  }, [questId, address]);
+  }, [questId, connectedAddress]);
 
   useEffect(() => {
     void load();
@@ -72,34 +80,11 @@ export function QuestDetailPage({ questId }: { questId: string }) {
   );
 
   async function signAction(action: string) {
-    if (!address) throw new Error("Connect your wallet first");
+    if (!connectedAddress) throw new Error("Connect your wallet to complete quest steps");
     const prefix = process.env.NEXT_PUBLIC_CREATOR_ACTION_MESSAGE_PREFIX ?? "FansPump Creator Action";
-    const message = `${prefix}\n${action}\nWallet: ${address.toLowerCase()}\nTime: ${Date.now()}`;
+    const message = `${prefix}\n${action}\nWallet: ${connectedAddress.toLowerCase()}\nTime: ${Date.now()}`;
     const signature = await signMessageAsync({ message });
-    return { walletAddress: address, message, signature };
-  }
-
-  async function handleJoin() {
-    withSignIn(async () => {
-      setBusy("join");
-      setError(null);
-      try {
-        const auth = await signAction(`Join quest: ${questId}`);
-        const res = await fetch(apiUrl(`/api/bounties/${questId}/join`), {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(auth),
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error ?? "Failed to join");
-        setParticipation(data.participation);
-        await load();
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "Failed to join");
-      } finally {
-        setBusy(null);
-      }
-    });
+    return { walletAddress: connectedAddress, message, signature };
   }
 
   async function handleSubmit() {
@@ -166,11 +151,16 @@ export function QuestDetailPage({ questId }: { questId: string }) {
 
   const reward = formatBountyReward(bounty);
   const remaining = timeRemaining(bounty.endsAt);
-  const status = participation?.status;
-  const isOnchain = bounty.verificationMethod === "ONCHAIN";
   const config = bounty.verificationConfig as { requirementType?: string } | null;
   const onchainBonus = hasOnchainBonusReward(bounty.rewardType, bounty.rewardAmount);
   const xpTotal = totalQuestXp(questSteps);
+  const canCompleteSteps =
+    canParticipate &&
+    Boolean(connectedAddress) &&
+    bounty.effectiveStatus === "active" &&
+    !bounty.isFull &&
+    participation?.status !== "REJECTED";
+  const stepParticipation = participation ?? EMPTY_PARTICIPATION;
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6 lg:px-8">
@@ -207,12 +197,12 @@ export function QuestDetailPage({ questId }: { questId: string }) {
         <CardContent className="space-y-6">
           <p className="text-sm text-muted-foreground">{bounty.description}</p>
 
-          {participation && address && participation.status !== "REJECTED" && (
+          {canCompleteSteps && connectedAddress && (
             <QuestStepRunner
               bounty={bounty}
               questId={questId}
-              participation={participation}
-              walletAddress={address}
+              participation={stepParticipation}
+              walletAddress={connectedAddress}
               signAction={signAction}
               onUpdate={setParticipation}
               onRefresh={() => void load()}
@@ -227,7 +217,7 @@ export function QuestDetailPage({ questId }: { questId: string }) {
             </div>
           )}
 
-          {isOnchain && config?.requirementType && (
+          {bounty.verificationMethod === "ONCHAIN" && config?.requirementType && (
             <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 text-sm">
               <p className="font-medium">On-chain verification</p>
               <p className="mt-1 text-muted-foreground">
@@ -274,18 +264,6 @@ export function QuestDetailPage({ questId }: { questId: string }) {
           {error && <p className="text-sm text-red-600">{error}</p>}
 
           <div className="space-y-4 border-t pt-4">
-            {!participation && bounty.effectiveStatus === "active" && !bounty.isFull && (
-              canParticipate ? (
-                <Button disabled={busy === "join"} onClick={() => void handleJoin()}>
-                  {busy === "join" ? "Joining…" : "Join quest"}
-                </Button>
-              ) : (
-                <Button type="button" onClick={() => setSignInOpen(true)}>
-                  Sign in to join quest
-                </Button>
-              )
-            )}
-
             {participation?.status === "VERIFIED" && onchainBonus && !participation.claimedAt && (
               <div className="space-y-3">
                 {config?.requirementType === "SWAP" && (
@@ -316,7 +294,6 @@ export function QuestDetailPage({ questId }: { questId: string }) {
           </div>
         </CardContent>
       </Card>
-      <SignInModal open={signInOpen} onOpenChange={setSignInOpen} />
     </div>
   );
 }

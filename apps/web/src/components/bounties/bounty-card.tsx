@@ -20,24 +20,10 @@ function statusBadge(status: BountyListItem["effectiveStatus"]) {
   }
 }
 
-export function BountyCard({
-  bounty,
-  joining,
-  onJoin,
-  showJoin = true,
-}: {
-  bounty: BountyListItem;
-  joining?: boolean;
-  onJoin?: (bountyId: string) => void;
-  showJoin?: boolean;
-}) {
+export function BountyCard({ bounty }: { bounty: BountyListItem }) {
   const reward = formatBountyReward(bounty);
   const remaining = timeRemaining(bounty.endsAt);
-  const canJoin =
-    showJoin &&
-    bounty.effectiveStatus === "active" &&
-    !bounty.isFull &&
-    onJoin;
+  const canStart = bounty.effectiveStatus === "active" && !bounty.isFull;
 
   return (
     <Card>
@@ -93,23 +79,16 @@ export function BountyCard({
           )}
         </div>
 
-        <div className="flex flex-wrap gap-2">
+        {canStart ? (
+          <Button asChild size="sm">
+            <Link href={`/earn/${bounty.id}`}>Start quest</Link>
+          </Button>
+        ) : bounty.isFull && bounty.effectiveStatus === "active" ? (
+          <p className="text-xs font-medium text-amber-600">All spots filled</p>
+        ) : (
           <Button asChild size="sm" variant="outline">
             <Link href={`/earn/${bounty.id}`}>View quest</Link>
           </Button>
-          {canJoin && (
-            <Button
-              size="sm"
-              disabled={joining}
-              onClick={() => onJoin?.(bounty.id)}
-              className={joining ? "opacity-70" : undefined}
-            >
-              {joining ? "Joining…" : "Join quest"}
-            </Button>
-          )}
-        </div>
-        {bounty.isFull && bounty.effectiveStatus === "active" && (
-          <p className="text-xs font-medium text-amber-600">All spots filled</p>
         )}
       </CardContent>
     </Card>

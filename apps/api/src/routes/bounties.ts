@@ -504,17 +504,58 @@ router.post(
   })
 );
 
-async function loadActiveParticipation(bountyId: string, wallet: string) {
-  const bounty = await prisma.bounty.findUnique({ where: { id: bountyId } });
+async function ensureQuestParticipation(
+  bountyId: string,
+  wallet: string
+): Promise<
+  | { error: "not_found" | "inactive" | "full" }
+  | { bounty: NonNullable<Awaited<ReturnType<typeof prisma.bounty.findUnique>>>; participation: NonNullable<Awaited<ReturnType<typeof prisma.bountyParticipation.findUnique>>> }
+> {
+  await prisma.user.upsert({
+    where: { walletAddress: wallet },
+    create: { walletAddress: wallet },
+    update: {},
+  });
+
+  const bounty = await prisma.bounty.findUnique({
+    where: { id: bountyId },
+    include: { _count: { select: { participations: true } } },
+  });
   if (!bounty) return { error: "not_found" as const };
   if (resolveEffectiveStatus(bounty) !== "active") {
     return { error: "inactive" as const };
   }
-  const participation = await prisma.bountyParticipation.findUnique({
+
+  let participation = await prisma.bountyParticipation.findUnique({
     where: { bountyId_walletAddress: { bountyId, walletAddress: wallet } },
   });
-  if (!participation) return { error: "not_joined" as const };
+
+  if (!participation) {
+    if (bounty.maxParticipants != null && bounty._count.participations >= bounty.maxParticipants) {
+      return { error: "full" as const };
+    }
+    participation = await prisma.$transaction(async (tx) => {
+      const row = await tx.bountyParticipation.create({
+        data: { bountyId, walletAddress: wallet, status: "JOINED" },
+      });
+      await tx.bounty.update({
+        where: { id: bountyId },
+        data: { participantCount: { increment: 1 } },
+      });
+      return row;
+    });
+  }
+
   return { bounty, participation };
+}
+
+function participationErrorResponse(
+  res: import("express").Response,
+  code: "not_found" | "inactive" | "full"
+) {
+  if (code === "not_found") res.status(404).json({ error: "Quest not found" });
+  else if (code === "inactive") res.status(400).json({ error: "Quest is not active" });
+  else res.status(409).json({ error: "This quest is full" });
 }
 
 router.post(
@@ -526,12 +567,9 @@ router.post(
     try {
       const body = authSchema.parse(req.body);
       const wallet = await requireCreatorActionAuth(body);
-      const loaded = await loadActiveParticipation(id, wallet);
+      const loaded = await ensureQuestParticipation(id, wallet);
       if ("error" in loaded) {
-        const code = loaded.error;
-        if (code === "not_found") res.status(404).json({ error: "Quest not found" });
-        else if (code === "inactive") res.status(400).json({ error: "Quest is not active" });
-        else res.status(400).json({ error: "Join the quest first" });
+        participationErrorResponse(res, loaded.error);
         return;
       }
 
@@ -582,12 +620,9 @@ router.post(
     try {
       const body = authSchema.parse(req.body);
       const wallet = await requireCreatorActionAuth(body);
-      const loaded = await loadActiveParticipation(id, wallet);
+      const loaded = await ensureQuestParticipation(id, wallet);
       if ("error" in loaded) {
-        const code = loaded.error;
-        if (code === "not_found") res.status(404).json({ error: "Quest not found" });
-        else if (code === "inactive") res.status(400).json({ error: "Quest is not active" });
-        else res.status(400).json({ error: "Join the quest first" });
+        participationErrorResponse(res, loaded.error);
         return;
       }
 
@@ -676,12 +711,9 @@ router.post(
     try {
       const body = authSchema.parse(req.body);
       const wallet = await requireCreatorActionAuth(body);
-      const loaded = await loadActiveParticipation(id, wallet);
+      const loaded = await ensureQuestParticipation(id, wallet);
       if ("error" in loaded) {
-        const code = loaded.error;
-        if (code === "not_found") res.status(404).json({ error: "Quest not found" });
-        else if (code === "inactive") res.status(400).json({ error: "Quest is not active" });
-        else res.status(400).json({ error: "Join the quest first" });
+        participationErrorResponse(res, loaded.error);
         return;
       }
 
@@ -774,25 +806,13 @@ router.post(
       const wallet = await requireCreatorActionAuth(body);
       const proof: ParticipationProof = body.proof ?? {};
 
-      const bounty = await prisma.bounty.findUnique({ where: { id } });
-      if (!bounty) {
-        res.status(404).json({ error: "Quest not found" });
+      const ensured = await ensureQuestParticipation(id, wallet);
+      if ("error" in ensured) {
+        participationErrorResponse(res, ensured.error);
         return;
       }
 
-      if (resolveEffectiveStatus(bounty) !== "active") {
-        res.status(400).json({ error: "Quest is not active" });
-        return;
-      }
-
-      const participation = await prisma.bountyParticipation.findUnique({
-        where: { bountyId_walletAddress: { bountyId: id, walletAddress: wallet } },
-      });
-
-      if (!participation) {
-        res.status(400).json({ error: "Join the quest before submitting" });
-        return;
-      }
+      const { bounty, participation } = ensured;
 
       if (participation.status === "CLAIMED") {
         res.status(409).json({ error: "Quest already completed" });
@@ -1018,14 +1038,12 @@ router.post(
         return;
       }
 
-      const participation = await prisma.bountyParticipation.findUnique({
-        where: { bountyId_walletAddress: { bountyId: id, walletAddress: wallet } },
-      });
-
-      if (!participation) {
-        res.status(400).json({ error: "Join the quest before taking the quiz" });
+      const ensured = await ensureQuestParticipation(id, wallet);
+      if ("error" in ensured) {
+        participationErrorResponse(res, ensured.error);
         return;
       }
+      const participation = ensured.participation;
 
       if (participation.status === "CLAIMED") {
         res.status(409).json({ error: "Reward already claimed" });

@@ -4,14 +4,15 @@ import { useCallback, useState } from "react";
 import { useAccount } from "wagmi";
 import { useAuth } from "@/components/auth/auth-provider";
 
-/** Gate participate actions (stake, join quest) behind sign-in + connected wallet. */
+/** Gate participate actions (stake, quests) behind sign-in + wallet. */
 export function useRequireSignIn() {
-  const { isSignedIn } = useAuth();
-  const { isConnected, address } = useAccount();
+  const { account, isSignedIn } = useAuth();
+  const { isConnected, address: connectedAddress } = useAccount();
   const [signInOpen, setSignInOpen] = useState(false);
 
+  const walletAddress = connectedAddress ?? account?.walletAddress ?? undefined;
   const isAuthenticated = isSignedIn || isConnected;
-  const canParticipate = isAuthenticated && Boolean(address);
+  const canParticipate = isAuthenticated && Boolean(walletAddress);
 
   const requestSignIn = useCallback(() => {
     setSignInOpen(true);
@@ -31,6 +32,7 @@ export function useRequireSignIn() {
   return {
     isAuthenticated,
     canParticipate,
+    walletAddress,
     signInOpen,
     setSignInOpen,
     requestSignIn,
