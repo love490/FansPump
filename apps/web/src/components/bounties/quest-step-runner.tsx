@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { CheckCircle2, Sparkles } from "lucide-react";
 import { apiUrl } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -195,6 +195,34 @@ function StepRow({
   const visitBusy = busy === `/steps/${step.id}/visit`;
   const claimBusy = busy === `/steps/${step.id}/claim`;
 
+  useEffect(() => {
+    if (isQuizStep && !claimed && !visited && !visitBusy) {
+      onVisit();
+    }
+  }, [isQuizStep, claimed, visited, visitBusy, onVisit]);
+
+  if (isQuizStep && !claimed) {
+    return (
+      <li className="rounded-lg border bg-background p-4">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <p className="text-sm font-medium">
+            {quizProgress
+              ? `Question ${quizProgress.current}/${quizProgress.total}`
+              : "Quiz"}
+          </p>
+          <Badge variant="outline">{xp} XP</Badge>
+        </div>
+        <QuizRunner
+          bountyId={questId}
+          walletAddress={walletAddress}
+          onClaimReady={onQuizComplete}
+          onProgressChange={(current, total) => setQuizProgress({ current, total })}
+        />
+        {verifyError && <p className="mt-2 text-xs text-red-600">{verifyError}</p>}
+      </li>
+    );
+  }
+
   return (
     <li
       className={cn(
@@ -208,19 +236,13 @@ function StepRow({
           <p className="mt-1 text-xs text-muted-foreground">
             {claimed
               ? "Step XP claimed"
-              : isQuizStep && visited && quizProgress
-                ? `Question ${quizProgress.current}/${quizProgress.total} — pick an option, then Next`
-                : isQuizStep && visited
-                  ? "Answer each question one by one"
-                  : visited
-                    ? isSocial
-                      ? "Action opened — claim to verify and collect points"
-                      : "Action completed — claim your points"
-                    : isQuizStep
-                      ? "Tap Start quiz to begin"
-                      : step.linkUrl?.trim()
-                        ? "Tap the button to open the page"
-                        : "Tap the button when you've completed this task"}
+              : visited
+                ? isSocial
+                  ? "Action opened — claim to verify and collect points"
+                  : "Action completed — claim your points"
+                : step.linkUrl?.trim()
+                  ? "Tap the button to open the page"
+                  : "Tap the button when you've completed this task"}
           </p>
           {verifyError && !claimed && (
             <p className="mt-1 text-xs text-red-600">{verifyError}</p>
@@ -229,16 +251,7 @@ function StepRow({
         <Badge variant="outline">{xp} XP</Badge>
       </div>
 
-      {isQuizStep && !claimed && visited ? (
-        <div className="mt-3">
-          <QuizRunner
-            bountyId={questId}
-            walletAddress={walletAddress}
-            onClaimReady={onQuizComplete}
-            onProgressChange={(current, total) => setQuizProgress({ current, total })}
-          />
-        </div>
-      ) : (
+      {!isQuizStep && (
         <div className="mt-3 flex flex-wrap gap-2">
           {claimed ? (
             <Button type="button" size="sm" variant="secondary" disabled>
@@ -250,11 +263,7 @@ function StepRow({
             </Button>
           ) : (
             <Button type="button" size="sm" disabled={visitBusy} onClick={onVisit}>
-              {visitBusy
-                ? "Starting…"
-                : isQuizStep
-                  ? `Start quiz · ${xp} XP`
-                  : `${label} · ${xp} XP`}
+              {visitBusy ? "Starting…" : `${label} · ${xp} XP`}
             </Button>
           )}
         </div>

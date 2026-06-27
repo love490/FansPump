@@ -110,8 +110,11 @@ export function QuestDetailPage({ questId }: { questId: string }) {
   );
 
   async function signAction(action: string) {
+    if (!isAuthenticated) {
+      requestSignIn();
+      throw new Error("Sign in to complete task");
+    }
     if (!connectedAddress) {
-      if (!isAuthenticated) requestSignIn();
       throw new Error("Connect your wallet to complete quest steps");
     }
     const prefix = process.env.NEXT_PUBLIC_CREATOR_ACTION_MESSAGE_PREFIX ?? "FansPump Creator Action";
@@ -192,7 +195,7 @@ export function QuestDetailPage({ questId }: { questId: string }) {
     !bounty.isFull &&
     participation?.status !== "REJECTED";
   const stepParticipation = participation ?? EMPTY_PARTICIPATION;
-  const needsWallet = showSteps && !connectedAddress;
+  const needsSignIn = showSteps && !isAuthenticated;
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6 lg:px-8">
@@ -253,19 +256,12 @@ export function QuestDetailPage({ questId }: { questId: string }) {
 
           {showSteps && (
             <>
-              {needsWallet && (
+              {needsSignIn && (
                 <div className="rounded-lg border border-dashed border-border bg-muted/30 p-4 text-sm">
-                  <p className="font-medium">Connect wallet to complete steps</p>
-                  <p className="mt-1 text-muted-foreground">
-                    {isAuthenticated
-                      ? "Link or connect a wallet to verify actions and earn XP."
-                      : "Sign in and connect a wallet to verify actions and earn XP."}
-                  </p>
-                  {!isAuthenticated && (
-                    <Button type="button" size="sm" className="mt-3" onClick={requestSignIn}>
-                      Sign in
-                    </Button>
-                  )}
+                  <p className="font-semibold uppercase tracking-wide">Sign in to complete task</p>
+                  <Button type="button" size="sm" className="mt-3" onClick={requestSignIn}>
+                    Sign in
+                  </Button>
                 </div>
               )}
               <QuestStepRunner
