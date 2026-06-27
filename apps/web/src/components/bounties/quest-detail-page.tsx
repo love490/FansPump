@@ -18,11 +18,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CreatorProfileLink } from "@/components/profile/creator-profile-link";
-import { BountyTaskBadges } from "@/components/bounties/bounty-task-badges";
 import { QuestStepRunner } from "@/components/bounties/quest-step-runner";
+import { SignInModal } from "@/components/auth/sign-in-modal";
 import { hasOnchainBonusReward, resolveQuestSteps, totalQuestXp } from "@/lib/bounty-step-progress";
 import { useRequireSignIn } from "@/hooks/useRequireSignIn";
 import { Calendar, Clock, Gift, Users, ArrowLeft } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 const EMPTY_PARTICIPATION: BountyParticipationView = {
   status: "JOINED",
@@ -33,10 +34,39 @@ const EMPTY_PARTICIPATION: BountyParticipationView = {
   xpAwarded: 0,
 };
 
+const DESCRIPTION_CLAMP = 220;
+
+function ExpandableDescription({ text }: { text: string }) {
+  const [expanded, setExpanded] = useState(false);
+  const isLong = text.length > DESCRIPTION_CLAMP;
+
+  return (
+    <div>
+      <p
+        className={cn(
+          "text-sm text-muted-foreground",
+          !expanded && isLong && "line-clamp-4"
+        )}
+      >
+        {text}
+      </p>
+      {isLong && (
+        <button
+          type="button"
+          className="mt-2 text-xs font-medium text-primary hover:underline"
+          onClick={() => setExpanded((value) => !value)}
+        >
+          {expanded ? "Show less" : "Read more"}
+        </button>
+      )}
+    </div>
+  );
+}
+
 export function QuestDetailPage({ questId }: { questId: string }) {
   const { address: connectedAddress } = useAccount();
   const { signMessageAsync } = useSignMessage();
-  const { canParticipate } = useRequireSignIn();
+  const { isAuthenticated, signInOpen, setSignInOpen, requestSignIn } = useRequireSignIn();
   const [bounty, setBounty] = useState<BountyListItem | null>(null);
   const [participation, setParticipation] = useState<BountyParticipationView | null>(null);
   const [loading, setLoading] = useState(true);
@@ -80,7 +110,10 @@ export function QuestDetailPage({ questId }: { questId: string }) {
   );
 
   async function signAction(action: string) {
-    if (!connectedAddress) throw new Error("Connect your wallet to complete quest steps");
+    if (!connectedAddress) {
+      if (!isAuthenticated) requestSignIn();
+      throw new Error("Connect your wallet to complete quest steps");
+    }
     const prefix = process.env.NEXT_PUBLIC_CREATOR_ACTION_MESSAGE_PREFIX ?? "FansPump Creator Action";
     const message = `${prefix}\n${action}\nWallet: ${connectedAddress.toLowerCase()}\nTime: ${Date.now()}`;
     const signature = await signMessageAsync({ message });
@@ -154,13 +187,12 @@ export function QuestDetailPage({ questId }: { questId: string }) {
   const config = bounty.verificationConfig as { requirementType?: string } | null;
   const onchainBonus = hasOnchainBonusReward(bounty.rewardType, bounty.rewardAmount);
   const xpTotal = totalQuestXp(questSteps);
-  const canCompleteSteps =
-    canParticipate &&
-    Boolean(connectedAddress) &&
+  const showSteps =
     bounty.effectiveStatus === "active" &&
     !bounty.isFull &&
     participation?.status !== "REJECTED";
   const stepParticipation = participation ?? EMPTY_PARTICIPATION;
+  const needsWallet = showSteps && !connectedAddress;
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6 lg:px-8">
@@ -176,10 +208,8 @@ export function QuestDetailPage({ questId }: { questId: string }) {
             <div className="min-w-0 flex-1">
               <CardTitle className="text-xl sm:text-2xl">{bounty.title}</CardTitle>
               <div className="mt-2 flex flex-wrap gap-2">
-                <BountyTaskBadges bounty={bounty} />
                 {bounty.isFeatured && <Badge>Featured</Badge>}
                 {bounty.tokenSymbol && <Badge variant="secondary">${bounty.tokenSymbol}</Badge>}
-                <Badge variant="secondary">{bounty.verificationMethod}</Badge>
               </div>
             </div>
             <div className="rounded-lg border border-primary/20 bg-primary/5 px-4 py-3 text-right">
@@ -195,37 +225,7 @@ export function QuestDetailPage({ questId }: { questId: string }) {
         </CardHeader>
 
         <CardContent className="space-y-6">
-          <p className="text-sm text-muted-foreground">{bounty.description}</p>
-
-          {canCompleteSteps && connectedAddress && (
-            <QuestStepRunner
-              bounty={bounty}
-              questId={questId}
-              participation={stepParticipation}
-              walletAddress={connectedAddress}
-              signAction={signAction}
-              onUpdate={setParticipation}
-              onRefresh={() => void load()}
-              onError={setError}
-            />
-          )}
-
-          {bounty.requirements && (
-            <div className="rounded-lg border bg-muted/30 p-4 text-sm">
-              <p className="font-medium">Requirements</p>
-              <p className="mt-1 text-muted-foreground">{bounty.requirements}</p>
-            </div>
-          )}
-
-          {bounty.verificationMethod === "ONCHAIN" && config?.requirementType && (
-            <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 text-sm">
-              <p className="font-medium">On-chain verification</p>
-              <p className="mt-1 text-muted-foreground">
-                Complete: <span className="font-semibold text-foreground">{config.requirementType.replace(/_/g, " ")}</span>
-                {config.requirementType === "SWAP" && " — paste your swap tx hash below"}
-              </p>
-            </div>
-          )}
+          <ExpandableDescription text={bounty.description} />
 
           <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
             <CreatorProfileLink
@@ -250,6 +250,57 @@ export function QuestDetailPage({ questId }: { questId: string }) {
               </span>
             )}
           </div>
+
+          {showSteps && (
+            <>
+              {needsWallet && (
+                <div className="rounded-lg border border-dashed border-border bg-muted/30 p-4 text-sm">
+                  <p className="font-medium">Connect wallet to complete steps</p>
+                  <p className="mt-1 text-muted-foreground">
+                    {isAuthenticated
+                      ? "Link or connect a wallet to verify actions and earn XP."
+                      : "Sign in and connect a wallet to verify actions and earn XP."}
+                  </p>
+                  {!isAuthenticated && (
+                    <Button type="button" size="sm" className="mt-3" onClick={requestSignIn}>
+                      Sign in
+                    </Button>
+                  )}
+                </div>
+              )}
+              <QuestStepRunner
+                bounty={bounty}
+                questId={questId}
+                participation={stepParticipation}
+                walletAddress={connectedAddress ?? ""}
+                signAction={signAction}
+                onUpdate={setParticipation}
+                onRefresh={() => void load()}
+                onError={setError}
+              />
+            </>
+          )}
+
+          {bounty.isFull && bounty.effectiveStatus === "active" && (
+            <p className="text-sm font-medium text-amber-600">All spots filled</p>
+          )}
+
+          {bounty.requirements && (
+            <div className="rounded-lg border bg-muted/30 p-4 text-sm">
+              <p className="font-medium">Requirements</p>
+              <p className="mt-1 text-muted-foreground">{bounty.requirements}</p>
+            </div>
+          )}
+
+          {bounty.verificationMethod === "ONCHAIN" && config?.requirementType && (
+            <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 text-sm">
+              <p className="font-medium">On-chain verification</p>
+              <p className="mt-1 text-muted-foreground">
+                Complete: <span className="font-semibold text-foreground">{config.requirementType.replace(/_/g, " ")}</span>
+                {config.requirementType === "SWAP" && " — paste your swap tx hash below"}
+              </p>
+            </div>
+          )}
 
           {participation && (
             <div className="rounded-lg border p-4">
@@ -294,6 +345,7 @@ export function QuestDetailPage({ questId }: { questId: string }) {
           </div>
         </CardContent>
       </Card>
+      <SignInModal open={signInOpen} onOpenChange={setSignInOpen} />
     </div>
   );
 }

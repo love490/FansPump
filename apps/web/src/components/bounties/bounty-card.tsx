@@ -4,9 +4,8 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CreatorProfileLink } from "@/components/profile/creator-profile-link";
-import { formatBountyReward, formatBountyParticipantCount, timeRemaining, type BountyListItem } from "@/lib/bounties";
-import { BountyTaskBadges } from "@/components/bounties/bounty-task-badges";
-import { Calendar, Users, Gift } from "lucide-react";
+import { formatBountyReward, timeRemaining, type BountyListItem } from "@/lib/bounties";
+import { Calendar, Gift } from "lucide-react";
 
 function statusBadge(status: BountyListItem["effectiveStatus"]) {
   switch (status) {
@@ -31,35 +30,25 @@ export function BountyCard({ bounty }: { bounty: BountyListItem }) {
         className="absolute inset-0 z-0 rounded-xl"
         aria-label={`Open quest: ${bounty.title}`}
       />
-      <CardHeader className="relative z-[1] space-y-3 pb-3 pointer-events-none">
-        <div className="flex flex-wrap items-start justify-between gap-2">
-          <div className="min-w-0 flex-1">
-            <CardTitle className="text-base leading-snug sm:text-lg">{bounty.title}</CardTitle>
-            <div className="mt-2 flex flex-wrap items-center gap-2">
-              {statusBadge(bounty.effectiveStatus)}
-              <BountyTaskBadges bounty={bounty} />
-              {bounty.tokenSymbol && (
-                <Badge variant="secondary">${bounty.tokenSymbol}</Badge>
-              )}
+      <CardHeader className="relative z-[1] pointer-events-none space-y-3 pb-3">
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <div className="min-w-0 flex-1">
+              <CardTitle className="text-base leading-snug sm:text-lg">{bounty.title}</CardTitle>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                {statusBadge(bounty.effectiveStatus)}
+                {bounty.tokenSymbol && <Badge variant="secondary">${bounty.tokenSymbol}</Badge>}
+              </div>
+            </div>
+            <div className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-right">
+              <p className="flex items-center justify-end gap-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                <Gift className="h-3 w-3" /> Reward
+              </p>
+              <p className="text-sm font-bold text-primary">{reward}</p>
             </div>
           </div>
-          <div className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-right">
-            <p className="flex items-center justify-end gap-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-              <Gift className="h-3 w-3" /> Reward
-            </p>
-            <p className="text-sm font-bold text-primary">{reward}</p>
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent className="relative z-[1] space-y-4 pointer-events-none">
+        </CardHeader>
+      <CardContent className="relative z-[1] pointer-events-none space-y-3">
         <p className="line-clamp-3 text-sm text-muted-foreground">{bounty.description}</p>
-        {bounty.requirements && (
-          <div className="rounded-lg bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
-            <span className="font-medium text-foreground">Requirements: </span>
-            {bounty.requirements}
-          </div>
-        )}
-
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground">
           <div className="pointer-events-auto relative z-[2]">
             <CreatorProfileLink
@@ -68,10 +57,6 @@ export function BountyCard({ bounty }: { bounty: BountyListItem }) {
               profileImageUrl={bounty.creatorProfileImageUrl}
             />
           </div>
-          <span className="inline-flex items-center gap-1">
-            <Users className="h-3.5 w-3.5" />
-            {formatBountyParticipantCount(bounty.participantCount, bounty.maxParticipants)}
-          </span>
           {bounty.endsAt && (
             <span className="inline-flex items-center gap-1">
               <Calendar className="h-3.5 w-3.5" />
@@ -80,10 +65,6 @@ export function BountyCard({ bounty }: { bounty: BountyListItem }) {
             </span>
           )}
         </div>
-
-        {bounty.isFull && bounty.effectiveStatus === "active" && (
-          <p className="text-xs font-medium text-amber-600">All spots filled</p>
-        )}
       </CardContent>
     </Card>
   );
