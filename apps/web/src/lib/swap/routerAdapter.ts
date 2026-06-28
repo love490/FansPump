@@ -187,8 +187,9 @@ export async function fetchSwapQuote(params: SwapQuoteParams): Promise<SwapQuote
 
   const priceImpactBps = await estimatePriceImpactBps(client, routerAddress, parsedIn, amountOut, path);
 
-  const routeFrom = mode === "buy" ? payToken.symbol : "Token";
-  const routeTo = mode === "buy" ? "Token" : payToken.symbol;
+  const projectSymbol = await fetchTokenSymbol(client, tokenAddress);
+  const routeFrom = mode === "buy" ? payToken.symbol : projectSymbol;
+  const routeTo = mode === "buy" ? projectSymbol : payToken.symbol;
 
   let swapKind: SwapQuoteResult["swapKind"];
   if (mode === "buy" && payToken.isNative) swapKind = "native-in";

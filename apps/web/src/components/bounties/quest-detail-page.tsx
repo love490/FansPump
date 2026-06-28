@@ -66,7 +66,7 @@ function ExpandableDescription({ text }: { text: string }) {
 export function QuestDetailPage({ questId }: { questId: string }) {
   const { address: connectedAddress } = useAccount();
   const { signMessageAsync } = useSignMessage();
-  const { isAuthenticated, signInOpen, setSignInOpen, requestSignIn } = useRequireSignIn();
+  const { isSignedIn, signInOpen, setSignInOpen, requestSignIn } = useRequireSignIn();
   const [bounty, setBounty] = useState<BountyListItem | null>(null);
   const [participation, setParticipation] = useState<BountyParticipationView | null>(null);
   const [loading, setLoading] = useState(true);
@@ -110,7 +110,7 @@ export function QuestDetailPage({ questId }: { questId: string }) {
   );
 
   async function signAction(action: string) {
-    if (!isAuthenticated) {
+    if (!isSignedIn) {
       requestSignIn();
       throw new Error("Sign in to complete task");
     }
@@ -195,7 +195,7 @@ export function QuestDetailPage({ questId }: { questId: string }) {
     !bounty.isFull &&
     participation?.status !== "REJECTED";
   const stepParticipation = participation ?? EMPTY_PARTICIPATION;
-  const needsSignIn = showSteps && !isAuthenticated;
+  const needsSignIn = showSteps && !isSignedIn;
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6 lg:px-8">

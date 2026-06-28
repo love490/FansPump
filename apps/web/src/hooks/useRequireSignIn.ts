@@ -31,6 +31,7 @@ export function useRequireSignIn() {
 
   return {
     isAuthenticated,
+    isSignedIn,
     canParticipate,
     walletAddress,
     signInOpen,
