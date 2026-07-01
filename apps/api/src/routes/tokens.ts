@@ -11,7 +11,8 @@ import {
 import { buildDiscoverWhere, parseDiscoverFilters } from "@/lib/discover-filters";
 import { mapTokenListRow, mapTokenListRowSafe, tokenListSelect } from "@/lib/analytics/token-list";
 import { initializeTokenAnalytics } from "@/lib/analytics/token-init";
-import { resolveTokenDetail } from "@/lib/tokens/resolve-token";
+import { ensureFactoryTokensSynced } from "@/lib/analytics/factory-token-sync";
+import { resolveTokenDetail, indexExternalTokenIfMissing } from "@/lib/tokens/resolve-token";
 import {
   fetchRegistrySpotPrices,
   fetchSpotPricesForAddresses,
@@ -85,6 +86,8 @@ router.get(
     const chainId = Number(searchParams.get("chainId") ?? getActiveChainId());
 
     try {
+      await ensureFactoryTokensSynced();
+
       const rows = await prisma.tokenProject.findMany({
         where: { chainId },
         orderBy: { createdAt: "desc" },
@@ -257,6 +260,10 @@ router.get(
         return;
       }
 
+      if (!token.isIndexed && token.contractAddress) {
+        await indexExternalTokenIfMissing(token.contractAddress).catch(() => undefined);
+      }
+
       if (token.isIndexed && token.contractAddress) {
         await prisma.tokenProject.update({
           where: { contractAddress: token.contractAddress },
@@ -409,6 +416,8 @@ router.get(
       filters.length === 0 ? chainFilter : filters.length === 1 ? filters[0] : { AND: filters };
 
     try {
+      await ensureFactoryTokensSynced();
+
       if (section === "top-builders" && !creatorNormalized && !q) {
         const topCreators = await prisma.creatorProfile.findMany({
           orderBy: [{ reputationScore: "desc" }, { fansPumpXp: "desc" }],
@@ -486,6 +495,16 @@ router.get(
         ];
 
         const qLower = q.toLowerCase();
+        if (isAddress(q)) {
+          await indexExternalTokenIfMissing(qLower).catch(() => undefined);
+          const indexed = await prisma.tokenProject.findUnique({
+            where: { contractAddress: qLower },
+            select: tokenListSelect,
+          });
+          if (indexed && !merged.some((t) => t.contractAddress.toLowerCase() === qLower)) {
+            merged.unshift(mapTokenListRow(indexed));
+          }
+        }
         if (
           isAddress(q) &&
           !merged.some((t) => t.contractAddress.toLowerCase() === qLower)

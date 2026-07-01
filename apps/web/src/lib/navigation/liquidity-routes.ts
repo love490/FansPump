@@ -2,9 +2,25 @@ import type { LiquidityPairId } from "@/lib/liquidity/pair-tokens";
 
 export const LIQUIDITY_PATH = "/liquidity";
 export const TOOLS_LOCK_PATH = "/tools/lock";
-/** @deprecated Use TOOLS_LOCK_PATH */
-export const TOOLS_LOCK_BURN_PATH = TOOLS_LOCK_PATH;
 export const TOOLS_BURN_PATH = "/tools/burn";
+/** @deprecated Use TOOLS_LOCK_PATH or TOOLS_BURN_PATH */
+export const TOOLS_LOCK_BURN_PATH = TOOLS_LOCK_PATH;
+
+export function toolsLockUrl(opts?: { token?: string; lp?: string }): string {
+  const params = new URLSearchParams();
+  if (opts?.token) params.set("token", opts.token);
+  if (opts?.lp) params.set("lp", opts.lp);
+  const query = params.toString();
+  return query ? `${TOOLS_LOCK_PATH}?${query}` : TOOLS_LOCK_PATH;
+}
+
+export function toolsBurnUrl(opts?: { token?: string; lp?: string }): string {
+  const params = new URLSearchParams();
+  if (opts?.token) params.set("token", opts.token);
+  if (opts?.lp) params.set("lp", opts.lp);
+  const query = params.toString();
+  return query ? `${TOOLS_BURN_PATH}?${query}` : TOOLS_BURN_PATH;
+}
 
 /** Main liquidity page — add (default) or remove tab, optional pre-selected token. */
 export function liquidityUrl(opts?: {

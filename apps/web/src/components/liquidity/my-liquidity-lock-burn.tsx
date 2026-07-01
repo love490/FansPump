@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Flame, Lock } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { TOOLS_LOCK_BURN_PATH } from "@/lib/navigation/liquidity-routes";
+import { toolsBurnUrl, toolsLockUrl } from "@/lib/navigation/liquidity-routes";
 import type { MyLiquidityPosition } from "@/hooks/liquidity/useMyLiquidityPositions";
 
 function LockBurnCard({
@@ -84,7 +84,7 @@ export function MyLiquidityLockBurn({
           </p>
           <div className="grid gap-4 sm:grid-cols-2">
             <LockBurnCard
-              href={TOOLS_LOCK_BURN_PATH}
+              href={toolsLockUrl({ token: p.tokenAddress, lp: p.lpToken })}
               label="Lock"
               title="Lock LP"
               description="Time-lock LP in the on-chain locker contract."
@@ -92,7 +92,7 @@ export function MyLiquidityLockBurn({
               accent="lock"
             />
             <LockBurnCard
-              href={TOOLS_LOCK_BURN_PATH}
+              href={toolsBurnUrl({ token: p.tokenAddress, lp: p.lpToken })}
               label="Burn"
               title="Burn LP"
               description="Permanently send LP to your unique burn wallet."

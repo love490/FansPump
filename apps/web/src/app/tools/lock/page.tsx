@@ -1,9 +1,10 @@
 "use client";
 
+import { Suspense } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { LpLockPanel } from "@/components/tools/lp-lock-panel";
 
-export default function ToolsLockPage() {
+function LockPanel() {
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <Card>
@@ -18,5 +19,19 @@ export default function ToolsLockPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+export default function ToolsLockPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="mx-auto max-w-3xl py-8 text-center text-sm text-muted-foreground">
+          Loading lock tools…
+        </div>
+      }
+    >
+      <LockPanel />
+    </Suspense>
   );
 }

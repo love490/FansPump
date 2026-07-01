@@ -87,6 +87,48 @@ async function readErc20Metadata(address: string) {
   return { name, symbol, decimals, totalSupply };
 }
 
+/** Index any on-chain ERC-20 not yet in the database so it appears in market lists. */
+export async function indexExternalTokenIfMissing(address: string): Promise<boolean> {
+  const normalized = address.toLowerCase();
+  if (!isAddress(normalized)) return false;
+
+  const existing = await prisma.tokenProject.findUnique({
+    where: { contractAddress: normalized },
+    select: { id: true },
+  });
+  if (existing) return true;
+
+  if (getRegistryTokenByAddress(normalized)) return false;
+
+  const onChain = await readErc20Metadata(normalized);
+  if (!onChain) return false;
+
+  try {
+    const token = await prisma.tokenProject.create({
+      data: {
+        contractAddress: normalized,
+        chainId: getActiveChainId(),
+        name: onChain.name,
+        symbol: onChain.symbol,
+        initialSupply: onChain.totalSupply ?? "0",
+        featureFlags: 0n,
+        creatorAddress: ZERO,
+        factoryAddress: ZERO,
+        trendingScore: Date.now(),
+      },
+    });
+
+    const { initializeTokenAnalytics } = await import("@/lib/analytics/token-init");
+    await initializeTokenAnalytics({
+      tokenId: token.id,
+      tokenAddress: token.contractAddress,
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export async function resolveTokenDetail(
   rawAddress: string
 ): Promise<ResolvedTokenDetail | null> {

@@ -395,7 +395,7 @@ export function ExplorePromoCards() {
   );
 
   return (
-    <div className="-mx-1 flex flex-wrap gap-4 px-1">
+    <div className="-mx-1 flex flex-nowrap gap-4 overflow-x-auto px-1 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       {newsCards.map((card) => (
         <PromoCardShell key={card.id} card={card} />
       ))}

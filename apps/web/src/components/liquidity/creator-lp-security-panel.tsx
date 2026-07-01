@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useAccount } from "wagmi";
 import { Flame, Lock } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { TOOLS_LOCK_BURN_PATH } from "@/lib/navigation/liquidity-routes";
+import { toolsBurnUrl, toolsLockUrl } from "@/lib/navigation/liquidity-routes";
 import { LIQUIDITY_LOCKER_ADDRESS } from "@/lib/liquidity/constants";
 import { getOrCreateBurnAddress } from "@/lib/liquidity/burn-address";
 import { shortenAddress, cn } from "@/lib/utils";
@@ -77,7 +77,7 @@ export function CreatorLpSecurityPanel({ tokenAddress }: Props) {
       <CardContent className="space-y-4">
         <div className="grid gap-3 md:grid-cols-2">
           <SecurityActionCard
-            href={TOOLS_LOCK_BURN_PATH}
+            href={toolsBurnUrl({ token: tokenAddress })}
             title="Burn LP"
             description="Permanently send LP to a unique burn wallet generated for your token."
             detail={burnAddress ? shortenAddress(burnAddress, 8) : undefined}
@@ -85,7 +85,7 @@ export function CreatorLpSecurityPanel({ tokenAddress }: Props) {
             accent="burn"
           />
           <SecurityActionCard
-            href={TOOLS_LOCK_BURN_PATH}
+            href={toolsLockUrl({ token: tokenAddress })}
             title="Lock LP"
             description={
               lockerReady
