@@ -43,7 +43,9 @@ async function syncFactoryTokensFromChain(): Promise<{ indexed: number }> {
 
   const client = getPublicClient();
   const latest = await client.getBlockNumber();
-  const lookback = Number(process.env.FACTORY_INDEX_BLOCK_LOOKBACK ?? 100_000);
+  // Default: larger lookback so missed deployments still get indexed.
+  // Can be overridden via FACTORY_INDEX_BLOCK_LOOKBACK / FACTORY_INDEX_FROM_BLOCK.
+  const lookback = Number(process.env.FACTORY_INDEX_BLOCK_LOOKBACK ?? 1_000_000);
   const envFrom = process.env.FACTORY_INDEX_FROM_BLOCK?.trim();
   const start = envFrom
     ? BigInt(envFrom)

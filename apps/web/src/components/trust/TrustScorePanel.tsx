@@ -25,16 +25,34 @@ const RISK_STYLES: Record<string, string> = {
   high: "text-red-600 dark:text-red-400",
 };
 
+function formatCompactNumber(value: number, decimals = 2): string {
+  if (!Number.isFinite(value) || value <= 0) return "—";
+  try {
+    return new Intl.NumberFormat(undefined, {
+      notation: "compact",
+      compactDisplay: "short",
+      maximumFractionDigits: decimals,
+    }).format(value);
+  } catch {
+    // Fallback if Intl compact is not available for some reason.
+    if (value >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(1)}B`;
+    if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
+    if (value >= 1_000) return `${(value / 1_000).toFixed(1)}K`;
+    return value.toFixed(decimals);
+  }
+}
+
 function HealthIndicator({ label, value, good }: { label: string; value: string; good?: boolean }) {
   return (
     <div className="rounded-lg border border-border bg-muted/20 px-3 py-2">
       <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
       <p
         className={cn(
-          "mt-0.5 text-sm font-semibold",
+          "mt-0.5 truncate text-sm font-semibold tabular-nums",
           good === true && "text-green-600 dark:text-green-400",
           good === false && "text-amber-600"
         )}
+        title={value}
       >
         {value}
       </p>
@@ -141,12 +159,12 @@ export function TokenHealthPanel({
           <HealthIndicator label="Holders" value={String(health.holders)} />
           <HealthIndicator
             label="Liquidity"
-            value={health.liquidity > 0 ? health.liquidity.toFixed(2) : "—"}
+            value={formatCompactNumber(health.liquidity, 2)}
             good={health.liquidity > 0}
           />
           <HealthIndicator
             label="Volume (24h)"
-            value={health.volume24h > 0 ? health.volume24h.toFixed(2) : "—"}
+            value={formatCompactNumber(health.volume24h, 2)}
           />
           <HealthIndicator
             label="Ownership"
