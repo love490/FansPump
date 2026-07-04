@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useSignMessage } from "wagmi";
+import { useAccount, useSignMessage } from "wagmi";
 import { apiUrl } from "@/lib/api";
+import { formatContractError } from "@/lib/contract-errors";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -24,6 +25,7 @@ export function QuizRunner({
   onClaimReady,
   onProgressChange,
 }: QuizRunnerProps) {
+  const { isConnected } = useAccount();
   const { signMessageAsync } = useSignMessage();
   const [quiz, setQuiz] = useState<PublicQuiz | null>(null);
   const [phase, setPhase] = useState<Phase>("loading");
@@ -72,6 +74,12 @@ export function QuizRunner({
   const isLastQuestion = totalQuestions > 0 && currentIndex >= totalQuestions - 1;
 
   async function signAction(action: string) {
+    if (!walletAddress) {
+      throw new Error("Connect your wallet to submit the quiz");
+    }
+    if (!isConnected) {
+      throw new Error("Connect your wallet to submit the quiz");
+    }
     const prefix = process.env.NEXT_PUBLIC_CREATOR_ACTION_MESSAGE_PREFIX ?? "FansPump Creator Action";
     const message = `${prefix}\n${action}\nWallet: ${walletAddress.toLowerCase()}\nTime: ${Date.now()}`;
     const signature = await signMessageAsync({ message });
@@ -97,7 +105,7 @@ export function QuizRunner({
         onClaimReady?.();
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Quiz submission failed");
+      setError(formatContractError(e instanceof Error ? e.message : "Quiz submission failed"));
     } finally {
       setBusy(false);
     }
@@ -262,7 +270,7 @@ export function QuizRunner({
             disabled={!selected || busy}
             onClick={() => void handleSubmit()}
           >
-            {busy ? "Checking…" : "Finish quiz"}
+            {busy ? "Checking…" : "Submit"}
           </Button>
         )}
       </div>

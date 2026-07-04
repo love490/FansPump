@@ -1,13 +1,12 @@
 "use client";
 
-import { apiUrl } from "@/lib/api";
-
 import { useCallback, useEffect, useState } from "react";
 import type { Address } from "viem";
 import { usePublicClient } from "wagmi";
-import { erc20Abi } from "@/lib/swap/abis";
+import { apiUrl } from "@/lib/api";
 import { getActiveChainId } from "@/lib/chain-config/opn";
 import { getPopularRegistryTokens } from "@/lib/token-registry";
+import { erc20Abi } from "@/lib/swap/abis";
 
 export type WalletLiquidityToken = {
   contractAddress: string;
@@ -19,18 +18,115 @@ export type WalletLiquidityToken = {
   isCreator: boolean;
 };
 
-type ApiToken = {
+type WalletTokenApiRow = {
   contractAddress: string;
   name: string;
   symbol: string;
   logoUrl?: string | null;
+  balance: string;
+  decimals: number;
+  isCreator?: boolean;
 };
 
-async function fetchTokenList(url: string): Promise<ApiToken[]> {
-  const res = await fetch(apiUrl(url));
+async function fetchWalletTokensFromApi(wallet: string): Promise<WalletLiquidityToken[]> {
+  const chainId = getActiveChainId();
+  const res = await fetch(
+    apiUrl(`/api/wallet/${encodeURIComponent(wallet)}/tokens?chainId=${chainId}`),
+    { cache: "no-store" }
+  );
   if (!res.ok) return [];
-  const data = (await res.json()) as { tokens?: ApiToken[] };
-  return data.tokens ?? [];
+  const data = (await res.json()) as { tokens?: WalletTokenApiRow[] };
+  return (data.tokens ?? [])
+    .filter((t) => t.contractAddress?.startsWith("0x"))
+    .map((t) => ({
+      contractAddress: t.contractAddress.toLowerCase(),
+      name: t.name || t.symbol || "Token",
+      symbol: t.symbol || "TKN",
+      logoUrl: t.logoUrl,
+      balance: (() => {
+        try {
+          return BigInt(t.balance ?? "0");
+        } catch {
+          return 0n;
+        }
+      })(),
+      decimals: t.decimals ?? 18,
+      isCreator: Boolean(t.isCreator),
+    }))
+    .filter((t) => t.balance > 0n);
+}
+
+async function fetchRegistryBalances(
+  wallet: Address,
+  client: NonNullable<ReturnType<typeof usePublicClient>>
+): Promise<WalletLiquidityToken[]> {
+  const registry = getPopularRegistryTokens().filter(
+    (t) => !t.isNative && t.contractAddress.startsWith("0x")
+  );
+  if (registry.length === 0) return [];
+
+  const reads = registry.flatMap((t) => {
+    const addr = t.contractAddress as Address;
+    return [
+      { address: addr, abi: erc20Abi, functionName: "balanceOf" as const, args: [wallet] as const },
+      { address: addr, abi: erc20Abi, functionName: "decimals" as const },
+    ];
+  });
+
+  const results = await client.multicall({ contracts: reads, allowFailure: true });
+  const rows: WalletLiquidityToken[] = [];
+
+  for (let i = 0; i < registry.length; i++) {
+    const meta = registry[i];
+    const balanceResult = results[i * 2];
+    const decimalsResult = results[i * 2 + 1];
+    const balance =
+      balanceResult.status === "success" && typeof balanceResult.result === "bigint"
+        ? balanceResult.result
+        : 0n;
+    if (balance <= 0n) continue;
+    const decimals =
+      decimalsResult.status === "success" && typeof decimalsResult.result === "number"
+        ? Number(decimalsResult.result)
+        : meta.decimals;
+
+    rows.push({
+      contractAddress: meta.contractAddress.toLowerCase(),
+      name: meta.name,
+      symbol: meta.symbol,
+      logoUrl: meta.logoUrl,
+      balance,
+      decimals,
+      isCreator: false,
+    });
+  }
+
+  return rows;
+}
+
+function mergeWalletTokens(rows: WalletLiquidityToken[]): WalletLiquidityToken[] {
+  const merged = new Map<string, WalletLiquidityToken>();
+  for (const row of rows) {
+    const key = row.contractAddress.toLowerCase();
+    const existing = merged.get(key);
+    if (!existing) {
+      merged.set(key, row);
+      continue;
+    }
+    merged.set(key, {
+      ...existing,
+      name: existing.name || row.name,
+      symbol: existing.symbol || row.symbol,
+      logoUrl: existing.logoUrl ?? row.logoUrl,
+      balance: existing.balance > row.balance ? existing.balance : row.balance,
+      isCreator: existing.isCreator || row.isCreator,
+    });
+  }
+
+  return [...merged.values()].sort((a, b) => {
+    if (a.balance !== b.balance) return a.balance > b.balance ? -1 : 1;
+    return a.symbol.localeCompare(b.symbol);
+  });
 }
 
 export function useWalletLiquidityTokens(walletAddress: string | undefined) {
@@ -50,108 +146,13 @@ export function useWalletLiquidityTokens(walletAddress: string | undefined) {
     setError(null);
 
     try {
-      const chainId = getActiveChainId();
-      const creator = walletAddress.toLowerCase();
-
-      const [created, allTokens, registry, recent, trending] = await Promise.all([
-        fetchTokenList(`/api/tokens?creator=${encodeURIComponent(creator)}&limit=200&chainId=${chainId}`),
-        fetchTokenList(`/api/tokens?section=all&limit=500&chainId=${chainId}`),
-        fetchTokenList(`/api/tokens?section=registry&chainId=${chainId}`),
-        fetchTokenList(`/api/tokens?section=new&limit=150&chainId=${chainId}`),
-        fetchTokenList(`/api/tokens?section=trending&limit=150&chainId=${chainId}`),
+      const wallet = walletAddress as Address;
+      const [fromApi, fromRegistry] = await Promise.all([
+        fetchWalletTokensFromApi(walletAddress),
+        fetchRegistryBalances(wallet, client),
       ]);
 
-      const creatorSet = new Set(created.map((t) => t.contractAddress.toLowerCase()));
-      const merged = new Map<string, ApiToken & { isCreator: boolean }>();
-
-      for (const t of [...created, ...allTokens, ...registry, ...recent, ...trending]) {
-        const addr = t.contractAddress.toLowerCase();
-        if (!addr.startsWith("0x")) continue;
-        const existing = merged.get(addr);
-        merged.set(addr, {
-          ...t,
-          contractAddress: addr,
-          name: t.name || existing?.name || "Unknown",
-          symbol: t.symbol || existing?.symbol || "???",
-          logoUrl: t.logoUrl ?? existing?.logoUrl,
-          isCreator: creatorSet.has(addr) || existing?.isCreator === true,
-        });
-      }
-
-      for (const reg of getPopularRegistryTokens()) {
-        if (reg.isNative || !reg.contractAddress.startsWith("0x")) continue;
-        const addr = reg.contractAddress.toLowerCase();
-        if (merged.has(addr)) continue;
-        merged.set(addr, {
-          contractAddress: addr,
-          name: reg.name,
-          symbol: reg.symbol,
-          logoUrl: reg.logoUrl,
-          isCreator: creatorSet.has(addr),
-        });
-      }
-
-      const candidates = [...merged.values()];
-      if (candidates.length === 0) {
-        setTokens([]);
-        return;
-      }
-
-      const reads = candidates.flatMap((t) => {
-        const addr = t.contractAddress as Address;
-        return [
-          {
-            address: addr,
-            abi: erc20Abi,
-            functionName: "balanceOf" as const,
-            args: [walletAddress as Address],
-          },
-          {
-            address: addr,
-            abi: erc20Abi,
-            functionName: "decimals" as const,
-          },
-        ];
-      });
-
-      const results = await client.multicall({ contracts: reads, allowFailure: true });
-
-      const enriched: WalletLiquidityToken[] = [];
-
-      for (let i = 0; i < candidates.length; i++) {
-        const meta = candidates[i];
-        const balanceResult = results[i * 2];
-        const decimalsResult = results[i * 2 + 1];
-
-        const balance =
-          balanceResult.status === "success" && typeof balanceResult.result === "bigint"
-            ? balanceResult.result
-            : 0n;
-        const decimals =
-          decimalsResult.status === "success" && typeof decimalsResult.result === "number"
-            ? Number(decimalsResult.result)
-            : 18;
-
-        if (balance > 0n || meta.isCreator) {
-          enriched.push({
-            contractAddress: meta.contractAddress,
-            name: meta.name,
-            symbol: meta.symbol,
-            logoUrl: meta.logoUrl,
-            balance,
-            decimals,
-            isCreator: meta.isCreator,
-          });
-        }
-      }
-
-      enriched.sort((a, b) => {
-        if (a.isCreator !== b.isCreator) return a.isCreator ? -1 : 1;
-        if (a.balance !== b.balance) return a.balance > b.balance ? -1 : 1;
-        return a.symbol.localeCompare(b.symbol);
-      });
-
-      setTokens(enriched);
+      setTokens(mergeWalletTokens([...fromApi, ...fromRegistry]));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load wallet tokens");
       setTokens([]);

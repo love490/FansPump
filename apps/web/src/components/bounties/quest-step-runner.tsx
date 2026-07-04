@@ -16,13 +16,14 @@ import {
 } from "@/lib/bounty-step-progress";
 import type { BountyListItem, BountyParticipationView } from "@/lib/bounties";
 import { QuizRunner } from "@/components/quiz/quiz-runner";
-import { cn } from "@/lib/utils";
+import { formatContractError } from "@/lib/contract-errors";
 
 type QuestStepRunnerProps = {
   bounty: BountyListItem;
   questId: string;
   participation: BountyParticipationView;
   walletAddress: string;
+  walletConnected?: boolean;
   signAction: (action: string) => Promise<{
     walletAddress: string;
     message: string;
@@ -38,6 +39,7 @@ export function QuestStepRunner({
   questId,
   participation,
   walletAddress,
+  walletConnected = true,
   signAction,
   onUpdate,
   onRefresh,
@@ -79,7 +81,7 @@ export function QuestStepRunner({
       if (data.participation) onUpdate(data.participation);
       return data;
     } catch (e) {
-      onError(e instanceof Error ? e.message : "Request failed");
+      onError(formatContractError(e instanceof Error ? e.message : "Request failed"));
       return null;
     } finally {
       setBusy(null);
@@ -152,13 +154,16 @@ export function QuestStepRunner({
           ) : (
             <Button
               type="button"
-              disabled={!stepsDone || busy === "/claim-xp"}
+              disabled={!stepsDone || busy === "/claim-xp" || !walletConnected}
               onClick={() => void handleClaimXp()}
             >
               {busy === "/claim-xp" ? "Claiming…" : `Claim ${xpTotal} XP`}
             </Button>
           )}
         </div>
+        {!walletConnected && !xpClaimed && (
+          <p className="mt-2 text-xs text-amber-600">Connect your wallet to claim XP.</p>
+        )}
       </div>
     </div>
   );

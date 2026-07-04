@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useAccount, usePublicClient, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
 import { encodeFunctionData } from "viem";
 import { buildSwapTransaction, type SwapQuoteResult } from "@/lib/swap/routerAdapter";
+import { formatContractError } from "@/lib/contract-errors";
 import type { SwapMode } from "@/lib/swap/constants";
 import { opnChain } from "@/lib/wagmi";
 
@@ -52,7 +53,7 @@ export function useSwapExecute() {
         setStatus("confirming");
       } catch (e) {
         setStatus("failed");
-        setError(e instanceof Error ? e.message : "Swap failed");
+        setError(formatContractError(e instanceof Error ? e.message : "Swap failed"));
         setSubmitted(false);
         throw e;
       }

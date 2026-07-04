@@ -7,6 +7,7 @@ import type { Address, PublicClient } from "viem";
 import { usePublicClient } from "wagmi";
 import { uniswapV2PairAbi } from "@/lib/liquidity/abis";
 import { getLiquidityPair, LIQUIDITY_PAIR_OPTIONS, type LiquidityPairId } from "@/lib/liquidity/pair-tokens";
+import { dedupeLiquidityPositions, dexLiquidityPairId } from "@/lib/liquidity/normalize-pair";
 import { readRouterWeth } from "@/lib/liquidity/router-weth";
 import { resolveDexFactory } from "@/lib/liquidity/dex-factory";
 import { findPairAddress, quoteCandidatesForPairId } from "@/lib/liquidity/pair-resolve";
@@ -59,12 +60,13 @@ async function readLpFromPair(
 
   if (balance === 0n) return null;
 
-  const pairMeta = getLiquidityPair(pairId);
+  const effectivePairId = dexLiquidityPairId(pairId);
+  const pairMeta = getLiquidityPair(effectivePairId);
   saveLiquidityPosition({
     walletAddress: wallet.toLowerCase(),
     tokenAddress: tokenAddress.toLowerCase(),
     tokenSymbol,
-    pairId,
+    pairId: effectivePairId,
     pairSymbol: pairMeta.symbol,
     lpToken: pair.toLowerCase(),
     addedAt: new Date().toISOString(),
@@ -73,7 +75,7 @@ async function readLpFromPair(
   return {
     tokenAddress: tokenAddress.toLowerCase(),
     tokenSymbol,
-    pairId,
+    pairId: effectivePairId,
     pairLabel: pairMeta.symbol,
     lpToken: pair.toLowerCase(),
     lpBalance: balance,
@@ -161,11 +163,13 @@ function storedToPendingPosition(stored: {
   pairSymbol: string;
   lpToken?: string;
 }): MyLiquidityPosition {
+  const effectivePairId = dexLiquidityPairId(stored.pairId);
+  const pairMeta = getLiquidityPair(effectivePairId);
   return {
     tokenAddress: stored.tokenAddress.toLowerCase(),
     tokenSymbol: stored.tokenSymbol,
-    pairId: stored.pairId,
-    pairLabel: stored.pairSymbol,
+    pairId: effectivePairId,
+    pairLabel: pairMeta.symbol,
     lpToken: stored.lpToken?.toLowerCase() ?? "",
     lpBalance: 0n,
     lpDecimals: 18,
@@ -243,8 +247,12 @@ export function useMyLiquidityPositions(walletAddress: string | undefined) {
         }
       }
       for (const [addr, meta] of candidates) {
-        const pairIds: LiquidityPairId[] =
-          meta.pairIds.size > 0 ? [...meta.pairIds] : LIQUIDITY_PAIR_OPTIONS.map((p) => p.id);
+        const rawPairIds: LiquidityPairId[] =
+          meta.pairIds.size > 0
+            ? [...meta.pairIds]
+            : LIQUIDITY_PAIR_OPTIONS.map((p) => p.id).filter((id) => id !== "OPN");
+
+        const pairIds = [...new Set(rawPairIds.map((id) => dexLiquidityPairId(id)))];
 
         for (const pairId of pairIds) {
           const quotes = quoteCandidatesForPairId(
@@ -263,7 +271,8 @@ export function useMyLiquidityPositions(walletAddress: string | undefined) {
               meta.symbol,
               pairId,
               quotes,
-              meta.lpTokens.get(pairId)
+              meta.lpTokens.get(pairId) ??
+                (pairId === "WOPN" ? meta.lpTokens.get("OPN") : undefined)
             )
           );
         }
@@ -277,24 +286,26 @@ export function useMyLiquidityPositions(walletAddress: string | undefined) {
         }))),
       ]);
 
-      const merged = new Map<string, MyLiquidityPosition>();
-      for (const pos of onChainResults) {
-        if (!pos) continue;
-        merged.set(`${pos.tokenAddress}:${pos.pairId}`, pos);
-      }
-      for (const pos of lockedPositions) {
-        const key = `${pos.tokenAddress}:lock:${pos.lpToken}`;
-        merged.set(key, pos);
-      }
-
-      for (const stored of storedEntries) {
-        const key = `${stored.tokenAddress.toLowerCase()}:${stored.pairId}`;
-        if (!merged.has(key) && !merged.has(`${stored.tokenAddress.toLowerCase()}:lock:${stored.lpToken ?? ""}`)) {
-          merged.set(key, storedToPendingPosition(stored));
-        }
-      }
-
-      setPositions([...merged.values()].sort((a, b) => a.tokenSymbol.localeCompare(b.tokenSymbol)));
+      setPositions(
+        dedupeLiquidityPositions([
+          ...onChainResults.filter((p): p is MyLiquidityPosition => p !== null),
+          ...lockedPositions,
+          ...storedEntries
+            .filter((stored) => {
+              const key = `${stored.tokenAddress.toLowerCase()}:${dexLiquidityPairId(stored.pairId)}`;
+              const hasOnChain = onChainResults.some(
+                (p) =>
+                  p &&
+                  `${p.tokenAddress}:${p.pairId}` === key
+              );
+              const hasLock = lockedPositions.some(
+                (p) => p.lpToken && p.lpToken === stored.lpToken?.toLowerCase()
+              );
+              return !hasOnChain && !hasLock;
+            })
+            .map(storedToPendingPosition),
+        ])
+      );
     } catch (e) {
       console.error("[my-liquidity] Failed to load positions:", e);
       const fallback = loadStoredLiquidityPositions(walletAddress.toLowerCase()).map(storedToPendingPosition);

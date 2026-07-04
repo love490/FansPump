@@ -16,6 +16,7 @@ import {
   registryToSwapToken,
   searchRegistryTokens,
 } from "@/lib/token-registry";
+import { fetchWalletTokens } from "@/lib/wallet-tokens-api";
 import { erc20Abi } from "@/lib/swap/abis";
 import { SwapDropdownPortal } from "@/components/swap/swap-dropdown-portal";
 import { TokenLogo } from "@/components/tokens/token-logo";
@@ -133,34 +134,70 @@ export function SwapTokenPicker({
 
   useEffect(() => {
     if (!open) return;
-    if (allTokens.length > 0) return;
+    if (allTokens.length > 0 && !address) return;
 
     setListLoading(true);
     const popular = getPopularRegistryTokens()
       .map(registryToSwapToken)
       .filter((t): t is SwapToken => t !== null);
 
-    fetch(apiUrl("/api/tokens?section=new&limit=100"))
+    const catalogPromise = fetch(apiUrl("/api/tokens?section=new&limit=100"))
       .then((r) => r.json())
-      .then((d) => {
-        const fromApi = (d.tokens ?? []) as SwapToken[];
-        setAllTokens(mergeSwapTokenLists(popular, fromApi));
+      .then((d) => (d.tokens ?? []) as SwapToken[])
+      .catch(() => [] as SwapToken[]);
+
+    const walletPromise =
+      address && isValidTokenAddress(address)
+        ? fetchWalletTokens(address).catch(() => [])
+        : Promise.resolve([]);
+
+    Promise.all([catalogPromise, walletPromise])
+      .then(([fromApi, walletRows]) => {
+        const walletTokens: SwapToken[] = walletRows.map((t) => ({
+          contractAddress: t.contractAddress,
+          name: t.name,
+          symbol: t.symbol,
+          logoUrl: t.logoUrl,
+        }));
+        setAllTokens(mergeSwapTokenLists(walletTokens, mergeSwapTokenLists(popular, fromApi)));
+
+        if (walletRows.length > 0) {
+          setBalances((prev) => {
+            const next = { ...prev };
+            for (const row of walletRows) {
+              try {
+                next[row.contractAddress.toLowerCase()] = BigInt(row.balance);
+              } catch {
+                // skip invalid balance
+              }
+            }
+            return next;
+          });
+        }
       })
       .catch(() => setAllTokens(popular))
       .finally(() => setListLoading(false));
-  }, [open, allTokens.length]);
+  }, [open, allTokens.length, address]);
 
   const displayedTokens = useMemo(() => {
     const q = query.trim().toLowerCase();
     const base = searchResults ?? allTokens;
-    if (!q || searchResults) return base;
+    if (!q || searchResults) {
+      if (!address || searchResults) return base;
+      return [...base].sort((a, b) => {
+        const balA = balances[a.contractAddress.toLowerCase()] ?? 0n;
+        const balB = balances[b.contractAddress.toLowerCase()] ?? 0n;
+        if (balA !== balB) return balB > balA ? 1 : -1;
+        return a.symbol.localeCompare(b.symbol);
+      });
+    }
     return base.filter(
       (t) =>
         t.name.toLowerCase().includes(q) ||
         t.symbol.toLowerCase().includes(q) ||
         t.contractAddress.toLowerCase().includes(q)
     );
-  }, [allTokens, searchResults, query]);
+  }, [allTokens, searchResults, query, address, balances]);
 
   useEffect(() => {
     if (!open) {
@@ -243,6 +280,7 @@ export function SwapTokenPicker({
   function close() {
     setOpen(false);
     setQuery("");
+    setAllTokens([]);
   }
 
   function pickToken(token: SwapToken) {

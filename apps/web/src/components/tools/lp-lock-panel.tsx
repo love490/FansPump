@@ -20,7 +20,7 @@ import { formatLiquidityAmountFromWei, formatTokenLpPositionLabel } from "@/lib/
 import { liquidityUrl } from "@/lib/navigation/liquidity-routes";
 import { apiUrl } from "@/lib/api";
 import { cn, shortenAddress } from "@/lib/utils";
-import { isValidTokenAddress } from "@/lib/swap/routerAdapter";
+import { formatContractError } from "@/lib/contract-errors";
 
 const LOCK_PRESETS = [
   { label: "30 days", days: 30 },
@@ -238,7 +238,7 @@ export function LpLockPanel() {
       setLockAmount("");
       void refresh();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Lock failed");
+      setError(formatContractError(e instanceof Error ? e.message : "Lock failed"));
       setStatus(null);
     } finally {
       setBusy(false);

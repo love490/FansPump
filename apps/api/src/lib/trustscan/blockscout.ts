@@ -44,3 +44,8 @@ export async function getDeployedContracts(walletAddress: string) {
     `/api/v2/addresses/${walletAddress.toLowerCase()}/transactions?filter=from&type=contract_creation&limit=50`
   );
 }
+
+export async function getAddressTokens(walletAddress: string, query = "") {
+  const suffix = query ? `?${query}` : "";
+  return get(`/api/v2/addresses/${walletAddress.toLowerCase()}/tokens${suffix}`);
+}

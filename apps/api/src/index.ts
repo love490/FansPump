@@ -32,6 +32,7 @@ import creatorRouter from "./routes/creator";
 import cronRouter from "./routes/cron";
 import statsRouter from "./routes/stats";
 import authRouter from "./routes/auth";
+import walletRouter from "./routes/wallet";
 import verificationRouter from "./routes/verification";
 import v2Router from "./routes/v2";
 
@@ -73,6 +74,7 @@ app.get("/health", async (_req, res) => {
 app.use(publicRateLimit);
 
 app.use("/api/stats", statsRouter);
+app.use("/api/wallet", walletRouter);
 app.use("/api/auth", authRouter);
 app.use("/api/verification", verificationRouter);
 app.use("/api/v2", v2Router);

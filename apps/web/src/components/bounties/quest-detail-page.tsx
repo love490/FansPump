@@ -4,6 +4,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useAccount, useSignMessage } from "wagmi";
 import { apiUrl } from "@/lib/api";
+import { formatContractError } from "@/lib/contract-errors";
+import { useActiveWallet } from "@/hooks/useActiveWallet";
 import {
   formatBountyReward,
   formatBountyParticipantCount,
@@ -64,7 +66,8 @@ function ExpandableDescription({ text }: { text: string }) {
 }
 
 export function QuestDetailPage({ questId }: { questId: string }) {
-  const { address: connectedAddress } = useAccount();
+  const { address: connectedAddress, isConnected } = useAccount();
+  const { isWalletConnected } = useActiveWallet();
   const { signMessageAsync } = useSignMessage();
   const { isSignedIn, signInOpen, setSignInOpen, requestSignIn } = useRequireSignIn();
   const [bounty, setBounty] = useState<BountyListItem | null>(null);
@@ -114,7 +117,7 @@ export function QuestDetailPage({ questId }: { questId: string }) {
       requestSignIn();
       throw new Error("Sign in to complete task");
     }
-    if (!connectedAddress) {
+    if (!connectedAddress || !isConnected) {
       throw new Error("Connect your wallet to complete quest steps");
     }
     const prefix = process.env.NEXT_PUBLIC_CREATOR_ACTION_MESSAGE_PREFIX ?? "FansPump Creator Action";
@@ -144,7 +147,7 @@ export function QuestDetailPage({ questId }: { questId: string }) {
       if (!res.ok) throw new Error(data.error ?? "Submission failed");
       setParticipation(data.participation);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Submission failed");
+      setError(formatContractError(e instanceof Error ? e.message : "Submission failed"));
     } finally {
       setBusy(null);
     }
@@ -164,7 +167,7 @@ export function QuestDetailPage({ questId }: { questId: string }) {
       if (!res.ok) throw new Error(data.error ?? "Claim failed");
       setParticipation(data.participation);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Claim failed");
+      setError(formatContractError(e instanceof Error ? e.message : "Claim failed"));
     } finally {
       setBusy(null);
     }
@@ -264,11 +267,23 @@ export function QuestDetailPage({ questId }: { questId: string }) {
                   </Button>
                 </div>
               )}
+              {showSteps && isSignedIn && !isWalletConnected && (
+                <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-4 text-sm">
+                  <p className="font-semibold text-amber-800 dark:text-amber-200">
+                    Connect your wallet
+                  </p>
+                  <p className="mt-1 text-muted-foreground">
+                    Your account is signed in, but your wallet is not connected. Connect it from the
+                    sidebar to claim XP and sign quest actions.
+                  </p>
+                </div>
+              )}
               <QuestStepRunner
                 bounty={bounty}
                 questId={questId}
                 participation={stepParticipation}
                 walletAddress={connectedAddress ?? ""}
+                walletConnected={isWalletConnected}
                 signAction={signAction}
                 onUpdate={setParticipation}
                 onRefresh={() => void load()}

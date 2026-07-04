@@ -2,6 +2,10 @@
 export function formatContractError(raw: string): string {
   const lower = raw.toLowerCase();
 
+  if (lower.includes("connector not connected") || lower.includes("connectpor not connected")) {
+    return "Wallet disconnected. Connect your wallet and try again.";
+  }
+
   if (lower.includes("insufficient balance")) {
     const feeMatch = raw.match(/value:\s*([\d.]+)\s*OPN/i);
     const fee = feeMatch?.[1];
@@ -10,8 +14,13 @@ export function formatContractError(raw: string): string {
       : "Not enough OPN in your wallet for the creation fee and gas. Top up and try again.";
   }
 
-  if (lower.includes("user rejected") || lower.includes("rejected the request")) {
-    return "Transaction cancelled in your wallet.";
+  if (
+    lower.includes("user rejected") ||
+    lower.includes("rejected the request") ||
+    lower.includes("user denied") ||
+    lower.includes("request rejected")
+  ) {
+    return "Transaction rejected in wallet.";
   }
 
   if (lower.includes("would fail on-chain") || lower.includes("execution reverted")) {

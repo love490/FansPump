@@ -29,6 +29,7 @@ import {
 import { isValidTokenAddress } from "@/lib/swap/routerAdapter";
 import { erc20Abi } from "@/lib/swap/abis";
 import { saveLiquidityPosition } from "@/lib/liquidity/my-liquidity-storage";
+import { dexLiquidityPairId } from "@/lib/liquidity/normalize-pair";
 import { resolveDexFactory } from "@/lib/liquidity/dex-factory";
 import { findPairAddress, quoteCandidatesForPairId } from "@/lib/liquidity/pair-resolve";
 import { readRouterWeth } from "@/lib/liquidity/router-weth";
@@ -36,7 +37,7 @@ import { shortenAddress } from "@/lib/utils";
 import { opnChainConfig } from "@/lib/chain-config/opn";
 import { ensureWopnBalance, readWopnBalance } from "@/lib/liquidity/wrap-opn-tx";
 import { formatLiquidityAmountFromWei } from "@/lib/liquidity/format-amount";
-import { LiquidityPairPicker } from "@/components/liquidity/liquidity-pair-picker";
+import { formatContractError } from "@/lib/contract-errors";
 
 type AddLiquidityPanelProps = {
   initialToken?: string;
@@ -69,9 +70,9 @@ function formatBalance(amount: bigint, decimals: number): string {
 }
 
 function parseError(e: unknown): string {
-  if (e instanceof Error) return e.message;
+  if (e instanceof Error) return formatContractError(e.message);
   if (typeof e === "object" && e && "shortMessage" in e && typeof (e as { shortMessage: string }).shortMessage === "string") {
-    return (e as { shortMessage: string }).shortMessage;
+    return formatContractError((e as { shortMessage: string }).shortMessage);
   }
   return "Transaction failed";
 }
@@ -421,13 +422,15 @@ export function AddLiquidityPanel({
       );
       setLastTxHash(addHash);
 
-      console.log("[liquidity] Transaction submitted, saving positionâ€¦", addHash);
+      console.log("[liquidity] Transaction submitted, saving position…", addHash);
+      const storedPairId = dexLiquidityPairId(pairId);
+      const storedPair = getLiquidityPair(storedPairId);
       saveLiquidityPosition({
         walletAddress: address.toLowerCase(),
         tokenAddress: tokenAddress.toLowerCase(),
         tokenSymbol,
-        pairId,
-        pairSymbol: pair.symbol,
+        pairId: storedPairId,
+        pairSymbol: storedPair.symbol,
         txHash: addHash,
         addedAt: new Date().toISOString(),
       });
@@ -435,14 +438,14 @@ export function AddLiquidityPanel({
 
       try {
         await waitForTx(addHash);
-        setStatus(`Liquidity added (${tokenSymbol}/${pair.symbol}).`);
+        setStatus(`Liquidity added (${tokenSymbol}/${storedPair.symbol}).`);
         console.log("[liquidity] Transaction confirmed on-chain");
         if (client) {
           try {
             const factory = await resolveDexFactory(client);
             const weth = await readRouterWeth(client, DEX_ROUTER_ADDRESS);
             const quotes = quoteCandidatesForPairId(
-              pairId,
+              storedPairId,
               weth,
               opnChainConfig.contracts.wopnExplicit,
               opnChainConfig.contracts.usdt,
@@ -459,8 +462,8 @@ export function AddLiquidityPanel({
                 walletAddress: address.toLowerCase(),
                 tokenAddress: tokenAddress.toLowerCase(),
                 tokenSymbol,
-                pairId,
-                pairSymbol: pair.symbol,
+                pairId: storedPairId,
+                pairSymbol: storedPair.symbol,
                 lpToken: pairAddr.toLowerCase(),
                 txHash: addHash,
                 addedAt: new Date().toISOString(),

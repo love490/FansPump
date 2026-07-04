@@ -1,15 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
 import type { Address, PublicClient } from "viem";
-import { formatUnits } from "viem";
 import { useBalance, usePublicClient } from "wagmi";
 import { useActiveWallet } from "@/hooks/useActiveWallet";
 import { erc20Abi } from "@/lib/swap/abis";
 import { getRouterAddress } from "@/lib/swap/routerAdapter";
 import { getBuiltinPayTokens, type PayToken } from "@/lib/swap/payment-tokens";
-import { getActiveChainId, opnChainConfig } from "@/lib/chain-config/opn";
+import { opnChainConfig } from "@/lib/chain-config/opn";
 import { getRegistryTokenByAddress } from "@/lib/token-registry";
 import { useWalletLiquidityTokens } from "@/hooks/liquidity/useWalletLiquidityTokens";
 import { useMyLiquidityPositions } from "@/hooks/liquidity/useMyLiquidityPositions";
@@ -25,8 +23,6 @@ import {
   fetchTokenUsdValue,
   quoteLpTokenUsd,
 } from "@/lib/dashboard/token-quotes";
-import { fetchMyTokens } from "@/lib/token-register";
-import { tokenQueryKeys } from "@/lib/tokens-api";
 
 async function readPayTokenBalance(
   client: PublicClient,
@@ -44,15 +40,8 @@ async function readPayTokenBalance(
 
 export function useWalletPortfolioBalance() {
   const { walletAddress } = useActiveWallet();
-  const chainId = getActiveChainId();
   const client = usePublicClient();
   const { data: nativeBalance, isLoading: nativeLoading } = useBalance({ address: walletAddress });
-  const { data: createdTokens = [], isLoading: createdLoading, refetch: refetchCreatedTokens } = useQuery({
-    queryKey: tokenQueryKeys.myTokens(walletAddress ?? "", chainId),
-    queryFn: () => fetchMyTokens(walletAddress!),
-    enabled: Boolean(walletAddress),
-    staleTime: 30_000,
-  });
   const {
     tokens: walletTokens,
     loading: walletTokensLoading,
@@ -216,7 +205,7 @@ export function useWalletPortfolioBalance() {
     const seenAddresses = new Set(rows.map((r) => r.contractAddress?.toLowerCase()).filter(Boolean));
 
     for (const token of walletTokens) {
-      if (token.balance <= 0n && !token.isCreator) continue;
+      if (token.balance <= 0n) continue;
       const addr = token.contractAddress.toLowerCase();
       if (payTokens.some((p) => p.address?.toLowerCase() === addr)) continue;
       if (seenAddresses.has(addr)) continue;
@@ -274,22 +263,6 @@ export function useWalletPortfolioBalance() {
       seenAddresses.add(lpKey);
     }
 
-    for (const token of createdTokens) {
-      const addr = token.contractAddress.toLowerCase();
-      if (!addr.startsWith("0x") || seenAddresses.has(addr)) continue;
-      rows.push({
-        symbol: token.symbol,
-        name: token.name,
-        amount: 0,
-        opnValue: 0,
-        usdValue: 0,
-        contractAddress: addr,
-        logoUrl: token.logoUrl,
-        isCreator: true,
-      });
-      seenAddresses.add(addr);
-    }
-
     return rows;
   }, [
     nativeBalance,
@@ -301,7 +274,6 @@ export function useWalletPortfolioBalance() {
     tokenUsdMap,
     lpUsdMap,
     opnUsdRate,
-    createdTokens,
   ]);
 
   const totals = useMemo(() => sumPortfolio(assets), [assets]);
@@ -313,8 +285,7 @@ export function useWalletPortfolioBalance() {
     lpLoading ||
     baseLpLoading ||
     rateLoading ||
-    quotesLoading ||
-    createdLoading;
+    quotesLoading;
 
   const refresh = useCallback(async () => {
     await Promise.all([
@@ -322,9 +293,8 @@ export function useWalletPortfolioBalance() {
       refreshWalletTokens(),
       refreshLpPositions(),
       refreshBasePoolLps(),
-      refetchCreatedTokens(),
     ]);
-  }, [refreshPayBalances, refreshWalletTokens, refreshLpPositions, refreshBasePoolLps, refetchCreatedTokens]);
+  }, [refreshPayBalances, refreshWalletTokens, refreshLpPositions, refreshBasePoolLps]);
 
   return {
     assets,

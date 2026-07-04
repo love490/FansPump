@@ -60,7 +60,7 @@ export function DashboardMyTokensTab() {
 
   const rows = useMemo(() => {
     return assets
-      .filter((a) => a.amount > 0 || a.isCreator)
+      .filter((a) => a.amount > 0)
       .map((asset) => {
         const unitPriceUsd =
           asset.amount > 0 && asset.usdValue > 0 ? asset.usdValue / asset.amount : 0;
@@ -94,7 +94,9 @@ export function DashboardMyTokensTab() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3">
-        <p className="text-sm text-muted-foreground">Wallet balances and LP positions.</p>
+        <p className="text-sm text-muted-foreground">
+          All tokens in your wallet on OPN Chain — including tokens not created on FansPump.
+        </p>
         <Button
           type="button"
           variant="outline"

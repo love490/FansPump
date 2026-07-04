@@ -34,7 +34,7 @@ import { formatLiquidityAmountFromWei, formatTokenLpPositionLabel } from "@/lib/
 import { liquidityUrl } from "@/lib/navigation/liquidity-routes";
 import { apiUrl } from "@/lib/api";
 import { cn, shortenAddress } from "@/lib/utils";
-import { isValidTokenAddress } from "@/lib/swap/routerAdapter";
+import { formatContractError } from "@/lib/contract-errors";
 
 type BurnTarget = {
   tokenAddress: string;
@@ -219,7 +219,7 @@ export function LpBurnPanel() {
       setBurnAmount("");
       void refresh();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Burn failed");
+      setError(formatContractError(e instanceof Error ? e.message : "Burn failed"));
       setStatus(null);
     } finally {
       setBusy(false);
