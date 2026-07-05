@@ -17,6 +17,7 @@ import {
 import type { BountyListItem, BountyParticipationView } from "@/lib/bounties";
 import { QuizRunner } from "@/components/quiz/quiz-runner";
 import { formatContractError } from "@/lib/contract-errors";
+import { cn } from "@/lib/utils";
 
 type QuestStepRunnerProps = {
   bounty: BountyListItem;
