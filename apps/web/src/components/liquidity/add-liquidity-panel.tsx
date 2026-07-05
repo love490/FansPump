@@ -14,6 +14,7 @@ import {
 } from "wagmi";
 import { formatUnits, maxUint256, parseEther, parseUnits, type Address, type Hash } from "viem";
 import { SwapTokenPicker } from "@/components/swap/swap-token-picker";
+import { LiquidityPairPicker } from "@/components/liquidity/liquidity-pair-picker";
 import { Button } from "@/components/ui/button";
 import { DismissibleAlert } from "@/components/ui/dismissible-alert";
 import { tokenAbi } from "@/lib/abis/factory";
