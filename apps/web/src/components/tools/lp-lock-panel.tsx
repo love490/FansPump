@@ -21,6 +21,7 @@ import { liquidityUrl } from "@/lib/navigation/liquidity-routes";
 import { apiUrl } from "@/lib/api";
 import { cn, shortenAddress } from "@/lib/utils";
 import { formatContractError } from "@/lib/contract-errors";
+import { isValidTokenAddress } from "@/lib/swap/routerAdapter";
 
 const LOCK_PRESETS = [
   { label: "30 days", days: 30 },

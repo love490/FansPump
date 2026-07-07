@@ -16,6 +16,7 @@ import {
 import { DEAD_BURN_ADDRESS } from "@/lib/liquidity/constants";
 import { getOrCreateBurnAddress } from "@/lib/liquidity/burn-address";
 import { erc20Abi } from "@/lib/swap/abis";
+import { isValidTokenAddress } from "@/lib/swap/routerAdapter";
 
 const lpErc20Abi = [
   ...erc20Abi,
