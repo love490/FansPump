@@ -22,6 +22,7 @@ type DashboardSummaryApi = {
     launchpoolRewards?: LaunchpoolRewardRow[];
   };
   launchpoolRewards?: LaunchpoolRewardRow[];
+  launchpoolStakes?: { id: string }[];
 };
 
 /** Wallet-level totals from `GET /api/user/dashboard`, shared by the dashboard summary cards. */
@@ -51,12 +52,14 @@ export function useUserDashboardSummary() {
   }, [refresh]);
 
   const launchpoolRewards = data?.launchpoolRewards ?? data?.stats?.launchpoolRewards ?? [];
+  const launchpoolsJoined = data?.launchpoolStakes?.length ?? 0;
   const pendingOpn =
     (data?.stats?.rewardsEarnedOpn ?? 0) + (data?.stats?.creatorEarningsOpn ?? 0);
 
   return {
     stats: data?.stats ?? null,
     launchpoolRewards,
+    launchpoolsJoined,
     pendingOpn,
     pendingRewardCount: launchpoolRewards.length + (pendingOpn > 0 ? 1 : 0),
     loading,

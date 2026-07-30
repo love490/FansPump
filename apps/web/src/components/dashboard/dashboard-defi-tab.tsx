@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useMyLiquidityPositions } from "@/hooks/liquidity/useMyLiquidityPositions";
 import { useBasePoolLpPositions } from "@/hooks/liquidity/useBasePoolLpPositions";
-import { useWalletPortfolioBalance } from "@/hooks/dashboard/useWalletPortfolioBalance";
+import { useDashboardPortfolio } from "@/components/dashboard/wallet-portfolio-provider";
 import { formatActivityAmount } from "@/lib/dashboard/activities";
 import { formatBalanceTotal } from "@/lib/dashboard/wallet-balance";
 import { fetchOpnUsdRate, quoteLpTokenUsd } from "@/lib/dashboard/token-quotes";
@@ -57,7 +57,7 @@ export function DashboardDefiTab() {
   const client = usePublicClient();
   const { positions: lpPositions, loading: lpLoading } = useMyLiquidityPositions(walletAddress);
   const { positions: basePools, loading: baseLoading } = useBasePoolLpPositions(walletAddress);
-  const { opnUsdRate: portfolioRate } = useWalletPortfolioBalance();
+  const { opnUsdRate: portfolioRate } = useDashboardPortfolio();
   const [stakes, setStakes] = useState<StakeRow[]>([]);
   const [launchpoolStakes, setLaunchpoolStakes] = useState<LaunchpoolStakeRow[]>([]);
   const [loadingStakes, setLoadingStakes] = useState(false);
@@ -207,7 +207,7 @@ export function DashboardDefiTab() {
         <p className="text-sm text-muted-foreground">Loading DeFi positions…</p>
       ) : positionCount === 0 ? (
         <div className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">
-          No liquidity or stakes yet. Add liquidity or stake OPN to get started.
+          No LP positions found. Add liquidity or stake OPN to get started.
         </div>
       ) : (
         <div className="space-y-6">

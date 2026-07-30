@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Youtube } from "lucide-react";
-import { LandingCtaSection } from "@/components/landing/landing-cta-section";
+import { FooterCta } from "@/components/layout/footer-cta";
 
 const socialLinks = [
   {
@@ -31,7 +31,7 @@ const socialLinks = [
 export function Footer() {
   return (
     <footer className="mt-auto border-t border-border bg-background">
-      <LandingCtaSection className="border-b-0" />
+      <FooterCta />
 
       <div className="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-8 sm:px-6 lg:px-8">
         <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">

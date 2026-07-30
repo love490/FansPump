@@ -10,14 +10,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ImportTokenDialog } from "@/components/dashboard/import-token-dialog";
 import { useActiveWallet } from "@/hooks/useActiveWallet";
-import { useWalletPortfolioBalance } from "@/hooks/dashboard/useWalletPortfolioBalance";
+import { useDashboardPortfolio } from "@/components/dashboard/wallet-portfolio-provider";
 import { useWatchlistAddresses } from "@/hooks/dashboard/useWatchlistAddresses";
 import { erc20Abi } from "@/lib/swap/abis";
 import { formatMarketPrice } from "@/lib/tokens/market-metrics";
 import { liquidityUrl } from "@/lib/navigation/liquidity-routes";
 import { bigintToFloat, type PortfolioAsset } from "@/lib/dashboard/wallet-balance";
 import { readImportedTokens, type ImportedToken } from "@/lib/dashboard/imported-tokens";
+import { categorizeAsset, ALLOCATION_LABELS, type AllocationCategory } from "@/lib/dashboard/allocation";
 import { addTokenToWallet } from "@/lib/wallet/watch-asset";
+import { walletTokenHref } from "@/lib/dashboard/wallet-token-route";
 import { cn } from "@/lib/utils";
 
 const FILTERS = [
@@ -45,8 +47,8 @@ function tokenHref(row: PortfolioAsset): string | null {
     }
     return liquidityUrl({ tab: "remove" });
   }
-  if (row.isNative || row.symbol === "OPN") return "/swap";
-  if (row.contractAddress?.startsWith("0x")) return `/token/${row.contractAddress}`;
+  if (row.isNative || row.symbol === "OPN") return walletTokenHref(null, "OPN");
+  if (row.contractAddress?.startsWith("0x")) return walletTokenHref(row.contractAddress, row.symbol);
   return null;
 }
 
@@ -60,11 +62,20 @@ function displaySymbol(row: PortfolioAsset): string {
   return row.symbol;
 }
 
-export function DashboardMyTokensTab() {
+type DashboardMyTokensTabProps = {
+  /** Set by the allocation chart so clicking a slice narrows this list. */
+  categoryFilter?: AllocationCategory | null;
+  onClearCategoryFilter?: () => void;
+};
+
+export function DashboardMyTokensTab({
+  categoryFilter = null,
+  onClearCategoryFilter,
+}: DashboardMyTokensTabProps = {}) {
   const { walletAddress, hasWallet } = useActiveWallet();
   const client = usePublicClient();
   const { data: walletClient } = useWalletClient();
-  const { assets, loading, refresh } = useWalletPortfolioBalance();
+  const { assets, loading, refresh } = useDashboardPortfolio();
   const { addressSet: favoriteAddresses } = useWatchlistAddresses(walletAddress);
 
   const [query, setQuery] = useState("");
@@ -152,6 +163,7 @@ export function DashboardMyTokensTab() {
   const rows = useMemo(() => {
     const needle = query.trim().toLowerCase();
     return allRows.filter((row) => {
+      if (categoryFilter && categorizeAsset(row) !== categoryFilter) return false;
       if (filter === "created" && !row.isCreator) return false;
       if (filter === "lp" && !row.isLp) return false;
       if (filter === "owned" && (row.isCreator || row.isLp)) return false;
@@ -166,7 +178,7 @@ export function DashboardMyTokensTab() {
         (row.contractAddress?.toLowerCase().includes(needle) ?? false)
       );
     });
-  }, [allRows, filter, query, favoriteAddresses]);
+  }, [allRows, filter, query, favoriteAddresses, categoryFilter]);
 
   const counts = useMemo(
     () => ({
@@ -257,6 +269,23 @@ export function DashboardMyTokensTab() {
           ))}
         </div>
       </div>
+
+      {categoryFilter && (
+        <div className="flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-sm">
+          <span className="min-w-0 flex-1 truncate">
+            Showing <span className="font-medium">{ALLOCATION_LABELS[categoryFilter]}</span> only
+          </span>
+          {onClearCategoryFilter && (
+            <button
+              type="button"
+              onClick={onClearCategoryFilter}
+              className="shrink-0 text-xs font-medium text-primary hover:underline"
+            >
+              Clear
+            </button>
+          )}
+        </div>
+      )}
 
       {watchNotice && <p className="text-sm text-muted-foreground">{watchNotice}</p>}
 

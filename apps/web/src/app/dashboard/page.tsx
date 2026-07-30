@@ -1,12 +1,19 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import dynamic from "next/dynamic";
+import { useCallback, useState } from "react";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { DashboardBalancePanel } from "@/components/dashboard/dashboard-balance-panel";
 import { DashboardProfileLink } from "@/components/dashboard/dashboard-profile-link";
 import { DashboardQuickActions } from "@/components/dashboard/dashboard-quick-actions";
+import { DashboardCreatorOverview } from "@/components/dashboard/dashboard-creator-overview";
+import { WalletStatusBadges } from "@/components/dashboard/wallet-status-badges";
+import {
+  WalletPortfolioProvider,
+  useDashboardPortfolio,
+} from "@/components/dashboard/wallet-portfolio-provider";
 import { DashboardTabNav, type DashboardTabId } from "@/components/dashboard/dashboard-tab-nav";
 import { DashboardMyTokensTab } from "@/components/dashboard/dashboard-my-tokens-tab";
 import { DashboardDefiTab } from "@/components/dashboard/dashboard-defi-tab";
@@ -15,30 +22,71 @@ import { DashboardActivitiesTab } from "@/components/dashboard/dashboard-activit
 import { SignInButton } from "@/components/auth/sign-in-button";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { useActiveWallet } from "@/hooks/useActiveWallet";
+import { useUserDashboardSummary } from "@/hooks/dashboard/useUserDashboardSummary";
+import type { AllocationCategory } from "@/lib/dashboard/allocation";
 import { formatCreatorDisplay } from "@/lib/username";
 import { shortenAddress } from "@/lib/utils";
 
+/** Allocation donut is below the fold and non-critical, so load it after paint. */
+const DashboardAllocationCard = dynamic(
+  () =>
+    import("@/components/dashboard/dashboard-allocation-card").then(
+      (m) => m.DashboardAllocationCard
+    ),
+  { ssr: false, loading: () => <div className="h-56 animate-pulse rounded-xl bg-muted/40" /> }
+);
+
 export default function DashboardPage() {
-  const { walletAddress, hasWallet, isSignedIn, linkedWalletOnly } = useActiveWallet();
+  return (
+    <WalletPortfolioProvider>
+      <WalletDashboard />
+    </WalletPortfolioProvider>
+  );
+}
+
+function WalletDashboard() {
+  const { walletAddress, hasWallet, isSignedIn, isWalletConnected, linkedWalletOnly } =
+    useActiveWallet();
   const { openConnectModal } = useConnectModal();
   const { profile } = useUserProfile(walletAddress);
+  const { assets, loading: portfolioLoading } = useDashboardPortfolio();
+  const { stats, launchpoolsJoined } = useUserDashboardSummary();
   const [activeTab, setActiveTab] = useState<DashboardTabId>("tokens");
+  const [categoryFilter, setCategoryFilter] = useState<AllocationCategory | null>(null);
+
   const displayName = walletAddress
     ? formatCreatorDisplay(profile?.username, walletAddress, shortenAddress)
     : null;
+
+  const tokensCreated = stats?.tokensCreated ?? 0;
+
+  const handleSelectCategory = useCallback((category: AllocationCategory) => {
+    setCategoryFilter(category);
+    setActiveTab("tokens");
+  }, []);
 
   return (
     <div className="mx-auto max-w-3xl space-y-6 py-2 sm:py-4">
       <header className="flex flex-col items-center gap-4 text-center sm:flex-row sm:items-start sm:text-left">
         {(hasWallet || isSignedIn) && <DashboardProfileLink className="sm:order-first" />}
         <div className="min-w-0 flex-1">
-          <h1 className="text-2xl font-bold">Dashboard</h1>
+          <h1 className="text-2xl font-bold">Wallet</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             {displayName ??
               (isSignedIn
                 ? "Link or connect your wallet to view your portfolio."
                 : "Sign in and connect your wallet to view your portfolio.")}
           </p>
+          {hasWallet && (
+            <WalletStatusBadges
+              className="mt-2 justify-center sm:justify-start"
+              networkName="OPN Network"
+              isConnected={isWalletConnected}
+              linkedWalletOnly={linkedWalletOnly}
+              isCreator={tokensCreated > 0}
+              assetCount={assets.length}
+            />
+          )}
         </div>
       </header>
 
@@ -85,10 +133,25 @@ export default function DashboardPage() {
           )}
           <DashboardBalancePanel />
           <DashboardQuickActions />
+          <DashboardCreatorOverview
+            walletAddress={walletAddress}
+            tokensCreated={tokensCreated}
+            launchpoolsJoined={launchpoolsJoined}
+          />
+          <DashboardAllocationCard
+            assets={assets}
+            loading={portfolioLoading}
+            onSelectCategory={handleSelectCategory}
+          />
           <DashboardTabNav active={activeTab} onChange={setActiveTab} />
           <Card>
             <CardContent className="pt-6">
-              {activeTab === "tokens" && <DashboardMyTokensTab />}
+              {activeTab === "tokens" && (
+                <DashboardMyTokensTab
+                  categoryFilter={categoryFilter}
+                  onClearCategoryFilter={() => setCategoryFilter(null)}
+                />
+              )}
               {activeTab === "defi" && <DashboardDefiTab />}
               {activeTab === "earnings" && <DashboardEarningsTab />}
               {activeTab === "activities" && <DashboardActivitiesTab />}

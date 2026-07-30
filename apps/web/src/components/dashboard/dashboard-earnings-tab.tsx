@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useMyLiquidityPositions } from "@/hooks/liquidity/useMyLiquidityPositions";
 import { useBasePoolLpPositions } from "@/hooks/liquidity/useBasePoolLpPositions";
-import { useWalletPortfolioBalance } from "@/hooks/dashboard/useWalletPortfolioBalance";
+import { useDashboardPortfolio } from "@/components/dashboard/wallet-portfolio-provider";
 import { formatActivityAmount } from "@/lib/dashboard/activities";
 import { formatBalanceTotal } from "@/lib/dashboard/wallet-balance";
 import { liquidityUrl } from "@/lib/navigation/liquidity-routes";
@@ -73,7 +73,7 @@ const CLAIM_PREFIX = "FansPump Claim Rewards";
 export function DashboardEarningsTab() {
   const { walletAddress } = useActiveWallet();
   const { signMessageAsync } = useSignMessage();
-  const { opnUsdRate } = useWalletPortfolioBalance();
+  const { opnUsdRate } = useDashboardPortfolio();
   const { positions: lpPositions, loading: lpLoading } = useMyLiquidityPositions(walletAddress);
   const { positions: basePools, loading: baseLoading } = useBasePoolLpPositions(walletAddress);
   const [data, setData] = useState<DashboardApi | null>(null);
@@ -203,7 +203,7 @@ export function DashboardEarningsTab() {
         <p className="text-sm text-muted-foreground">Loading rewards…</p>
       ) : !hasAny ? (
         <div className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">
-          No earnings yet. Stake on FansPump, complete bounties, or add liquidity to start earning.
+          No rewards available. Stake on FansPump, complete bounties, or add liquidity to start earning.
         </div>
       ) : (
         <>
