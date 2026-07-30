@@ -16,10 +16,13 @@ import {
 import {
   deriveTaskTypes,
   mergeBountyVerificationConfig,
+  parseBountyTaskConfig,
   resolvePrimaryTaskType,
   validateBountyTaskSelection,
+  type BountyTaskStep,
   type SocialBountyActionId,
 } from "@/lib/bounty-task-config";
+import { isAdminWallet } from "@/lib/admin";
 import { composeBountyQuest } from "@/lib/bounties/quest-compose";
 import { getPublicClient } from "@/lib/rpc-client";
 import { verifyOnchainRequirement } from "@/lib/quests/onchain-verify";
@@ -149,6 +152,22 @@ const verifySchema = authSchema.extend({
   rejectionReason: z.string().max(500).optional(),
 });
 
+const editSchema = authSchema.extend({
+  title: z.string().min(3).max(120).optional(),
+  description: z.string().min(10).max(4000).optional(),
+  requirements: z.string().max(2000).optional().nullable(),
+  rewardType: z.enum(["OPN", "TOKEN", "CUSTOM", "XP"]).optional(),
+  rewardAmount: z.string().min(1).max(64).optional(),
+  rewardDescription: z.string().max(200).optional().nullable(),
+  maxParticipants: z.number().int().min(1).max(10000).optional().nullable(),
+  endsAt: z.string().datetime().optional().nullable(),
+  status: z.enum(["ACTIVE", "ENDED", "CANCELLED"]).optional(),
+  socialActions: z.array(socialActionEnum).optional(),
+  verificationConfig: onchainConfigSchema,
+  quiz: quizInputSchema.optional(),
+  quizXpPoints: z.number().int().min(1).max(10000).optional(),
+});
+
 const router = Router();
 
 router.use(publicRateLimit);
@@ -270,12 +289,18 @@ router.get(
         ? bounty.participations.find((p) => p.walletAddress === viewerWallet)
         : undefined;
 
+      const isCreator = Boolean(viewerWallet) && viewerWallet === bounty.creatorWallet;
+      const isAdmin = isAdminWallet(viewerWallet);
+
       res.json({
         bounty: {
           ...mapBountyRow({ ...bounty, _count: { participations: bounty.participations.length } }),
           completionCount: verifiedCount,
         },
         myParticipation: myParticipation ? mapParticipation(myParticipation) : null,
+        canEdit: (isCreator || isAdmin) && (isAdmin || bounty.status !== "COMPLETED"),
+        isCreator,
+        isAdmin,
       });
     } catch (e) {
       console.error("[GET /api/bounties/:id]", e);
@@ -429,6 +454,154 @@ router.post(
       }
       console.error("[POST /api/bounties]", e);
       res.status(500).json({ error: "Failed to create quest" });
+    }
+  })
+);
+
+router.patch(
+  "/:id",
+  asyncHandler(async (req, res) => {
+    const id = getRouteParam(req.params.id);
+
+    try {
+      const body = editSchema.parse(req.body);
+      const wallet = await requireCreatorActionAuth(body);
+
+      const bounty = await prisma.bounty.findUnique({ where: { id } });
+      if (!bounty) {
+        res.status(404).json({ error: "Quest not found" });
+        return;
+      }
+
+      const isAdmin = isAdminWallet(wallet);
+      if (bounty.creatorWallet !== wallet && !isAdmin) {
+        res.status(403).json({ error: "Only the quest creator can edit this quest" });
+        return;
+      }
+      if (!isAdmin && bounty.status === "COMPLETED") {
+        res.status(400).json({ error: "Completed quests can no longer be edited" });
+        return;
+      }
+
+      const endsAt =
+        body.endsAt === undefined ? undefined : body.endsAt ? new Date(body.endsAt) : null;
+      if (endsAt instanceof Date && Number.isNaN(endsAt.getTime())) {
+        res.status(400).json({ error: "Invalid end date" });
+        return;
+      }
+
+      const rewardType = body.rewardType ?? bounty.rewardType;
+      if (rewardType === "TOKEN") {
+        const symbol = (body.rewardDescription ?? bounty.rewardDescription)?.trim();
+        if (!bounty.tokenAddress && !symbol) {
+          res.status(400).json({ error: "Enter a token symbol (e.g. WIF, MAGO) or link a token" });
+          return;
+        }
+      }
+
+      const existingConfig = parseBountyTaskConfig(bounty.verificationConfig);
+      const existingQuiz = await getQuizByBountyId(prisma, id);
+
+      const data: Prisma.BountyUpdateInput = {
+        title: body.title?.trim(),
+        description: body.description?.trim(),
+        requirements:
+          body.requirements === undefined ? undefined : body.requirements?.trim() || null,
+        rewardType: body.rewardType,
+        rewardAmount: body.rewardAmount?.trim(),
+        rewardDescription:
+          body.rewardDescription === undefined ? undefined : body.rewardDescription?.trim() || null,
+        maxParticipants: body.maxParticipants === undefined ? undefined : body.maxParticipants,
+        endsAt,
+        status: body.status,
+      };
+
+      const replaceQuiz = body.quiz !== undefined;
+      const structuralEdit =
+        body.socialActions !== undefined ||
+        body.verificationConfig?.taskSteps !== undefined ||
+        body.quizXpPoints !== undefined ||
+        replaceQuiz;
+
+      if (structuralEdit) {
+        const socialActions = (body.socialActions ??
+          existingConfig.socialActions ??
+          []) as SocialBountyActionId[];
+        const taskSteps = (body.verificationConfig?.taskSteps ??
+          existingConfig.taskSteps ??
+          []) as BountyTaskStep[];
+        const hasQuiz = replaceQuiz ? true : Boolean(existingQuiz);
+
+        if (replaceQuiz && body.quiz) {
+          const quizError = validateQuizInput(body.quiz);
+          if (quizError) {
+            res.status(400).json({ error: quizError });
+            return;
+          }
+        }
+
+        const taskError = validateBountyTaskSelection(socialActions, taskSteps, { hasQuiz });
+        if (taskError) {
+          res.status(400).json({ error: taskError });
+          return;
+        }
+
+        const quizXpPoints = hasQuiz
+          ? (body.quizXpPoints ?? existingConfig.quizXpPoints ?? 0)
+          : undefined;
+        if (hasQuiz && (!quizXpPoints || quizXpPoints < 1)) {
+          res.status(400).json({ error: "Set XP points for the quiz (1 or more)" });
+          return;
+        }
+
+        const composed = composeBountyQuest({
+          socialActions,
+          taskSteps,
+          quizXpPoints,
+          hasQuiz,
+          baseVerificationMethod:
+            bounty.verificationMethod === "QUIZ" ? "MANUAL" : bounty.verificationMethod,
+          existingConfig: { ...existingConfig, ...(body.verificationConfig ?? {}) },
+        });
+
+        if (composed.xpReward < 1) {
+          res.status(400).json({ error: "Set XP points on each task step (1 or more)" });
+          return;
+        }
+
+        data.taskType = composed.primaryTaskType;
+        data.verificationMethod = composed.verificationMethod;
+        data.verificationConfig = (composed.verificationConfig ?? undefined) as
+          | Prisma.InputJsonValue
+          | undefined;
+        data.xpReward = composed.xpReward;
+      }
+
+      const updated = await prisma.$transaction(async (tx) => {
+        if (replaceQuiz && body.quiz) {
+          if (existingQuiz) {
+            await tx.bountyQuiz.delete({ where: { id: existingQuiz.id } });
+          }
+          await createQuizForBounty(tx, id, body.quiz);
+        }
+
+        await tx.bounty.update({ where: { id }, data });
+
+        return tx.bounty.findUniqueOrThrow({ where: { id }, include: bountyListInclude });
+      });
+
+      res.json({ ok: true, bounty: mapBountyRow(updated) });
+    } catch (e) {
+      if (e instanceof CreatorAuthError) {
+        res.status(e.status).json({ error: e.message });
+        return;
+      }
+      if (e instanceof z.ZodError) {
+        res.status(400).json({ error: "Invalid quest update" });
+        return;
+      }
+      console.error("[PATCH /api/bounties/:id]", e);
+      res.status(500).json({ error: "Failed to update quest" });
     }
   })
 );

@@ -177,6 +177,7 @@ export function useWalletPortfolioBalance() {
         amount,
         opnValue: amount,
         usdValue: amount * rate,
+        decimals: nativeBalance.decimals,
         isNative: true,
         contractAddress: null,
       });
@@ -197,6 +198,7 @@ export function useWalletPortfolioBalance() {
         amount,
         opnValue: isStable ? amount / rate : isWrappedOpn ? amount : amount / rate,
         usdValue: isStable ? amount : isWrappedOpn ? amount * rate : amount * rate,
+        decimals: token.decimals,
         contractAddress: addr,
         logoUrl: registry?.logoUrl,
       });
@@ -217,6 +219,7 @@ export function useWalletPortfolioBalance() {
         amount,
         opnValue: usdValue > 0 ? usdValue / rate : 0,
         usdValue,
+        decimals: token.decimals,
         contractAddress: addr,
         logoUrl: token.logoUrl,
         isCreator: token.isCreator,
@@ -237,6 +240,7 @@ export function useWalletPortfolioBalance() {
         amount,
         opnValue: usdValue > 0 ? usdValue / rate : 0,
         usdValue,
+        decimals: pos.lpDecimals,
         contractAddress: lpKey,
         projectTokenAddress: pos.tokenAddress,
         isLp: true,
@@ -257,6 +261,7 @@ export function useWalletPortfolioBalance() {
         amount,
         opnValue: usdValue > 0 ? usdValue / rate : 0,
         usdValue,
+        decimals: pos.lpDecimals,
         contractAddress: lpKey,
         isLp: true,
       });

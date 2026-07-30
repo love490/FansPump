@@ -139,6 +139,62 @@ router.post(
   })
 );
 
+const tokenSummarySelect = {
+  select: {
+    contractAddress: true,
+    name: true,
+    symbol: true,
+    logoUrl: true,
+  },
+} as const;
+
+/** Locks and burns recorded for a wallet, for the dashboard DeFi tab. */
+router.get(
+  "/wallet/:wallet",
+  asyncHandler(async (req, res) => {
+    const wallet = getRouteParam(req.params.wallet).toLowerCase();
+    if (!/^0x[a-f0-9]{40}$/.test(wallet)) {
+      res.status(400).json({ error: "Invalid wallet address" });
+      return;
+    }
+
+    try {
+      const [locks, burns] = await Promise.all([
+        prisma.liquidityLock.findMany({
+          where: { creatorWallet: wallet },
+          orderBy: { createdAt: "desc" },
+          take: 100,
+          include: { token: tokenSummarySelect },
+        }),
+        prisma.lpBurn.findMany({
+          where: { creatorWallet: wallet },
+          orderBy: { burnedAt: "desc" },
+          take: 100,
+          include: { token: tokenSummarySelect },
+        }),
+      ]);
+
+      const now = Date.now();
+      res.json({
+        wallet,
+        locks: locks.map((lock) => ({
+          ...lock,
+          status: lock.unlockAt.getTime() > now ? "LOCKED" : "UNLOCKED",
+        })),
+        burns,
+        totals: {
+          lockedAmount: locks.reduce((acc, l) => acc + BigInt(l.amount), 0n).toString(),
+          burnedAmount: burns.reduce((acc, b) => acc + BigInt(b.amount), 0n).toString(),
+          activeLocks: locks.filter((l) => l.unlockAt.getTime() > now).length,
+        },
+      });
+    } catch (e) {
+      console.error("[GET /api/liquidity/wallet/:wallet]", e);
+      res.status(500).json({ error: "Failed to load wallet liquidity history" });
+    }
+  })
+);
+
 router.get(
   "/:address",
   asyncHandler(async (req, res) => {

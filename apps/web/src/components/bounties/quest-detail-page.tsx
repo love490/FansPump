@@ -21,10 +21,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CreatorProfileLink } from "@/components/profile/creator-profile-link";
 import { QuestStepRunner } from "@/components/bounties/quest-step-runner";
+import { QuestEditDialog } from "@/components/bounties/quest-edit-dialog";
 import { SignInModal } from "@/components/auth/sign-in-modal";
 import { hasOnchainBonusReward, resolveQuestSteps, totalQuestXp } from "@/lib/bounty-step-progress";
 import { useRequireSignIn } from "@/hooks/useRequireSignIn";
-import { Calendar, Clock, Gift, Users, ArrowLeft } from "lucide-react";
+import { Calendar, Clock, Gift, Users, ArrowLeft, Pencil } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const EMPTY_PARTICIPATION: BountyParticipationView = {
@@ -78,6 +79,8 @@ export function QuestDetailPage({ questId }: { questId: string }) {
   const [proofUrl, setProofUrl] = useState("");
   const [proofNote, setProofNote] = useState("");
   const [txHash, setTxHash] = useState("");
+  const [canEdit, setCanEdit] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -88,6 +91,7 @@ export function QuestDetailPage({ questId }: { questId: string }) {
       if (!res.ok) throw new Error(data.error ?? "Failed to load quest");
       setBounty(data.bounty);
       setParticipation(data.myParticipation ?? null);
+      setCanEdit(Boolean(data.canEdit));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load quest");
     } finally {
@@ -213,9 +217,25 @@ export function QuestDetailPage({ questId }: { questId: string }) {
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="min-w-0 flex-1">
               <CardTitle className="text-xl sm:text-2xl">{bounty.title}</CardTitle>
-              <div className="mt-2 flex flex-wrap gap-2">
+              <div className="mt-2 flex flex-wrap items-center gap-2">
                 {bounty.isFeatured && <Badge>Featured</Badge>}
                 {bounty.tokenSymbol && <Badge variant="secondary">${bounty.tokenSymbol}</Badge>}
+                {bounty.effectiveStatus !== "active" && (
+                  <Badge variant="outline" className="capitalize">
+                    {bounty.effectiveStatus}
+                  </Badge>
+                )}
+                {canEdit && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="h-7 gap-1 px-2 text-xs"
+                    onClick={() => setEditOpen(true)}
+                  >
+                    <Pencil className="h-3 w-3" /> Edit quest
+                  </Button>
+                )}
               </div>
             </div>
             <div className="rounded-lg border border-primary/20 bg-primary/5 px-4 py-3 text-right">
@@ -356,6 +376,14 @@ export function QuestDetailPage({ questId }: { questId: string }) {
           </div>
         </CardContent>
       </Card>
+      {canEdit && (
+        <QuestEditDialog
+          bounty={bounty}
+          open={editOpen}
+          onOpenChange={setEditOpen}
+          onSaved={() => void load()}
+        />
+      )}
       <SignInModal open={signInOpen} onOpenChange={setSignInOpen} />
     </div>
   );

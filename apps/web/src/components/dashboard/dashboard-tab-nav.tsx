@@ -5,10 +5,10 @@ import { cn } from "@/lib/utils";
 export type DashboardTabId = "tokens" | "defi" | "earnings" | "activities";
 
 const TABS: { id: DashboardTabId; label: string }[] = [
-  { id: "tokens", label: "My token" },
+  { id: "tokens", label: "Assets" },
   { id: "defi", label: "DeFi" },
-  { id: "earnings", label: "My Purse" },
-  { id: "activities", label: "Activities" },
+  { id: "earnings", label: "Rewards" },
+  { id: "activities", label: "Activity" },
 ];
 
 type DashboardTabNavProps = {

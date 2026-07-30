@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { DashboardBalancePanel } from "@/components/dashboard/dashboard-balance-panel";
 import { DashboardProfileLink } from "@/components/dashboard/dashboard-profile-link";
+import { DashboardQuickActions } from "@/components/dashboard/dashboard-quick-actions";
 import { DashboardTabNav, type DashboardTabId } from "@/components/dashboard/dashboard-tab-nav";
 import { DashboardMyTokensTab } from "@/components/dashboard/dashboard-my-tokens-tab";
 import { DashboardDefiTab } from "@/components/dashboard/dashboard-defi-tab";
@@ -83,6 +84,7 @@ export default function DashboardPage() {
             </div>
           )}
           <DashboardBalancePanel />
+          <DashboardQuickActions />
           <DashboardTabNav active={activeTab} onChange={setActiveTab} />
           <Card>
             <CardContent className="pt-6">

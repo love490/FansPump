@@ -21,7 +21,8 @@ import {
   StakingActivityList,
   type StakingActivityRow,
 } from "@/components/staking/staking-activity-list";
-import { liquidityUrl } from "@/lib/navigation/liquidity-routes";
+import { DashboardLockBurnHistory } from "@/components/dashboard/dashboard-lock-burn-history";
+import { liquidityUrl, toolsBurnUrl, toolsLockUrl } from "@/lib/navigation/liquidity-routes";
 
 type StakeRow = {
   id: string;
@@ -194,6 +195,12 @@ export function DashboardDefiTab() {
         <Button asChild size="sm" variant="outline">
           <Link href="/staking">Manage staking</Link>
         </Button>
+        <Button asChild size="sm" variant="outline">
+          <Link href={toolsLockUrl()}>Lock LP</Link>
+        </Button>
+        <Button asChild size="sm" variant="outline">
+          <Link href={toolsBurnUrl()}>Burn LP</Link>
+        </Button>
       </div>
 
       {loading ? (
@@ -233,6 +240,8 @@ export function DashboardDefiTab() {
           )}
         </div>
       )}
+
+      <DashboardLockBurnHistory walletAddress={walletAddress} />
     </div>
   );
 }

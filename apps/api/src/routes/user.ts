@@ -167,7 +167,14 @@ router.get(
         safeQuery("tokensCreated", () =>
           prisma.tokenProject.findMany({
             where: { creatorAddress: walletMatch },
-            select: { id: true, symbol: true, name: true, contractAddress: true, createdAt: true },
+            select: {
+              id: true,
+              symbol: true,
+              name: true,
+              contractAddress: true,
+              createdAt: true,
+              txHash: true,
+            },
             orderBy: { createdAt: "desc" },
             take: 50,
           }),
@@ -352,6 +359,7 @@ router.get(
           platform: "OPN Network",
           occurredAt: lock.createdAt.toISOString(),
           href: `/tools/lock`,
+          txHash: lock.txHash,
         });
       }
 
@@ -364,7 +372,8 @@ router.get(
           amount: formatActivityAmount(burn.amount, 18, "LP"),
           platform: "FansPump",
           occurredAt: burn.burnedAt.toISOString(),
-          href: `/tools/lock`,
+          href: `/tools/burn`,
+          txHash: burn.txHash,
         });
       }
 
@@ -377,6 +386,7 @@ router.get(
           platform: "FansPump",
           occurredAt: token.createdAt.toISOString(),
           href: `/token/${token.contractAddress}`,
+          txHash: token.txHash,
         });
       }
 

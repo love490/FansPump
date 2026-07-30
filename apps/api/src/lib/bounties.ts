@@ -119,6 +119,18 @@ export function resolveEffectiveStatus(bounty: {
   return "active";
 }
 
+/** Persist ENDED status when an end date has passed (best-effort). */
+export async function maybeMarkBountyEnded<
+  T extends { id: string; status: BountyStatus; endsAt: Date | null },
+>(bounty: T, prisma: { bounty: { update: (args: unknown) => Promise<T> } }): Promise<T> {
+  if (bounty.status !== "ACTIVE" || !bounty.endsAt) return bounty;
+  if (bounty.endsAt.getTime() >= Date.now()) return bounty;
+  return prisma.bounty.update({
+    where: { id: bounty.id },
+    data: { status: "ENDED" },
+  }) as Promise<T>;
+}
+
 export function mapBountyRow(
   b: Prisma.BountyGetPayload<{ include: typeof bountyListInclude }>
 ): BountyListItem {

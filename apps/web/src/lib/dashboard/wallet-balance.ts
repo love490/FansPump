@@ -49,6 +49,7 @@ export type PortfolioAsset = {
   amount: number;
   opnValue: number;
   usdValue: number;
+  decimals?: number;
   contractAddress?: string | null;
   logoUrl?: string | null;
   isNative?: boolean;

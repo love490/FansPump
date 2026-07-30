@@ -171,7 +171,9 @@ export function DashboardEarningsTab() {
       <div className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Total revenue</p>
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Claimable rewards
+            </p>
             <p className="mt-1 text-2xl font-bold tabular-nums">
               {isLoading ? "…" : formatBalanceTotal(totalRevenueUsd, "USD")}
             </p>
@@ -190,7 +192,7 @@ export function DashboardEarningsTab() {
             onClick={() => void claimRewards()}
           >
             <Gift className="mr-1.5 h-4 w-4" />
-            {claiming ? "Claiming…" : "Claim rewards"}
+            {claiming ? "Claiming…" : "Claim all"}
           </Button>
         </div>
         {claimMessage && <p className="mt-3 text-sm text-emerald-600 dark:text-emerald-400">{claimMessage}</p>}
@@ -198,7 +200,7 @@ export function DashboardEarningsTab() {
       </div>
 
       {isLoading ? (
-        <p className="text-sm text-muted-foreground">Loading My Purse…</p>
+        <p className="text-sm text-muted-foreground">Loading rewards…</p>
       ) : !hasAny ? (
         <div className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">
           No earnings yet. Stake on FansPump, complete bounties, or add liquidity to start earning.

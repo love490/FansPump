@@ -9,17 +9,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { DismissibleAlert } from "@/components/ui/dismissible-alert";
-import {
-  useMyLiquidityPositions,
-  type MyLiquidityPosition,
-} from "@/hooks/liquidity/useMyLiquidityPositions";
+import { useSelectableLpTokens } from "@/hooks/liquidity/useSelectableLpTokens";
+import { LpTokenSelect } from "@/components/tools/lp-token-select";
 import { LIQUIDITY_LOCKER_ADDRESS } from "@/lib/liquidity/constants";
 import { liquidityLockerAbi } from "@/lib/liquidity/abis";
 import { erc20Abi } from "@/lib/swap/abis";
-import { formatLiquidityAmountFromWei, formatTokenLpPositionLabel } from "@/lib/liquidity/format-amount";
+import { formatLiquidityAmountFromWei } from "@/lib/liquidity/format-amount";
 import { liquidityUrl } from "@/lib/navigation/liquidity-routes";
 import { apiUrl } from "@/lib/api";
-import { cn, shortenAddress } from "@/lib/utils";
+import { shortenAddress } from "@/lib/utils";
 import { formatContractError } from "@/lib/contract-errors";
 import { isValidTokenAddress } from "@/lib/swap/routerAdapter";
 
@@ -45,10 +43,6 @@ function isLockerConfigured() {
   );
 }
 
-function positionKey(p: MyLiquidityPosition) {
-  return `${p.tokenAddress}:${p.pairId}:${p.lpToken}`;
-}
-
 export function LpLockPanel() {
   const searchParams = useSearchParams();
   const preselectToken = searchParams.get("token")?.toLowerCase() ?? "";
@@ -58,25 +52,26 @@ export function LpLockPanel() {
   const client = usePublicClient();
   const { signMessageAsync } = useSignMessage();
   const { writeContractAsync } = useWriteContract();
-  const { positions, loading, refresh } = useMyLiquidityPositions(address);
+  const { options: activePositions, loading, refresh } = useSelectableLpTokens(address);
 
-  const activePositions = useMemo(
-    () => positions.filter((p) => !p.pending && p.lpBalance > 0n && p.lpToken),
-    [positions]
-  );
-
-  const [selectedKey, setSelectedKey] = useState<string | null>(null);
+  const [selectedKey, setSelectedKey] = useState<string>("");
   const [manualLpToken, setManualLpToken] = useState("");
 
-  const selectedPosition = useMemo(() => {
-    if (!selectedKey) return null;
-    return activePositions.find((p) => positionKey(p) === selectedKey) ?? null;
-  }, [activePositions, selectedKey]);
+  const selectedPosition = useMemo(
+    () => activePositions.find((p) => p.lpToken === selectedKey) ?? null,
+    [activePositions, selectedKey]
+  );
 
   useEffect(() => {
     if (preselectLp && isValidTokenAddress(preselectLp)) {
+      const known = activePositions.find((p) => p.lpToken === preselectLp);
+      if (known) {
+        setSelectedKey(known.lpToken);
+        setManualLpToken("");
+        return;
+      }
       setManualLpToken(preselectLp);
-      setSelectedKey(null);
+      setSelectedKey("");
       return;
     }
     if (activePositions.length === 0) return;
@@ -86,14 +81,14 @@ export function LpLockPanel() {
         (p) => p.tokenAddress.toLowerCase() === preselectToken
       );
       if (match) {
-        setSelectedKey(positionKey(match));
+        setSelectedKey(match.lpToken);
         setManualLpToken("");
         return;
       }
     }
 
     if (!selectedKey) {
-      setSelectedKey(positionKey(activePositions[0]));
+      setSelectedKey(activePositions[0].lpToken);
     }
   }, [activePositions, preselectLp, preselectToken, selectedKey]);
 
@@ -274,55 +269,29 @@ export function LpLockPanel() {
           <p className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
             Connect your wallet to see LP positions you can lock.
           </p>
-        ) : loading && activePositions.length === 0 ? (
-          <p className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
-            Scanning wallet for LP tokens…
-          </p>
-        ) : activePositions.length === 0 ? (
-          <p className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
-            No LP tokens found in your wallet.{" "}
-            <Link href={liquidityUrl()} className="font-medium text-primary hover:underline">
-              Add liquidity
-            </Link>{" "}
-            first, or paste an LP pair contract below.
-          </p>
         ) : (
-          <div className="grid gap-2 sm:grid-cols-2">
-            {activePositions.map((p) => {
-              const key = positionKey(p);
-              const active = selectedKey === key && !pastedLpTarget;
-              return (
-                <button
-                  key={key}
-                  type="button"
-                  onClick={() => {
-                    setSelectedKey(key);
-                    setManualLpToken("");
-                  }}
-                  className={cn(
-                    "flex flex-col items-start rounded-lg border p-3 text-left transition-colors hover:bg-muted/40",
-                    active && "border-primary bg-primary/5"
-                  )}
-                >
-                  <span className="font-semibold">
-                    {p.tokenSymbol} / {p.pairLabel}
-                  </span>
-                  <span className="mt-1 font-mono text-xs text-muted-foreground">
-                    {shortenAddress(p.lpToken, 6)}
-                  </span>
-                  <span className="mt-1 text-xs">
-                    Balance:{" "}
-                    {formatTokenLpPositionLabel(
-                      p.lpBalance,
-                      p.lpDecimals,
-                      p.tokenSymbol,
-                      p.pairLabel
-                    )}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
+          <>
+            <LpTokenSelect
+              id="lock-lp-select"
+              label="Select LP token"
+              options={activePositions}
+              value={pastedLpTarget ? "" : selectedKey}
+              loading={loading}
+              onChange={(lpToken) => {
+                setSelectedKey(lpToken);
+                setManualLpToken("");
+              }}
+            />
+            {!loading && activePositions.length === 0 && (
+              <p className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+                No LP tokens found in your wallet.{" "}
+                <Link href={liquidityUrl()} className="font-medium text-primary hover:underline">
+                  Add liquidity
+                </Link>{" "}
+                first, or paste an LP pair contract below.
+              </p>
+            )}
+          </>
         )}
       </div>
 
@@ -333,7 +302,7 @@ export function LpLockPanel() {
           value={manualLpToken}
           onChange={(e) => {
             setManualLpToken(e.target.value);
-            setSelectedKey(null);
+            setSelectedKey("");
           }}
           placeholder="0x…"
           disabled={!isConnected}

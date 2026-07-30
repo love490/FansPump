@@ -17,6 +17,8 @@ export type UserActivity = {
   platform: ActivityPlatform;
   occurredAt: string;
   href?: string;
+  /** On-chain transaction, when the action was recorded with one. */
+  txHash?: string | null;
 };
 
 export function formatActivityAmount(wei: string, decimals = 18, suffix = "") {
