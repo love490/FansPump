@@ -118,7 +118,7 @@ export async function indexExternalTokenIfMissing(address: string): Promise<bool
       },
     });
 
-    const { initializeTokenAnalytics } = await import("@/lib/analytics/token-init");
+    const { initializeTokenAnalytics } = await import("../analytics/token-init.js");
     await initializeTokenAnalytics({
       tokenId: token.id,
       tokenAddress: token.contractAddress,
