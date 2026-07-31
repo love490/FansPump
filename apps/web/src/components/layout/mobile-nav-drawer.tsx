@@ -1,14 +1,13 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
-import { usePathname, useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import { Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AppNavMenuContent } from "@/components/layout/sidebar";
 
 function MobileNavDrawerInner() {
   const pathname = usePathname();
-  const searchParams = useSearchParams();
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
@@ -71,7 +70,6 @@ function MobileNavDrawerInner() {
             <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-3">
               <AppNavMenuContent
                 pathname={pathname}
-                searchParams={searchParams}
                 collapsed={false}
                 compact
                 onNavigate={() => setOpen(false)}
@@ -85,22 +83,5 @@ function MobileNavDrawerInner() {
 }
 
 export function MobileNavDrawer() {
-  return (
-    <Suspense
-      fallback={
-        <Button
-          type="button"
-          variant="outline"
-          size="icon"
-          className="h-9 w-9 shrink-0 md:hidden"
-          disabled
-          aria-label="Open menu"
-        >
-          <Menu className="h-4 w-4" />
-        </Button>
-      }
-    >
-      <MobileNavDrawerInner />
-    </Suspense>
-  );
+  return <MobileNavDrawerInner />;
 }

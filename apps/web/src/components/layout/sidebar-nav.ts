@@ -80,11 +80,7 @@ export const settingsLink: SidebarNavItem = {
   icon: Settings,
 };
 
-export function isSidebarNavActive(
-  id: SidebarNavId,
-  pathname: string,
-  searchParams: URLSearchParams
-): boolean {
+export function isSidebarNavActive(id: SidebarNavId, pathname: string): boolean {
   switch (id) {
     case "home":
       return pathname === "/";

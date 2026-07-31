@@ -1,11 +1,11 @@
 "use client";
 
+import type { Address } from "viem";
 import { useAccount, useBalance } from "wagmi";
 import { useAuth } from "@/components/auth/auth-provider";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { useActiveWallet } from "@/hooks/useActiveWallet";
-import { useWalletPortfolioBalance } from "@/hooks/dashboard/useWalletPortfolioBalance";
-import { formatBalanceTotal, formatCompactOpn, formatTokenAmount } from "@/lib/dashboard/wallet-balance";
+import { formatCompactOpn } from "@/lib/dashboard/wallet-balance";
 import { formatCreatorDisplay } from "@/lib/username";
 import { shortenAddress } from "@/lib/utils";
 
@@ -18,6 +18,7 @@ function formatNativeOpnAmount(value: number | undefined): string | null {
   return formatCompactOpn(value);
 }
 
+/** Header/sidebar account label — uses a single native OPN balance read, not full portfolio scan. */
 export function useAccountDisplayLabel(options?: { preferBalance?: boolean }) {
   const preferBalance = options?.preferBalance ?? false;
   const { address, isConnected } = useAccount();
@@ -25,9 +26,8 @@ export function useAccountDisplayLabel(options?: { preferBalance?: boolean }) {
   const { account } = useAuth();
   const resolvedWallet = walletAddress ?? address;
   const { profile } = useUserProfile(resolvedWallet);
-  const { totals, loading: balanceLoading } = useWalletPortfolioBalance();
   const { data: nativeBalance, isLoading: nativeBalanceLoading } = useBalance({
-    address: isConnected && address ? address : undefined,
+    address: preferBalance && resolvedWallet ? (resolvedWallet as Address) : undefined,
   });
 
   const username = profile?.username?.trim() || null;
@@ -41,22 +41,13 @@ export function useAccountDisplayLabel(options?: { preferBalance?: boolean }) {
 
   const identityLabel = socialName || walletLabel || (isSignedIn || isConnected ? "Account" : "Sign in");
 
-  const usdBalanceLabel = balanceLoading ? null : formatBalanceTotal(totals.usd, "USD");
-
   const nativeOpnAmount =
-    isConnected && nativeBalance
-      ? Number(nativeBalance.formatted)
-      : totals.opn > 0
-        ? totals.opn
-        : null;
+    nativeBalance && nativeBalance.value > 0n ? Number(nativeBalance.formatted) : 0;
 
   const opnBalanceLabel =
-    preferBalance && !nativeBalanceLoading
-      ? formatNativeOpnAmount(nativeOpnAmount ?? 0)
-      : null;
+    preferBalance && !nativeBalanceLoading ? formatNativeOpnAmount(nativeOpnAmount) : null;
 
-  const balanceSummary =
-    preferBalance && !balanceLoading && opnBalanceLabel ? opnBalanceLabel : null;
+  const balanceSummary = preferBalance && opnBalanceLabel ? opnBalanceLabel : null;
 
   const primaryLabel =
     preferBalance && opnBalanceLabel
@@ -68,14 +59,14 @@ export function useAccountDisplayLabel(options?: { preferBalance?: boolean }) {
     identityLabel,
     socialName,
     balanceSummary,
-    usdBalanceLabel,
+    usdBalanceLabel: null,
     opnBalanceLabel,
     walletLabel,
-    balanceLabel: usdBalanceLabel,
+    balanceLabel: opnBalanceLabel,
     walletAddress: resolvedWallet,
     isConnected: isConnected && Boolean(address),
     isSignedIn,
-    balanceLoading: balanceLoading || nativeBalanceLoading,
+    balanceLoading: nativeBalanceLoading,
     account,
     profile,
     avatarUrl: account?.avatarUrl ?? profile?.profileImageUrl ?? null,

@@ -57,6 +57,11 @@
     @apply bg-background text-foreground antialiased;
   }
 
+  a,
+  button {
+    touch-action: manipulation;
+  }
+
   input[type="number"]::-webkit-outer-spin-button,
   input[type="number"]::-webkit-inner-spin-button {
     -webkit-appearance: none;
@@ -81,6 +86,15 @@
 
   .animate-promo-marquee {
     animation: promo-marquee var(--marquee-duration, 60s) linear infinite;
+  }
+
+  @keyframes navigation-progress {
+    from {
+      transform: translateX(-100%);
+    }
+    to {
+      transform: translateX(400%);
+    }
   }
 
   @media (prefers-reduced-motion: reduce) {

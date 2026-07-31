@@ -1,8 +1,8 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname } from "next/navigation";
 import {
   ArrowLeftRight,
   Compass,
@@ -42,7 +42,6 @@ function isTabActive(tab: BottomTab, pathname: string): boolean {
 
 function MobileBottomNavInner() {
   const pathname = usePathname();
-  const searchParams = useSearchParams();
   const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
@@ -99,7 +98,6 @@ function MobileBottomNavInner() {
           <div className="min-h-0 flex-1 overflow-y-auto p-3">
             <AppNavMenuContent
               pathname={pathname}
-              searchParams={searchParams}
               collapsed={false}
               compact
               excludeNavIds={MOBILE_MENU_EXCLUDE}
@@ -165,9 +163,7 @@ function MobileBottomNavInner() {
 export function MobileBottomNav() {
   return (
     <div className="md:hidden">
-      <Suspense fallback={null}>
-        <MobileBottomNavInner />
-      </Suspense>
+      <MobileBottomNavInner />
     </div>
   );
 }

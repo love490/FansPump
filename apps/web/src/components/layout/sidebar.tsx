@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { ChevronDown } from "lucide-react";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
@@ -23,20 +23,18 @@ import { isDexPath } from "@/lib/navigation/swap-nav";
 function NavLink({
   link,
   pathname,
-  searchParams,
   onNavigate,
   collapsed,
   nested,
 }: {
   link: SidebarNavItem;
   pathname: string;
-  searchParams: URLSearchParams;
   onNavigate?: () => void;
   collapsed?: boolean;
   nested?: boolean;
 }) {
   const { id, href, label, icon: Icon } = link;
-  const active = isSidebarNavActive(id, pathname, searchParams);
+  const active = isSidebarNavActive(id, pathname);
 
   return (
     <Link
@@ -61,19 +59,17 @@ function NavLink({
 function NavItemWithChildren({
   link,
   pathname,
-  searchParams,
   onNavigate,
   collapsed,
 }: {
   link: SidebarNavItem;
   pathname: string;
-  searchParams: URLSearchParams;
   onNavigate?: () => void;
   collapsed?: boolean;
 }) {
   const sectionOpenDefault = link.id === "dex" ? isDexPath(pathname) : false;
   const [open, setOpen] = useState(sectionOpenDefault);
-  const parentActive = isSidebarNavActive(link.id, pathname, searchParams);
+  const parentActive = isSidebarNavActive(link.id, pathname);
 
   useEffect(() => {
     if (sectionOpenDefault) setOpen(true);
@@ -84,7 +80,6 @@ function NavItemWithChildren({
       <NavLink
         link={link}
         pathname={pathname}
-        searchParams={searchParams}
         onNavigate={onNavigate}
         collapsed={collapsed}
       />
@@ -96,7 +91,6 @@ function NavItemWithChildren({
       <NavLink
         link={link}
         pathname={pathname}
-        searchParams={searchParams}
         onNavigate={onNavigate}
         collapsed={collapsed}
       />
@@ -136,7 +130,6 @@ function NavItemWithChildren({
               key={child.id}
               link={child}
               pathname={pathname}
-              searchParams={searchParams}
               onNavigate={onNavigate}
               nested
             />
@@ -151,14 +144,12 @@ function NavSection({
   title,
   links,
   pathname,
-  searchParams,
   onNavigate,
   collapsed,
 }: {
   title?: string;
   links: SidebarNavItem[];
   pathname: string;
-  searchParams: URLSearchParams;
   onNavigate?: () => void;
   collapsed?: boolean;
 }) {
@@ -175,7 +166,6 @@ function NavSection({
             key={link.id}
             link={link}
             pathname={pathname}
-            searchParams={searchParams}
             onNavigate={onNavigate}
             collapsed={collapsed}
           />
@@ -187,7 +177,6 @@ function NavSection({
 
 function SidebarContent({
   pathname,
-  searchParams,
   onNavigate,
   collapsed,
   onToggle,
@@ -195,7 +184,6 @@ function SidebarContent({
   excludeNavIds,
 }: {
   pathname: string;
-  searchParams: URLSearchParams;
   onNavigate?: () => void;
   collapsed?: boolean;
   onToggle?: () => void;
@@ -204,7 +192,7 @@ function SidebarContent({
   /** Omit nav items already shown elsewhere (e.g. mobile bottom bar). */
   excludeNavIds?: Set<string>;
 }) {
-  const settingsActive = isSidebarNavActive(settingsLink.id, pathname, searchParams);
+  const settingsActive = isSidebarNavActive(settingsLink.id, pathname);
   const isExpanded = collapsed !== true;
   const platformNavLinks = excludeNavIds
     ? platformLinks.filter((link) => !excludeNavIds.has(link.id))
@@ -240,7 +228,6 @@ function SidebarContent({
         <NavSection
           links={platformNavLinks}
           pathname={pathname}
-          searchParams={searchParams}
           onNavigate={onNavigate}
           collapsed={collapsed}
         />
@@ -248,7 +235,6 @@ function SidebarContent({
           title="User"
           links={userLinks}
           pathname={pathname}
-          searchParams={searchParams}
           onNavigate={onNavigate}
           collapsed={collapsed}
         />
@@ -278,7 +264,6 @@ function SidebarContent({
               key={link.id}
               link={link}
               pathname={pathname}
-              searchParams={searchParams}
               onNavigate={onNavigate}
               collapsed={collapsed}
             />
@@ -301,7 +286,6 @@ function SidebarContent({
 /** Full app navigation — used in sidebar and mobile header drawer. */
 export function AppNavMenuContent(props: {
   pathname: string;
-  searchParams: URLSearchParams;
   onNavigate?: () => void;
   collapsed?: boolean;
   onToggle?: () => void;
@@ -313,21 +297,19 @@ export function AppNavMenuContent(props: {
 
 export function Sidebar() {
   const pathname = usePathname();
-  const searchParams = useSearchParams();
   const { collapsed, toggleSidebar } = useSidebar();
 
   return (
     <aside
       className={cn(
         "hidden shrink-0 border-r border-border bg-card/50 md:block",
-        "transition-[width] duration-300 ease-in-out motion-reduce:transition-none",
+        "transition-[width] duration-150 ease-out motion-reduce:transition-none",
         collapsed ? "w-[4.5rem]" : "w-72 overflow-visible"
       )}
     >
       <div className={cn("sticky top-0 h-screen", collapsed ? "px-2 py-3" : "p-4")}>
         <SidebarContent
           pathname={pathname}
-          searchParams={searchParams}
           collapsed={collapsed}
           onToggle={toggleSidebar}
         />

@@ -1,12 +1,13 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { Sidebar } from "@/components/layout/sidebar";
 import { TopBar } from "@/components/layout/top-bar";
 import { SidebarProvider, useSidebar } from "@/components/layout/sidebar-context";
 import { Footer } from "@/components/layout/footer";
 import { MobileBottomNav, MOBILE_BOTTOM_NAV_PADDING } from "@/components/layout/mobile-bottom-nav";
+import { NavigationProgress } from "@/components/layout/navigation-progress";
 import { cn } from "@/lib/utils";
 import { isDexPath } from "@/lib/navigation/swap-nav";
 import { isToolsPath } from "@/lib/navigation/tools-nav";
@@ -26,7 +27,7 @@ function MainColumn({ children }: { children: React.ReactNode }) {
         <main className="flex-1 p-4 lg:p-6">
           <div
             className={cn(
-              "mx-auto w-full transition-[max-width] duration-300 ease-in-out motion-reduce:transition-none",
+              "mx-auto w-full transition-[max-width] duration-150 ease-out motion-reduce:transition-none",
               collapsed ? "lg:max-w-[calc(100vw-4.5rem-3rem)]" : "lg:max-w-[calc(100vw-18rem-3rem)]"
             )}
           >
@@ -70,14 +71,11 @@ function ShellRouter({ children }: { children: React.ReactNode }) {
   }
   return (
     <SidebarProvider>
+      <NavigationProgress />
       <div className="flex min-h-screen bg-background">
-        <Suspense fallback={null}>
-          <Sidebar />
-        </Suspense>
+        <Sidebar />
         <MainColumn>{children}</MainColumn>
-        <Suspense fallback={null}>
-          <MobileBottomNav />
-        </Suspense>
+        <MobileBottomNav />
       </div>
     </SidebarProvider>
   );
