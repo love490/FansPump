@@ -2,7 +2,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import Image from "next/image";
 import { useAccount, useDisconnect } from "wagmi";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
@@ -28,6 +28,7 @@ export function SignInButton({
   accountStatus = "address",
 }: SignInButtonProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const [modalOpen, setModalOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuPos, setMenuPos] = useState<{ top: number; right: number } | null>(null);
@@ -58,6 +59,10 @@ export function SignInButton({
     };
   }, [menuOpen]);
   useEffect(() => {
+    setMenuOpen(false);
+  }, [pathname]);
+
+  useEffect(() => {
     if (!menuOpen) return;
     function onPointerDown(e: MouseEvent) {
       const target = e.target as Node;
@@ -66,8 +71,15 @@ export function SignInButton({
       if (menu?.contains(target)) return;
       setMenuOpen(false);
     }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setMenuOpen(false);
+    }
     document.addEventListener("mousedown", onPointerDown);
-    return () => document.removeEventListener("mousedown", onPointerDown);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onPointerDown);
+      window.removeEventListener("keydown", onKey);
+    };
   }, [menuOpen]);
 
   if (isLoading) {
@@ -137,11 +149,9 @@ export function SignInButton({
         typeof document !== "undefined" &&
         createPortal(
           <>
-            <button
-              type="button"
-              className="fixed inset-0 z-[9998] cursor-default bg-black/25 backdrop-blur-[1px]"
-              aria-label="Close account menu"
-              onClick={() => setMenuOpen(false)}
+            <div
+              className="pointer-events-none fixed inset-0 z-[9998] bg-black/25 backdrop-blur-[1px]"
+              aria-hidden
             />
             <div
               id="sign-in-account-menu"

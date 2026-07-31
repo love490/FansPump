@@ -57,6 +57,11 @@ function ShellRouter({ children }: { children: React.ReactNode }) {
     setTrustScanStandalone(window.location.hostname.startsWith("trustscan."));
   }, []);
 
+  // Overlays (search, mobile menu) lock body scroll; reset if navigation unmounts cleanup.
+  useEffect(() => {
+    document.body.style.overflow = "";
+  }, [pathname]);
+
   if (pathname?.startsWith("/admin")) {
     return <>{children}</>;
   }

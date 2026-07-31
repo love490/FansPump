@@ -4,7 +4,7 @@ import { apiUrl } from "@/lib/api";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Search, X, Loader2, ChevronDown } from "lucide-react";
 import { shortenAddress } from "@/lib/utils";
 import { isValidTokenAddress } from "@/lib/swap/routerAdapter";
@@ -21,6 +21,7 @@ type SearchToken = {
 
 export function TokenSearch() {
   const router = useRouter();
+  const pathname = usePathname();
   const inputRef = useRef<HTMLInputElement>(null);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -30,6 +31,13 @@ export function TokenSearch() {
   const [quickTokens, setQuickTokens] = useState<SearchToken[]>([]);
   const [quickLoading, setQuickLoading] = useState(false);
   const quickRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setOpen(false);
+    setQuery("");
+    setResults([]);
+    setQuickOpen(false);
+  }, [pathname]);
 
   useEffect(() => {
     if (!open) return;
