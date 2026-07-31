@@ -3,7 +3,8 @@
 import { apiUrl } from "@/lib/api";
 
 import { useEffect, useState } from "react";
-import { useAccount, useSignMessage } from "wagmi";
+import { useSignMessage } from "wagmi";
+import { useActiveWallet } from "@/hooks/useActiveWallet";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,6 +15,7 @@ import {
   type BountyListItem,
 } from "@/lib/bounties";
 import { BountyCard } from "@/components/bounties/bounty-card";
+import { QuestEditDialog } from "@/components/bounties/quest-edit-dialog";
 import { BountyXpLeaderboard } from "@/components/bounties/bounty-xp-leaderboard";
 import { BountyTaskPicker } from "@/components/bounties/bounty-task-picker";
 import {
@@ -48,9 +50,9 @@ export function CreatorBountySection({
   creatorTokens?: CreatorToken[];
   onRefresh?: () => void;
 }) {
-  const { address } = useAccount();
+  const { walletAddress } = useActiveWallet();
   const { signMessageAsync } = useSignMessage();
-  const isOwner = address?.toLowerCase() === creatorWallet.toLowerCase();
+  const isOwner = Boolean(walletAddress) && walletAddress === creatorWallet.toLowerCase();
 
   const [bounties, setBounties] = useState<BountyListItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -78,6 +80,7 @@ export function CreatorBountySection({
   const [onchainRequirement, setOnchainRequirement] =
     useState<(typeof ONCHAIN_REQUIREMENTS)[number]["id"]>("HOLD_TOKEN");
   const [onchainMinAmount, setOnchainMinAmount] = useState("1");
+  const [editingBounty, setEditingBounty] = useState<BountyListItem | null>(null);
 
   function loadBounties() {
     setLoading(true);
@@ -93,7 +96,7 @@ export function CreatorBountySection({
   }, [creatorWallet]);
 
   async function createBounty() {
-    if (!address || !isOwner) return;
+    if (!walletAddress || !isOwner) return;
     setCreating(true);
     setError(null);
     setMessage(null);
@@ -146,14 +149,14 @@ export function CreatorBountySection({
       );
 
       const prefix = process.env.NEXT_PUBLIC_CREATOR_ACTION_MESSAGE_PREFIX ?? "FansPump Creator Action";
-      const msg = `${prefix}\nCreate bounty\nWallet: ${address.toLowerCase()}\nTime: ${Date.now()}`;
+      const msg = `${prefix}\nCreate bounty\nWallet: ${walletAddress}\nTime: ${Date.now()}`;
       const signature = await signMessageAsync({ message: msg });
 
       const res = await fetch(apiUrl("/api/bounties"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          walletAddress: address,
+          walletAddress,
           message: msg,
           signature,
           title,
@@ -429,9 +432,29 @@ export function CreatorBountySection({
       ) : (
         <div className="space-y-3">
           {bounties.map((bounty) => (
-            <BountyCard key={bounty.id} bounty={bounty} />
+            <BountyCard
+              key={bounty.id}
+              bounty={bounty}
+              canEdit={isOwner}
+              onEdit={() => setEditingBounty(bounty)}
+            />
           ))}
         </div>
+      )}
+
+      {editingBounty && (
+        <QuestEditDialog
+          bounty={editingBounty}
+          open={Boolean(editingBounty)}
+          onOpenChange={(open) => {
+            if (!open) setEditingBounty(null);
+          }}
+          onSaved={() => {
+            setEditingBounty(null);
+            loadBounties();
+            onRefresh?.();
+          }}
+        />
       )}
 
       <div className="mt-6">

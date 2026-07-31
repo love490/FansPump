@@ -17,6 +17,7 @@ type Announcement = {
   title: string;
   content: string;
   type: AnnouncementTypeId;
+  imageUrl?: string | null;
   createdAt: string;
   creatorWallet: string;
 };
@@ -40,13 +41,17 @@ export function AnnouncementsSection({ tokenAddress, creatorAddress }: Announcem
   const isCreator = address?.toLowerCase() === creatorAddress.toLowerCase();
 
   const load = useCallback(() => {
-    if (!creatorAddress) return;
+    if (!tokenAddress) return;
     setLoading(true);
-    fetch(apiUrl(`/api/announcements?creatorWallet=${creatorAddress}`))
+    fetch(
+      apiUrl(
+        `/api/announcements?tokenAddress=${encodeURIComponent(tokenAddress)}&limit=20`
+      )
+    )
       .then((r) => r.json())
       .then((d) => setAnnouncements(d.announcements ?? []))
       .finally(() => setLoading(false));
-  }, [creatorAddress]);
+  }, [tokenAddress]);
 
   useEffect(() => {
     load();
@@ -161,6 +166,14 @@ export function AnnouncementsSection({ tokenAddress, creatorAddress }: Announcem
                   </span>
                 </div>
                 <p className="whitespace-pre-wrap text-sm text-muted-foreground">{a.content}</p>
+                {a.imageUrl && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={a.imageUrl}
+                    alt=""
+                    className="mt-3 max-h-64 w-full rounded-lg border border-border object-cover"
+                  />
+                )}
               </article>
             ))}
           </div>

@@ -1,7 +1,11 @@
 "use client";
 
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, Mail } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  DEVELOPMENT_STAGE_LABELS,
+  type DevelopmentStageId,
+} from "@iopn/shared";
 
 function formatFollowers(count: number): string {
   if (count >= 1_000_000) return `${(count / 1_000_000).toFixed(1).replace(/\.0$/, "")}M followers`;
@@ -26,19 +30,45 @@ function linkLabel(url: string): string {
   }
 }
 
+function socialHref(kind: "telegram" | "twitter", value: string): string {
+  if (value.startsWith("http")) return value;
+  if (kind === "telegram") return `https://t.me/${value.replace(/^@/, "")}`;
+  return `https://x.com/${value.replace(/^@/, "")}`;
+}
+
 type TokenAboutCardProps = {
   creatorFollowers?: number;
+  developmentStage?: DevelopmentStageId | null;
   website?: string | null;
   telegram?: string | null;
   twitter?: string | null;
+  discord?: string | null;
+  github?: string | null;
+  medium?: string | null;
+  documentation?: string | null;
+  whitepaper?: string | null;
+  supportEmail?: string | null;
+  announcementChannel?: string | null;
+  communityInviteLink?: string | null;
+  officialContact?: string | null;
   createdAt?: string | null;
 };
 
 export function TokenAboutCard({
   creatorFollowers = 0,
+  developmentStage,
   website,
   telegram,
   twitter,
+  discord,
+  github,
+  medium,
+  documentation,
+  whitepaper,
+  supportEmail,
+  announcementChannel,
+  communityInviteLink,
+  officialContact,
   createdAt,
 }: TokenAboutCardProps) {
   const rows: { label: string; content: React.ReactNode }[] = [];
@@ -48,58 +78,65 @@ export function TokenAboutCard({
     content: <span className="text-foreground">{formatFollowers(creatorFollowers)}</span>,
   });
 
-  if (website) {
+  if (developmentStage) {
     rows.push({
-      label: "Website",
+      label: "Stage",
+      content: (
+        <span className="text-foreground">{DEVELOPMENT_STAGE_LABELS[developmentStage]}</span>
+      ),
+    });
+  }
+
+  const linkRows: { label: string; href: string; text?: string }[] = [];
+  if (website) linkRows.push({ label: "Website", href: website });
+  if (telegram) linkRows.push({ label: "Telegram", href: socialHref("telegram", telegram), text: telegram });
+  if (twitter) linkRows.push({ label: "X", href: socialHref("twitter", twitter), text: twitter });
+  if (discord) linkRows.push({ label: "Discord", href: discord.startsWith("http") ? discord : `https://discord.gg/${discord}` });
+  if (github) linkRows.push({ label: "GitHub", href: github });
+  if (medium) linkRows.push({ label: "Medium", href: medium });
+  if (documentation) linkRows.push({ label: "Docs", href: documentation });
+  if (whitepaper) linkRows.push({ label: "Whitepaper", href: whitepaper });
+  if (communityInviteLink) linkRows.push({ label: "Community", href: communityInviteLink });
+
+  for (const row of linkRows) {
+    rows.push({
+      label: row.label,
       content: (
         <a
-          href={website}
+          href={row.href}
           target="_blank"
           rel="noopener noreferrer"
           className="inline-flex items-center gap-1 text-primary hover:underline"
         >
-          {linkLabel(website)}
+          {row.text ? row.text.replace(/^https?:\/\//, "") : linkLabel(row.href)}
           <ExternalLink className="h-3 w-3 shrink-0" />
         </a>
       ),
     });
   }
 
-  if (telegram) {
-    const href = telegram.startsWith("http") ? telegram : `https://t.me/${telegram.replace(/^@/, "")}`;
+  if (supportEmail) {
     rows.push({
-      label: "Telegram",
+      label: "Support",
       content: (
-        <a
-          href={href}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1 text-primary hover:underline"
-        >
-          {telegram.replace(/^https?:\/\/(t\.me\/)?/, "")}
-          <ExternalLink className="h-3 w-3 shrink-0" />
+        <a href={`mailto:${supportEmail}`} className="inline-flex items-center gap-1 text-primary hover:underline">
+          <Mail className="h-3 w-3" /> {supportEmail}
         </a>
       ),
     });
   }
 
-  if (twitter) {
-    const href = twitter.startsWith("http")
-      ? twitter
-      : `https://x.com/${twitter.replace(/^@/, "")}`;
+  if (announcementChannel) {
     rows.push({
-      label: "X",
-      content: (
-        <a
-          href={href}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1 text-primary hover:underline"
-        >
-          {twitter.replace(/^https?:\/\/(www\.)?(twitter|x)\.com\//, "@")}
-          <ExternalLink className="h-3 w-3 shrink-0" />
-        </a>
-      ),
+      label: "Announcements",
+      content: <span className="text-foreground">{announcementChannel}</span>,
+    });
+  }
+
+  if (officialContact) {
+    rows.push({
+      label: "Contact",
+      content: <span className="text-foreground">{officialContact}</span>,
     });
   }
 

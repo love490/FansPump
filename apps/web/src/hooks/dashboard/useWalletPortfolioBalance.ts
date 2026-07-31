@@ -14,6 +14,7 @@ import { useMyLiquidityPositions } from "@/hooks/liquidity/useMyLiquidityPositio
 import { useBasePoolLpPositions } from "@/hooks/liquidity/useBasePoolLpPositions";
 import {
   bigintToFloat,
+  sanitizeUsdQuote,
   sumPortfolio,
   type PortfolioAsset,
 } from "@/lib/dashboard/wallet-balance";
@@ -132,7 +133,7 @@ export function useWalletPortfolioBalance() {
           usdt,
           router
         );
-        priced[token.contractAddress.toLowerCase()] = usd;
+        priced[token.contractAddress.toLowerCase()] = sanitizeUsdQuote(usd);
       }
 
       const lpRows = [
@@ -142,7 +143,7 @@ export function useWalletPortfolioBalance() {
       for (const pos of lpRows) {
         const key = pos.lpToken.toLowerCase();
         if (lpPriced[key] !== undefined) continue;
-        lpPriced[key] = await quoteLpTokenUsd(client, pos.lpToken as Address, pos.lpBalance);
+        lpPriced[key] = sanitizeUsdQuote(await quoteLpTokenUsd(client, pos.lpToken as Address, pos.lpBalance));
       }
 
       if (!cancelled) {

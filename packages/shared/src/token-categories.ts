@@ -6,7 +6,9 @@ export const TOKEN_CATEGORIES = [
   "INFRASTRUCTURE",
   "NFT",
   "COMMUNITY",
+  "SOCIAL",
   "UTILITY",
+  "RWA",
   "OTHER",
 ] as const;
 
@@ -20,7 +22,9 @@ export const TOKEN_CATEGORY_LABELS: Record<TokenCategoryId, string> = {
   INFRASTRUCTURE: "Infrastructure",
   NFT: "NFT",
   COMMUNITY: "Community",
+  SOCIAL: "Social",
   UTILITY: "Utility",
+  RWA: "RWA",
   OTHER: "Other",
 };
 

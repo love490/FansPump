@@ -13,6 +13,14 @@ import { mapTokenListRow, mapTokenListRowSafe, tokenListSelect } from "@/lib/ana
 import { initializeTokenAnalytics } from "@/lib/analytics/token-init";
 import { ensureFactoryTokensSynced } from "@/lib/analytics/factory-token-sync";
 import { resolveTokenDetail, indexExternalTokenIfMissing } from "@/lib/tokens/resolve-token";
+import { CreatorAuthError, requireCreatorActionAuth } from "@/lib/creator-auth";
+import {
+  buildProfileUpdateData,
+  collectProfileAuditEntries,
+  projectProfilePatchSchema,
+  rejectImmutableFields,
+  validateNoDuplicateLinks,
+} from "@/lib/project-profile";
 import {
   fetchRegistrySpotPrices,
   fetchSpotPricesForAddresses,
@@ -25,7 +33,6 @@ import {
 } from "@/lib/tokens/home-sections";
 import prisma from "../lib/prisma";
 import { asyncHandler, getRouteParam, queryToSearchParams, setCacheControl } from "../lib/http-helpers";
-import { notImplemented } from "../lib/route-utils";
 import { optionalAuthMiddleware } from "../middleware/auth";
 import { publicRateLimit } from "../middleware/rateLimit";
 
@@ -240,6 +247,41 @@ router.get(
       console.error("[GET /api/tokens/spot-prices]", e);
       res.status(500).json({ error: "Failed to load spot prices" });
     }
+  })
+);
+
+router.get(
+  "/:address/profile/history",
+  asyncHandler(async (req, res) => {
+    const raw = getRouteParam(req.params.address);
+    const tokenAddress = raw.toLowerCase();
+    if (!isAddress(tokenAddress)) {
+      res.status(400).json({ error: "Invalid token address" });
+      return;
+    }
+
+    const token = await prisma.tokenProject.findUnique({
+      where: { contractAddress: tokenAddress },
+      select: { id: true },
+    });
+    if (!token) {
+      res.status(404).json({ error: "Token not found" });
+      return;
+    }
+
+    const limit = Math.min(Number(queryToSearchParams(req.query).get("limit") ?? 50), 100);
+    const history = await prisma.metadataUpdate.findMany({
+      where: { tokenId: token.id },
+      orderBy: { createdAt: "desc" },
+      take: limit,
+    });
+
+    res.json({
+      history: history.map((row) => ({
+        ...row,
+        createdAt: row.createdAt.toISOString(),
+      })),
+    });
   })
 );
 
@@ -644,6 +686,100 @@ router.post(
   })
 );
 
-router.patch("/:address", notImplemented);
+router.patch(
+  "/:address",
+  asyncHandler(async (req, res) => {
+    const raw = getRouteParam(req.params.address);
+    const tokenAddress = raw.toLowerCase();
+    if (!isAddress(tokenAddress)) {
+      res.status(400).json({ error: "Invalid token address" });
+      return;
+    }
+
+    try {
+      rejectImmutableFields(req.body as Record<string, unknown>);
+
+      const parsed = projectProfilePatchSchema.parse(req.body);
+      validateNoDuplicateLinks(parsed);
+
+      const wallet = await requireCreatorActionAuth(parsed);
+
+      const existing = await prisma.tokenProject.findUnique({
+        where: { contractAddress: tokenAddress },
+      });
+      if (!existing) {
+        res.status(404).json({ error: "Token not found" });
+        return;
+      }
+      if (existing.creatorAddress.toLowerCase() !== wallet) {
+        res.status(403).json({ error: "Not token creator" });
+        return;
+      }
+
+      const updateData = buildProfileUpdateData(parsed);
+      const profileKeys = Object.keys(parsed).filter(
+        (key) => !["walletAddress", "message", "signature"].includes(key)
+      );
+      if (profileKeys.length === 0) {
+        res.status(400).json({ error: "No profile fields to update" });
+        return;
+      }
+
+      const updated = await prisma.$transaction(async (tx) => {
+        const before = await tx.tokenProject.findUniqueOrThrow({
+          where: { id: existing.id },
+        });
+        const after = await tx.tokenProject.update({
+          where: { id: existing.id },
+          data: updateData,
+        });
+
+        const auditEntries = collectProfileAuditEntries(before, after, parsed);
+        if (auditEntries.length > 0) {
+          await tx.metadataUpdate.createMany({
+            data: auditEntries.map((entry) => ({
+              tokenId: existing.id,
+              field: entry.field,
+              editorWallet: wallet,
+              oldValue: entry.oldValue,
+              newValue: entry.newValue,
+            })),
+          });
+        }
+
+        return after;
+      });
+
+      res.json({
+        success: true,
+        token: {
+          ...updated,
+          featureFlags: updated.featureFlags.toString(),
+          profileUpdatedAt: updated.profileUpdatedAt?.toISOString() ?? null,
+        },
+      });
+    } catch (e) {
+      if (e instanceof CreatorAuthError) {
+        res.status(e.status).json({ error: e.message });
+        return;
+      }
+      if (e instanceof z.ZodError) {
+        const msg = e.errors.map((err) => `${err.path.join(".")}: ${err.message}`).join("; ");
+        res.status(400).json({ error: msg || "Invalid profile data" });
+        return;
+      }
+      if (e instanceof Error && e.message.includes("immutable")) {
+        res.status(400).json({ error: e.message });
+        return;
+      }
+      if (e instanceof Error && e.message.includes("Duplicate link")) {
+        res.status(400).json({ error: e.message });
+        return;
+      }
+      console.error("[PATCH /api/tokens/:address]", e);
+      res.status(500).json({ error: "Failed to update project profile" });
+    }
+  })
+);
 
 export default router;

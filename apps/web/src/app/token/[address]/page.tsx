@@ -11,7 +11,9 @@ import { TokenAnalyticsSection } from "@/components/token/token-analytics-sectio
 import { TokenHealthPanel, TrustScorePanel } from "@/components/trust/TrustScorePanel";
 import { TokenBanner } from "@/components/tokens/token-banner";
 import { TokenLogo } from "@/components/tokens/token-logo";
-import { TOKEN_CATEGORY_LABELS, type TokenCategoryId } from "@iopn/shared";
+import { TOKEN_CATEGORY_LABELS, parseRoadmap, type DevelopmentStageId, type TokenCategoryId } from "@iopn/shared";
+import { ProjectRoadmapSection } from "@/components/project/project-roadmap-section";
+import { projectEditHref } from "@/lib/project/profile-edit";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,7 +26,7 @@ import { shortenAddress, cn } from "@/lib/utils";
 import { liquidityUrl, tokenLiquidityViewUrl, TOOLS_LOCK_PATH } from "@/lib/navigation/liquidity-routes";
 import { swapPageHref, NATIVE_OPN_ID, isNativeOpnToken } from "@/lib/tokens/token-route";
 import { OPN_EXPLORER_BASE } from "@/lib/wagmi";
-import { ExternalLink, Star, ShoppingCart, TrendingDown, ArrowLeftRight, Droplets, FileCode } from "lucide-react";
+import { ExternalLink, Star, ShoppingCart, TrendingDown, ArrowLeftRight, Droplets, FileCode, Pencil } from "lucide-react";
 
 interface TokenDetail {
   id: string;
@@ -35,6 +37,11 @@ interface TokenDetail {
   creatorUsername?: string | null;
   creatorVerified?: boolean;
   category?: string;
+  displayName?: string | null;
+  tagline?: string | null;
+  summary?: string | null;
+  developmentStage?: DevelopmentStageId | null;
+  roadmap?: unknown;
   liquidityLocked?: boolean;
   ownershipRenounced?: boolean;
   logoUrl?: string | null;
@@ -44,6 +51,14 @@ interface TokenDetail {
   github?: string | null;
   telegram?: string | null;
   twitter?: string | null;
+  discord?: string | null;
+  medium?: string | null;
+  documentation?: string | null;
+  whitepaper?: string | null;
+  supportEmail?: string | null;
+  announcementChannel?: string | null;
+  communityInviteLink?: string | null;
+  officialContact?: string | null;
   createdAt?: string | null;
   creatorFollowers?: number;
   buyTaxBps?: number | null;
@@ -141,6 +156,8 @@ export default function TokenPage() {
     Boolean(token.creatorAddress) &&
     token.creatorAddress.toLowerCase() !== zeroAddress &&
     isIndexed;
+  const displayTitle = token.displayName?.trim() || token.name;
+  const roadmap = parseRoadmap(token.roadmap);
 
   async function handleFavoriteClick() {
     if (watchlistBusy) return;
@@ -179,8 +196,11 @@ export default function TokenPage() {
           <TokenLogo src={token.logoUrl} symbol={token.symbol} name={token.name} layout="responsive" priority />
           <div>
             <h1 className="text-3xl font-bold flex items-center gap-2">
-              {token.name}
+              {displayTitle}
             </h1>
+            {token.tagline && (
+              <p className="mt-1 text-sm text-muted-foreground">{token.tagline}</p>
+            )}
             <div className="flex min-w-0 items-center gap-0.5">
               {isNative ? (
                 <span className="text-xs text-muted-foreground">Native gas token · OPN Chain</span>
@@ -263,6 +283,11 @@ export default function TokenPage() {
           {isCreator && isIndexed && (
             <>
               <Button asChild variant="outline" size="sm">
+                <Link href={projectEditHref(explorerAddress ?? address)}>
+                  <Pencil className="h-4 w-4" /> Edit profile
+                </Link>
+              </Button>
+              <Button asChild variant="outline" size="sm">
                 <Link href={TOOLS_LOCK_PATH}>
                   <Droplets className="h-4 w-4" /> Lock / Burn LP
                 </Link>
@@ -277,15 +302,31 @@ export default function TokenPage() {
 
       <SignInModal open={signInOpen} onOpenChange={setSignInOpen} />
 
-      {token.description && <p className="mt-6 text-muted-foreground">{token.description}</p>}
+      {token.summary && (
+        <p className="mt-4 text-sm font-medium text-foreground">{token.summary}</p>
+      )}
+
+      {token.description && <p className="mt-4 text-muted-foreground">{token.description}</p>}
 
       <TokenAboutCard
         creatorFollowers={token.creatorFollowers ?? 0}
+        developmentStage={token.developmentStage}
         website={token.website}
         telegram={token.telegram}
         twitter={token.twitter}
+        discord={token.discord}
+        github={token.github}
+        medium={token.medium}
+        documentation={token.documentation}
+        whitepaper={token.whitepaper}
+        supportEmail={token.supportEmail}
+        announcementChannel={token.announcementChannel}
+        communityInviteLink={token.communityInviteLink}
+        officialContact={token.officialContact}
         createdAt={token.createdAt}
       />
+
+      <ProjectRoadmapSection milestones={roadmap} developmentStage={token.developmentStage} />
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
         {!isNative && explorerAddress && (
@@ -308,7 +349,10 @@ export default function TokenPage() {
       )}
 
       {hasCreator && (
-        <AnnouncementsSection tokenAddress={explorerAddress ?? address} creatorAddress={token.creatorAddress} />
+        <AnnouncementsSection
+          tokenAddress={explorerAddress ?? address}
+          creatorAddress={token.creatorAddress}
+        />
       )}
 
       {isIndexed && (

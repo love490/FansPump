@@ -13,9 +13,13 @@ import { useActiveWallet } from "@/hooks/useActiveWallet";
 import { useDashboardPortfolio } from "@/components/dashboard/wallet-portfolio-provider";
 import { useWatchlistAddresses } from "@/hooks/dashboard/useWatchlistAddresses";
 import { erc20Abi } from "@/lib/swap/abis";
-import { formatMarketPrice } from "@/lib/tokens/market-metrics";
 import { liquidityUrl } from "@/lib/navigation/liquidity-routes";
-import { bigintToFloat, type PortfolioAsset } from "@/lib/dashboard/wallet-balance";
+import {
+  bigintToFloat,
+  formatCompactUsd,
+  formatTokenAmount,
+  type PortfolioAsset,
+} from "@/lib/dashboard/wallet-balance";
 import { readImportedTokens, type ImportedToken } from "@/lib/dashboard/imported-tokens";
 import { categorizeAsset, ALLOCATION_LABELS, type AllocationCategory } from "@/lib/dashboard/allocation";
 import { addTokenToWallet } from "@/lib/wallet/watch-asset";
@@ -31,14 +35,6 @@ const FILTERS = [
 ] as const;
 
 type FilterId = (typeof FILTERS)[number]["id"];
-
-function formatBalanceAmount(amount: number): string {
-  if (!Number.isFinite(amount) || amount <= 0) return "0";
-  if (amount >= 1_000_000) return `${(amount / 1_000_000).toFixed(2)}M`;
-  if (amount >= 1_000) return amount.toLocaleString(undefined, { maximumFractionDigits: 2 });
-  if (amount >= 1) return amount.toLocaleString(undefined, { maximumFractionDigits: 4 });
-  return amount.toLocaleString(undefined, { maximumFractionDigits: 6 });
-}
 
 function tokenHref(row: PortfolioAsset): string | null {
   if (row.isLp) {
@@ -347,7 +343,7 @@ export function DashboardMyTokensTab({
                         )}
                       </div>
                       <p className="mt-0.5 text-sm tabular-nums text-muted-foreground">
-                        {formatBalanceAmount(row.amount)}
+                        {formatTokenAmount(row.amount)}
                       </p>
                     </div>
                   </Link>
@@ -365,7 +361,7 @@ export function DashboardMyTokensTab({
                         {symbol}
                       </p>
                       <p className="mt-0.5 text-sm tabular-nums text-muted-foreground">
-                        {formatBalanceAmount(row.amount)}
+                        {formatTokenAmount(row.amount)}
                       </p>
                     </div>
                   </div>
@@ -373,10 +369,10 @@ export function DashboardMyTokensTab({
 
                 <div className="shrink-0 text-right">
                   <p className="font-semibold tabular-nums">
-                    {row.usdValue > 0 ? formatMarketPrice(row.usdValue) : "—"}
+                    {row.usdValue > 0 ? formatCompactUsd(row.usdValue) : "—"}
                   </p>
                   <p className="mt-0.5 text-xs tabular-nums text-muted-foreground">
-                    {row.unitPriceUsd > 0 ? formatMarketPrice(row.unitPriceUsd) : "—"}
+                    {row.unitPriceUsd > 0 ? formatCompactUsd(row.unitPriceUsd) : "—"}
                   </p>
                 </div>
 

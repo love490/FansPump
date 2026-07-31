@@ -3,7 +3,7 @@ import { formatUnits, parseEther } from "viem";
 import { opnDexRouterAbi } from "@/lib/swap/abis";
 import { getRouterAddress } from "@/lib/swap/routerAdapter";
 import { opnChainConfig } from "@/lib/chain-config/opn";
-import { envOpnUsdRate } from "@/lib/dashboard/wallet-balance";
+import { envOpnUsdRate, sanitizeUsdQuote } from "@/lib/dashboard/wallet-balance";
 
 export const DEFAULT_OPN_USD = 0.25;
 
@@ -27,7 +27,7 @@ export async function fetchOpnUsdRate(client: PublicClient): Promise<number> {
       args: [parseEther("1"), [wopn, usdt]],
     });
     const usdtOut = Number(formatUnits(amounts[amounts.length - 1]!, opnChainConfig.tokenDecimals.usdt));
-    return usdtOut > 0 ? usdtOut : DEFAULT_OPN_USD;
+    return sanitizeUsdQuote(usdtOut > 0 ? usdtOut : DEFAULT_OPN_USD) || DEFAULT_OPN_USD;
   } catch {
     return DEFAULT_OPN_USD;
   }
@@ -49,7 +49,9 @@ export async function fetchTokenUsdValue(
       functionName: "getAmountsOut",
       args: [amount, [tokenAddress, wopn, usdt]],
     });
-    return Number(formatUnits(amounts[amounts.length - 1]!, opnChainConfig.tokenDecimals.usdt));
+    return sanitizeUsdQuote(
+      Number(formatUnits(amounts[amounts.length - 1]!, opnChainConfig.tokenDecimals.usdt))
+    );
   } catch {
     try {
       const amounts = await client.readContract({
@@ -58,7 +60,9 @@ export async function fetchTokenUsdValue(
         functionName: "getAmountsOut",
         args: [amount, [tokenAddress, usdt]],
       });
-      return Number(formatUnits(amounts[amounts.length - 1]!, opnChainConfig.tokenDecimals.usdt));
+      return sanitizeUsdQuote(
+        Number(formatUnits(amounts[amounts.length - 1]!, opnChainConfig.tokenDecimals.usdt))
+      );
     } catch {
       return 0;
     }

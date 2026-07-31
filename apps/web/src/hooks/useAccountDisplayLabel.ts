@@ -5,7 +5,7 @@ import { useAuth } from "@/components/auth/auth-provider";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { useActiveWallet } from "@/hooks/useActiveWallet";
 import { useWalletPortfolioBalance } from "@/hooks/dashboard/useWalletPortfolioBalance";
-import { formatBalanceTotal } from "@/lib/dashboard/wallet-balance";
+import { formatBalanceTotal, formatCompactOpn, formatTokenAmount } from "@/lib/dashboard/wallet-balance";
 import { formatCreatorDisplay } from "@/lib/username";
 import { shortenAddress } from "@/lib/utils";
 
@@ -15,10 +15,7 @@ function isWalletAddress(value: string | null | undefined): boolean {
 
 function formatNativeOpnAmount(value: number | undefined): string | null {
   if (value == null || !Number.isFinite(value)) return null;
-  if (value >= 1) return `${value.toLocaleString(undefined, { maximumFractionDigits: 4 })} OPN`;
-  if (value >= 0.0001) return `${value.toLocaleString(undefined, { maximumFractionDigits: 6 })} OPN`;
-  if (value > 0) return `${value.toExponential(2)} OPN`;
-  return "0 OPN";
+  return formatCompactOpn(value);
 }
 
 export function useAccountDisplayLabel(options?: { preferBalance?: boolean }) {

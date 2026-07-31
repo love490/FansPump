@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { Pencil } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CreatorProfileLink } from "@/components/profile/creator-profile-link";
 import { formatBountyReward, timeRemaining, type BountyListItem } from "@/lib/bounties";
@@ -18,10 +20,18 @@ function statusBadge(status: BountyListItem["effectiveStatus"]) {
   }
 }
 
-export function BountyCard({ bounty }: { bounty: BountyListItem }) {
+type BountyCardProps = {
+  bounty: BountyListItem;
+  /** Show edit control for the quest creator (must also pass onEdit). */
+  canEdit?: boolean;
+  onEdit?: () => void;
+};
+
+export function BountyCard({ bounty, canEdit = false, onEdit }: BountyCardProps) {
   const reward = formatBountyReward(bounty);
   const remaining = timeRemaining(bounty.endsAt);
   const questHref = `/earn/${bounty.id}`;
+  const showEdit = canEdit && Boolean(onEdit);
 
   return (
     <Card className="relative transition-colors hover:border-primary/40 hover:bg-muted/20">
@@ -39,11 +49,29 @@ export function BountyCard({ bounty }: { bounty: BountyListItem }) {
                 {bounty.tokenSymbol && <Badge variant="secondary">${bounty.tokenSymbol}</Badge>}
               </div>
             </div>
-            <div className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-right">
-              <p className="flex items-center justify-end gap-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                <Gift className="h-3 w-3" /> Reward
-              </p>
-              <p className="text-sm font-bold text-primary">{reward}</p>
+            <div className="flex flex-col items-end gap-2">
+              {showEdit && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="pointer-events-auto relative z-[3] h-8 gap-1 px-2 text-xs"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onEdit?.();
+                  }}
+                >
+                  <Pencil className="h-3 w-3" />
+                  Edit
+                </Button>
+              )}
+              <div className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-right">
+                <p className="flex items-center justify-end gap-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                  <Gift className="h-3 w-3" /> Reward
+                </p>
+                <p className="text-sm font-bold text-primary">{reward}</p>
+              </div>
             </div>
           </div>
         </CardHeader>

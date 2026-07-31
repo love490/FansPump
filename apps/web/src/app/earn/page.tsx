@@ -2,27 +2,48 @@
 
 import { apiUrl } from "@/lib/api";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { BOUNTY_TABS, type BountyListItem, type BountyTab } from "@/lib/bounties";
+import {
+  BOUNTY_TABS,
+  canEditBounty,
+  type BountyListItem,
+  type BountyTab,
+} from "@/lib/bounties";
 import { BountyCard } from "@/components/bounties/bounty-card";
+import { QuestEditDialog } from "@/components/bounties/quest-edit-dialog";
 import { Button } from "@/components/ui/button";
+import { useActiveWallet } from "@/hooks/useActiveWallet";
 import { CircleDollarSign } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export default function EarnPage() {
+  const { walletAddress } = useActiveWallet();
   const [tab, setTab] = useState<BountyTab>("newest");
   const [bounties, setBounties] = useState<BountyListItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [editingBounty, setEditingBounty] = useState<BountyListItem | null>(null);
 
-  useEffect(() => {
+  const loadBounties = useCallback(() => {
     setLoading(true);
-    fetch(apiUrl(`/api/bounties?tab=${tab}&limit=40`))
+    const query =
+      tab === "mine" && walletAddress
+        ? `creator=${walletAddress}&scope=mine&limit=40`
+        : `tab=${tab}&limit=40`;
+    fetch(apiUrl(`/api/bounties?${query}`))
       .then((r) => r.json())
       .then((d) => setBounties(d.bounties ?? []))
       .catch(() => setBounties([]))
       .finally(() => setLoading(false));
-  }, [tab]);
+  }, [tab, walletAddress]);
+
+  useEffect(() => {
+    loadBounties();
+  }, [loadBounties]);
+
+  const tabs = walletAddress
+    ? [...BOUNTY_TABS, { id: "mine" as const, label: "My quests" }]
+    : BOUNTY_TABS;
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6 lg:px-8">
@@ -36,7 +57,7 @@ export default function EarnPage() {
       </header>
 
       <div className="mb-6 flex flex-wrap gap-2">
-        {BOUNTY_TABS.map((t) => (
+        {tabs.map((t) => (
           <button
             key={t.id}
             type="button"
@@ -57,7 +78,11 @@ export default function EarnPage() {
         <p className="text-muted-foreground">Loading bounties…</p>
       ) : bounties.length === 0 ? (
         <div className="rounded-2xl border border-dashed p-10 text-center">
-          <p className="text-muted-foreground">No bounties in this section yet.</p>
+          <p className="text-muted-foreground">
+            {tab === "mine"
+              ? "You have not created any quests yet."
+              : "No bounties in this section yet."}
+          </p>
           <Button asChild variant="outline" className="mt-4">
             <Link href="/discover?section=all">Discover</Link>
           </Button>
@@ -65,9 +90,28 @@ export default function EarnPage() {
       ) : (
         <div className="space-y-4">
           {bounties.map((bounty) => (
-            <BountyCard key={bounty.id} bounty={bounty} />
+            <BountyCard
+              key={bounty.id}
+              bounty={bounty}
+              canEdit={canEditBounty(bounty, walletAddress)}
+              onEdit={() => setEditingBounty(bounty)}
+            />
           ))}
         </div>
+      )}
+
+      {editingBounty && (
+        <QuestEditDialog
+          bounty={editingBounty}
+          open={Boolean(editingBounty)}
+          onOpenChange={(open) => {
+            if (!open) setEditingBounty(null);
+          }}
+          onSaved={() => {
+            setEditingBounty(null);
+            loadBounties();
+          }}
+        />
       )}
     </div>
   );

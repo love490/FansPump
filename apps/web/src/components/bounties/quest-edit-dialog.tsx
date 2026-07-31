@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useAccount, useSignMessage } from "wagmi";
+import { useSignMessage } from "wagmi";
+import { useActiveWallet } from "@/hooks/useActiveWallet";
 import { apiUrl, readApiJson } from "@/lib/api";
 import { formatContractError } from "@/lib/contract-errors";
 import { Button } from "@/components/ui/button";
@@ -49,7 +50,7 @@ function toLocalDateTimeInput(iso: string | null): string {
 }
 
 export function QuestEditDialog({ bounty, open, onOpenChange, onSaved }: QuestEditDialogProps) {
-  const { address } = useAccount();
+  const { walletAddress } = useActiveWallet();
   const { signMessageAsync } = useSignMessage();
 
   const config = useMemo(() => parseBountyTaskConfig(bounty.verificationConfig), [bounty]);
@@ -108,8 +109,8 @@ export function QuestEditDialog({ bounty, open, onOpenChange, onSaved }: QuestEd
   }
 
   async function handleSave() {
-    if (!address) {
-      setError("Connect your wallet to save changes");
+    if (!walletAddress) {
+      setError("Connect your creator wallet to save changes");
       return;
     }
 
@@ -160,14 +161,14 @@ export function QuestEditDialog({ bounty, open, onOpenChange, onSaved }: QuestEd
 
       const prefix =
         process.env.NEXT_PUBLIC_CREATOR_ACTION_MESSAGE_PREFIX ?? "FansPump Creator Action";
-      const message = `${prefix}\nEdit quest: ${bounty.id}\nWallet: ${address.toLowerCase()}\nTime: ${Date.now()}`;
+      const message = `${prefix}\nEdit quest: ${bounty.id}\nWallet: ${walletAddress}\nTime: ${Date.now()}`;
       const signature = await signMessageAsync({ message });
 
       const res = await fetch(apiUrl(`/api/bounties/${bounty.id}`), {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          walletAddress: address,
+          walletAddress,
           message,
           signature,
           title: title.trim(),

@@ -1,4 +1,4 @@
-import { formatUnits, isAddress, type Address } from "viem";
+import { formatUnits, isAddress, parseAbiItem, type Address } from "viem";
 import { getActiveChainId } from "@/lib/chain-config/opn";
 import { getPublicClient } from "@/lib/rpc-client";
 import { erc20Abi } from "@/lib/swap/abis";
@@ -15,8 +15,9 @@ export type WalletTokenRow = {
   isCreator: boolean;
 };
 
-const TRANSFER_TOPIC =
-  "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
+const TRANSFER_EVENT = parseAbiItem(
+  "event Transfer(address indexed from, address indexed to, uint256 value)"
+);
 
 const MAX_EXPLORER_PAGES = 8;
 const LOG_LOOKBACK = Number(process.env.WALLET_TOKEN_LOG_LOOKBACK ?? 250_000);
@@ -85,21 +86,23 @@ async function discoverTokenContractsFromLogs(wallet: Address): Promise<Address[
   const client = getPublicClient();
   const latest = await client.getBlockNumber();
   const fromBlock = latest > BigInt(LOG_LOOKBACK) ? latest - BigInt(LOG_LOOKBACK) : 0n;
-  const walletTopic = wallet.toLowerCase() as Address;
+  const walletLower = wallet.toLowerCase() as Address;
 
   const [received, sent] = await Promise.all([
     client
       .getLogs({
         fromBlock,
         toBlock: latest,
-        topics: [TRANSFER_TOPIC, null, walletTopic],
+        event: TRANSFER_EVENT,
+        args: { to: walletLower },
       })
       .catch(() => []),
     client
       .getLogs({
         fromBlock,
         toBlock: latest,
-        topics: [TRANSFER_TOPIC, walletTopic],
+        event: TRANSFER_EVENT,
+        args: { from: walletLower },
       })
       .catch(() => []),
   ]);
@@ -218,17 +221,90 @@ async function enrichWalletTokens(wallet: string, rows: WalletTokenRow[]): Promi
   });
 }
 
+async function fetchKnownTokenAddresses(wallet: string): Promise<Address[]> {
+  const walletLower = wallet.toLowerCase();
+  const chainId = getActiveChainId();
+  const walletMatch = { equals: walletLower, mode: "insensitive" as const };
+
+  const [created, swaps, locks, burns] = await Promise.all([
+    prisma.tokenProject.findMany({
+      where: { chainId, creatorAddress: walletMatch },
+      select: { contractAddress: true },
+    }),
+    prisma.swapActivity.findMany({
+      where: { traderAddress: walletMatch },
+      distinct: ["tokenAddress"],
+      select: { tokenAddress: true },
+    }),
+    prisma.liquidityLock.findMany({
+      where: { creatorWallet: walletMatch },
+      distinct: ["tokenAddress"],
+      select: { tokenAddress: true },
+    }),
+    prisma.lpBurn.findMany({
+      where: { creatorWallet: walletMatch },
+      distinct: ["tokenAddress"],
+      select: { tokenAddress: true },
+    }),
+  ]);
+
+  const seen = new Set<string>();
+  for (const token of created) {
+    const addr = token.contractAddress.toLowerCase();
+    if (isAddress(addr)) seen.add(addr);
+  }
+  for (const group of [swaps, locks, burns]) {
+    for (const row of group) {
+      const addr = row.tokenAddress.toLowerCase();
+      if (isAddress(addr)) seen.add(addr);
+    }
+  }
+
+  return [...seen].map((addr) => addr as Address);
+}
+
 /** All ERC-20 balances held by a wallet on OPN Chain (FansPump + external). */
 export async function fetchWalletTokenBalances(wallet: string): Promise<WalletTokenRow[]> {
   if (!isAddress(wallet)) return [];
 
   const normalized = wallet.toLowerCase() as Address;
-  let rows = await fetchExplorerWalletTokens(normalized);
+  const [explorerRows, knownAddresses] = await Promise.all([
+    fetchExplorerWalletTokens(normalized),
+    fetchKnownTokenAddresses(normalized),
+  ]);
 
-  if (rows.length === 0) {
-    const contracts = await discoverTokenContractsFromLogs(normalized);
-    rows = await readBalancesFromChain(normalized, contracts);
+  const byAddr = new Map<string, WalletTokenRow>();
+  for (const row of explorerRows) {
+    byAddr.set(row.contractAddress, row);
   }
+
+  const missing = knownAddresses.filter((addr) => !byAddr.has(addr.toLowerCase()));
+  if (missing.length > 0) {
+    const chainRows = await readBalancesFromChain(normalized, missing);
+    for (const row of chainRows) {
+      byAddr.set(row.contractAddress, row);
+    }
+  }
+
+  // Explorer can miss tokens — supplement with on-chain log discovery when sparse.
+  if (byAddr.size < 8) {
+    const contracts = await discoverTokenContractsFromLogs(normalized);
+    const logMissing = contracts.filter((addr) => !byAddr.has(addr.toLowerCase()));
+    if (logMissing.length > 0) {
+      const chainRows = await readBalancesFromChain(normalized, logMissing);
+      for (const row of chainRows) {
+        byAddr.set(row.contractAddress, row);
+      }
+    }
+  }
+
+  let rows = [...byAddr.values()].filter((row) => {
+    try {
+      return BigInt(row.balance) > 0n;
+    } catch {
+      return false;
+    }
+  });
 
   rows = await enrichWalletTokens(normalized, rows);
 

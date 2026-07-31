@@ -1,4 +1,5 @@
 import type { TokenCardData } from "@/components/tokens/token-card";
+import { sanitizeUsdQuote } from "@/lib/dashboard/wallet-balance";
 import { getPopularRegistryTokens, type RegistryToken } from "@/lib/token-registry";
 import { NATIVE_OPN_ID } from "@/lib/tokens/token-route";
 
@@ -186,16 +187,16 @@ export function buildMarketTableRows(
 }
 
 export function formatMarketPrice(value: number): string {
-  if (value >= 1000) {
-    return `$${value.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+  const v = sanitizeUsdQuote(value);
+  if (v <= 0) return "—";
+  if (v >= 1000) return formatMarketCompact(v);
+  if (v >= 1) {
+    return `$${v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   }
-  if (value >= 1) {
-    return `$${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  if (v >= 0.0001) {
+    return `$${v.toLocaleString(undefined, { minimumFractionDigits: 4, maximumFractionDigits: 6 })}`;
   }
-  if (value >= 0.0001) {
-    return `$${value.toLocaleString(undefined, { minimumFractionDigits: 4, maximumFractionDigits: 6 })}`;
-  }
-  return `$${value.toExponential(2)}`;
+  return `$${v.toExponential(2)}`;
 }
 
 export function formatMarketCompact(value: number): string {

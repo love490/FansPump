@@ -1,7 +1,9 @@
 import { Router } from "express";
+import { z } from "zod";
 import prisma from "../lib/prisma";
+import { CreatorAuthError, requireCreatorActionAuth } from "../lib/creator-auth";
+import { announcementCreateSchema } from "../lib/project-profile";
 import { asyncHandler, queryToSearchParams } from "../lib/http-helpers";
-import { notImplemented } from "../lib/route-utils";
 import { publicRateLimit } from "../middleware/rateLimit";
 
 const router = Router();
@@ -40,6 +42,58 @@ router.get(
   })
 );
 
-router.post("/", notImplemented);
+router.post(
+  "/",
+  asyncHandler(async (req, res) => {
+    try {
+      const parsed = announcementCreateSchema.parse(req.body);
+      const wallet = await requireCreatorActionAuth(parsed);
+      const tokenAddress = parsed.tokenAddress.toLowerCase();
+
+      const token = await prisma.tokenProject.findUnique({
+        where: { contractAddress: tokenAddress },
+      });
+      if (!token) {
+        res.status(404).json({ error: "Token not found" });
+        return;
+      }
+      if (token.creatorAddress.toLowerCase() !== wallet) {
+        res.status(403).json({ error: "Not token creator" });
+        return;
+      }
+
+      const announcement = await prisma.tokenAnnouncement.create({
+        data: {
+          tokenId: token.id,
+          tokenAddress,
+          creatorWallet: wallet,
+          title: parsed.title.trim(),
+          content: parsed.content.trim(),
+          type: parsed.type,
+          imageUrl: parsed.imageUrl ?? null,
+        },
+      });
+
+      res.json({
+        announcement: {
+          ...announcement,
+          createdAt: announcement.createdAt.toISOString(),
+        },
+      });
+    } catch (e) {
+      if (e instanceof CreatorAuthError) {
+        res.status(e.status).json({ error: e.message });
+        return;
+      }
+      if (e instanceof z.ZodError) {
+        const msg = e.errors.map((err) => `${err.path.join(".")}: ${err.message}`).join("; ");
+        res.status(400).json({ error: msg || "Invalid announcement" });
+        return;
+      }
+      console.error("[POST /api/announcements]", e);
+      res.status(500).json({ error: "Failed to post announcement" });
+    }
+  })
+);
 
 export default router;

@@ -25,7 +25,8 @@ export type BountyTab =
   | "ended"
   | "featured"
   | "newest"
-  | "ending_soon";
+  | "ending_soon"
+  | "mine";
 
 export const BOUNTY_TABS: { id: BountyTab; label: string }[] = [
   { id: "newest", label: "Newest" },
@@ -177,4 +178,11 @@ export function timeRemaining(endsAt: string | null): string | null {
   if (hours > 0) return `${hours}h left`;
   const mins = Math.floor(diff / (1000 * 60));
   return `${mins}m left`;
+}
+
+/** True when the viewer wallet created this quest and it can still be edited. */
+export function canEditBounty(bounty: BountyListItem, viewerWallet?: string | null): boolean {
+  if (!viewerWallet) return false;
+  if (bounty.status === "COMPLETED") return false;
+  return bounty.creatorWallet.toLowerCase() === viewerWallet.toLowerCase();
 }

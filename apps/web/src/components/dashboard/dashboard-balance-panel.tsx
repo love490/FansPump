@@ -119,7 +119,7 @@ export function DashboardBalancePanel() {
       </CardHeader>
       <CardContent className="space-y-4">
         <div>
-          <p className="text-3xl font-bold tracking-tight tabular-nums sm:text-4xl">
+          <p className="text-xl font-semibold tracking-tight tabular-nums sm:text-2xl">
             {loading ? "…" : formatBalanceTotal(totals.usd, "USD")}
           </p>
           <div className="mt-1 flex flex-wrap items-center gap-2 text-sm">

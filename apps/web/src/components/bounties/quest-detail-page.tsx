@@ -11,6 +11,7 @@ import {
   formatBountyParticipantCount,
   participationStatusLabel,
   timeRemaining,
+  canEditBounty,
   type BountyListItem,
   type BountyParticipationView,
 } from "@/lib/bounties";
@@ -68,7 +69,8 @@ function ExpandableDescription({ text }: { text: string }) {
 
 export function QuestDetailPage({ questId }: { questId: string }) {
   const { address: connectedAddress, isConnected } = useAccount();
-  const { isWalletConnected } = useActiveWallet();
+  const { walletAddress, isWalletConnected } = useActiveWallet();
+  const viewerWallet = walletAddress ?? connectedAddress?.toLowerCase();
   const { signMessageAsync } = useSignMessage();
   const { isSignedIn, signInOpen, setSignInOpen, requestSignIn } = useRequireSignIn();
   const [bounty, setBounty] = useState<BountyListItem | null>(null);
@@ -85,19 +87,22 @@ export function QuestDetailPage({ questId }: { questId: string }) {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const walletQuery = connectedAddress ? `?wallet=${connectedAddress.toLowerCase()}` : "";
+      const walletQuery = viewerWallet ? `?wallet=${viewerWallet}` : "";
       const res = await fetch(apiUrl(`/api/bounties/${questId}${walletQuery}`));
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Failed to load quest");
       setBounty(data.bounty);
       setParticipation(data.myParticipation ?? null);
-      setCanEdit(Boolean(data.canEdit));
+      setCanEdit(
+        Boolean(data.canEdit) ||
+          (data.bounty ? canEditBounty(data.bounty as BountyListItem, viewerWallet) : false)
+      );
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load quest");
     } finally {
       setLoading(false);
     }
-  }, [questId, connectedAddress]);
+  }, [questId, viewerWallet]);
 
   useEffect(() => {
     void load();

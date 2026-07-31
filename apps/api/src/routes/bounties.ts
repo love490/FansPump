@@ -289,7 +289,8 @@ router.get(
         ? bounty.participations.find((p) => p.walletAddress === viewerWallet)
         : undefined;
 
-      const isCreator = Boolean(viewerWallet) && viewerWallet === bounty.creatorWallet;
+      const isCreator =
+        Boolean(viewerWallet) && viewerWallet === bounty.creatorWallet.toLowerCase();
       const isAdmin = isAdminWallet(viewerWallet);
 
       res.json({
@@ -474,7 +475,7 @@ router.patch(
       }
 
       const isAdmin = isAdminWallet(wallet);
-      if (bounty.creatorWallet !== wallet && !isAdmin) {
+      if (bounty.creatorWallet.toLowerCase() !== wallet && !isAdmin) {
         res.status(403).json({ error: "Only the quest creator can edit this quest" });
         return;
       }
@@ -1098,7 +1099,7 @@ router.post(
         return;
       }
 
-      if (bounty.creatorWallet !== creatorWallet) {
+      if (bounty.creatorWallet.toLowerCase() !== creatorWallet) {
         res.status(403).json({ error: "Only the quest creator can verify submissions" });
         return;
       }

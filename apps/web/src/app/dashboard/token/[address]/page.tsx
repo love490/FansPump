@@ -37,7 +37,7 @@ import { apiUrl } from "@/lib/api";
 import { opnChainConfig } from "@/lib/chain-config/opn";
 import { explorerTxUrl, explorerAddressUrl } from "@/lib/explorer";
 import { fetchTokenUsdValue, fetchOpnUsdRate, DEFAULT_OPN_USD } from "@/lib/dashboard/token-quotes";
-import { formatBalanceTotal } from "@/lib/dashboard/wallet-balance";
+import { formatCompactOpn, formatCompactUsd, formatTokenAmount } from "@/lib/dashboard/wallet-balance";
 import { liquidityUrl, tokenLiquidityViewUrl } from "@/lib/navigation/liquidity-routes";
 import { erc20Abi } from "@/lib/swap/abis";
 import { getRouterAddress } from "@/lib/swap/routerAdapter";
@@ -268,7 +268,7 @@ export default function WalletTokenPage() {
 
   const portfolioShareHint =
     usdValue > 0
-      ? `${formatBalanceTotal(usdValue, "USD")} · ${formatMarketPrice(unitPriceUsd)} / ${token?.symbol ?? ""}`
+      ? `${formatCompactUsd(usdValue)} · ${formatMarketPrice(unitPriceUsd)} / ${token?.symbol ?? ""}`
       : "Value unavailable";
 
   const toggleWatchlist = useCallback(async () => {
@@ -400,32 +400,28 @@ export default function WalletTokenPage() {
             <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
               Your balance
             </p>
-            <p className="mt-1 text-2xl font-bold tabular-nums">
-              {balanceFloat.toLocaleString(undefined, { maximumFractionDigits: 6 })} {token.symbol}
+            <p className="mt-1 text-lg font-semibold tabular-nums sm:text-xl">
+              {formatTokenAmount(balanceFloat)} {token.symbol}
             </p>
           </div>
           <div>
             <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
               Portfolio value
             </p>
-            <p className="mt-1 text-2xl font-bold tabular-nums">
-              {usdValue > 0 ? formatBalanceTotal(usdValue, "USD") : "—"}
+            <p className="mt-1 text-lg font-semibold tabular-nums sm:text-xl">
+              {usdValue > 0 ? formatCompactUsd(usdValue) : "—"}
             </p>
-            <p className="mt-0.5 text-xs text-muted-foreground">{portfolioShareHint}</p>
+            <p className="mt-0.5 truncate text-xs text-muted-foreground">{portfolioShareHint}</p>
           </div>
           <div>
             <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
               Spot price
             </p>
-            <p className="mt-1 text-2xl font-bold tabular-nums">
+            <p className="mt-1 text-lg font-semibold tabular-nums sm:text-xl">
               {unitPriceUsd > 0 ? formatMarketPrice(unitPriceUsd) : "—"}
             </p>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              ≈ {(unitPriceUsd > 0 && opnRate > 0 ? unitPriceUsd / opnRate : 0).toLocaleString(
-                undefined,
-                { maximumFractionDigits: 6 }
-              )}{" "}
-              OPN
+              ≈ {formatCompactOpn(unitPriceUsd > 0 && opnRate > 0 ? unitPriceUsd / opnRate : 0)}
             </p>
           </div>
         </CardContent>
@@ -625,11 +621,11 @@ export default function WalletTokenPage() {
           <dl className="grid gap-3 text-sm sm:grid-cols-2">
             <InfoRow
               label="Balance owned"
-              value={`${balanceFloat.toLocaleString(undefined, { maximumFractionDigits: 6 })} ${token.symbol}`}
+              value={`${formatTokenAmount(balanceFloat)} ${token.symbol}`}
             />
             <InfoRow
               label="Current value"
-              value={usdValue > 0 ? formatBalanceTotal(usdValue, "USD") : "—"}
+              value={usdValue > 0 ? formatCompactUsd(usdValue) : "—"}
             />
             <InfoRow
               label="Average buy price"

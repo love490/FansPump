@@ -47,8 +47,19 @@ enum TokenCategory {
   INFRASTRUCTURE
   NFT
   COMMUNITY
+  SOCIAL
   UTILITY
+  RWA
   OTHER
+}
+
+enum ProjectDevelopmentStage {
+  IDEA
+  BUILDING
+  TESTNET
+  MAINNET
+  LIVE
+  DEPRECATED
 }
 
 enum AnnouncementType {
@@ -176,12 +187,26 @@ model TokenProject {
 
   logoUrl         String?  @map("logo_url")
   bannerUrl       String?  @map("banner_url")
+  displayName     String?  @map("display_name")
+  tagline         String?
+  summary         String?  @db.Text
   description     String?  @db.Text
+  themeColor      String?  @map("theme_color")
   website         String?
   telegram        String?
   twitter         String?
   discord         String?
   github          String?
+  medium          String?
+  documentation   String?
+  whitepaper      String?
+  supportEmail    String?  @map("support_email")
+  announcementChannel String? @map("announcement_channel")
+  communityInviteLink String? @map("community_invite_link")
+  officialContact String?  @map("official_contact")
+  developmentStage ProjectDevelopmentStage? @map("development_stage")
+  roadmap         Json?
+  profileUpdatedAt DateTime? @map("profile_updated_at")
 
   buyTaxBps       Int?     @map("buy_tax_bps")
   sellTaxBps      Int?     @map("sell_tax_bps")
@@ -341,13 +366,17 @@ model TokenVote {
 }
 
 model MetadataUpdate {
-  id        String   @id @default(cuid())
-  tokenId   String   @map("token_id")
-  field     String
-  createdAt DateTime @default(now()) @map("created_at")
+  id           String   @id @default(cuid())
+  tokenId      String   @map("token_id")
+  field        String
+  editorWallet String   @map("editor_wallet")
+  oldValue     String?  @db.Text @map("old_value")
+  newValue     String?  @db.Text @map("new_value")
+  createdAt    DateTime @default(now()) @map("created_at")
 
-  token     TokenProject @relation(fields: [tokenId], references: [id], onDelete: Cascade)
+  token        TokenProject @relation(fields: [tokenId], references: [id], onDelete: Cascade)
 
+  @@index([tokenId, createdAt])
   @@map("metadata_updates")
 }
 
@@ -497,6 +526,7 @@ model TokenAnnouncement {
   creatorWallet String           @map("creator_wallet")
   title         String
   content       String           @db.Text
+  imageUrl      String?          @map("image_url")
   type          AnnouncementType
   isHidden      Boolean          @default(false) @map("is_hidden")
   createdAt     DateTime         @default(now()) @map("created_at")
