@@ -17,8 +17,11 @@ export function NavigationProgress() {
       if (event.defaultPrevented || event.button !== 0) return;
       if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
 
-      const anchor = (event.target as HTMLElement | null)?.closest("a[href]");
-      if (!anchor || anchor.target === "_blank") return;
+      const el = event.target;
+      if (!(el instanceof Element)) return;
+      const anchor = el.closest("a[href]");
+      if (!(anchor instanceof HTMLAnchorElement)) return;
+      if (anchor.getAttribute("target") === "_blank") return;
 
       const href = anchor.getAttribute("href");
       if (!href || href.startsWith("#") || href.startsWith("mailto:") || href.startsWith("tel:")) {
