@@ -4,3 +4,4 @@ export * from "./announcements";
 export * from "./project-profile";
 export * from "./staking";
 export * from "./pools";
+export * from "./platform-analytics";

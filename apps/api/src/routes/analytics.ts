@@ -1,19 +1,46 @@
 import { Router } from "express";
 import { createPublicClient, http } from "viem";
-import { TOKEN_CATEGORIES } from "@iopn/shared";
+import { TOKEN_CATEGORIES, type AnalyticsLaunchSort, type AnalyticsRange } from "@iopn/shared";
 import { getActiveChainId, opnChain, opnChainConfig } from "@/lib/chain-config/opn";
 import { getGlobalAnalytics } from "@/lib/analytics/queries";
+import { getPlatformAnalyticsDashboard } from "@/lib/analytics/platform-dashboard";
 import { refreshAllTokenHolderCounts } from "@/lib/analytics/holder-count";
 import { refreshRolling24hMetrics, syncAnalyticsFromChain } from "@/lib/analytics/indexer";
 import { recordDailyMetricsSnapshot, refreshAllTrustScores } from "../lib/trust/service";
 import { getV2FeatureFlags } from "@/lib/v2/feature-flags";
 import prisma from "../lib/prisma";
-import { asyncHandler, requireAnalyticsSyncSecret, setCacheControl } from "../lib/http-helpers";
+import { asyncHandler, requireAnalyticsSyncSecret, setCacheControl, queryToSearchParams } from "../lib/http-helpers";
 import { publicRateLimit } from "../middleware/rateLimit";
 
 const router = Router();
 
 router.use(publicRateLimit);
+
+router.get(
+  "/platform",
+  asyncHandler(async (req, res) => {
+    const params = queryToSearchParams(req.query);
+    const range = (params.get("range") ?? "7d") as AnalyticsRange;
+    const launchSort = (params.get("launchSort") ?? "newest") as AnalyticsLaunchSort;
+
+    try {
+      const analytics = await getPlatformAnalyticsDashboard({
+        range,
+        launchSort,
+        q: params.get("q") ?? undefined,
+        category: params.get("category") ?? undefined,
+        verified: params.get("verified") === "true",
+        minTrust: params.get("minTrust") ? Number(params.get("minTrust")) : undefined,
+        creator: params.get("creator") ?? undefined,
+      });
+      setCacheControl(res, "public, s-maxage=30, stale-while-revalidate=60");
+      res.json({ analytics });
+    } catch (e) {
+      console.error("[GET /api/analytics/platform]", e);
+      res.status(500).json({ error: "Failed to load platform analytics" });
+    }
+  })
+);
 
 router.get(
   "/global",

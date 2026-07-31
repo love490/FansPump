@@ -10,6 +10,7 @@ import {
   Users,
   ArrowLeftRight,
   Settings,
+  BarChart3,
   CircleDollarSign,
   Megaphone,
   LifeBuoy,
@@ -55,6 +56,7 @@ export const platformLinks: SidebarNavItem[] = [
   { id: "create", href: "/create", label: "Create Token", icon: Rocket },
   { id: "discover", href: "/discover?section=all", label: "Discover", icon: Compass },
   { id: "dex", href: "/swap", label: "DEX", icon: ArrowLeftRight },
+  { id: "analytics", href: "/analytics", label: "Analytics", icon: BarChart3 },
   { id: "trustscan", href: "/trustscan", label: "TrustScan", icon: Shield },
   { id: "earn", href: "/earn", label: "Earn", icon: CircleDollarSign },
   { id: "launchpool", href: "/launchpool", label: "Launchpool", icon: Megaphone },
@@ -114,7 +116,7 @@ export function isSidebarNavActive(id: SidebarNavId, pathname: string): boolean 
     case "support":
       return pathname === "/support";
     case "analytics":
-      return pathname === "/pools" || pathname.startsWith("/pools/");
+      return pathname === "/analytics";
     case "dashboard":
       return pathname === "/dashboard";
     case "watchlist":
