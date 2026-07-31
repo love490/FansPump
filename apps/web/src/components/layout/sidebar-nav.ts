@@ -53,12 +53,12 @@ export type SidebarNavItem = {
 
 export const platformLinks: SidebarNavItem[] = [
   { id: "home", href: "/", label: "Home", icon: Home },
-  { id: "create", href: "/create", label: "Create Token", icon: Rocket },
   { id: "discover", href: "/discover?section=all", label: "Discover", icon: Compass },
+  { id: "create", href: "/create", label: "Create Token", icon: Rocket },
   { id: "dex", href: "/swap", label: "DEX", icon: ArrowLeftRight },
   { id: "analytics", href: "/analytics", label: "Analytics", icon: BarChart3 },
-  { id: "trustscan", href: "/trustscan", label: "TrustScan", icon: Shield },
   { id: "earn", href: "/earn", label: "Earn", icon: CircleDollarSign },
+  { id: "trustscan", href: "/trustscan", label: "TrustScan", icon: Shield },
   { id: "launchpool", href: "/launchpool", label: "Launchpool", icon: Megaphone },
   { id: "tools", href: "/tools", label: "Tools", icon: Wrench },
   { id: "how-it-works", href: "/docs/how-it-works", label: "How It Works", icon: HelpCircle },

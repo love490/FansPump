@@ -48,6 +48,9 @@ export function Footer() {
             <Link href="/docs" className="text-muted-foreground hover:text-primary">
               Documentation
             </Link>
+            <Link href="/analytics" className="text-muted-foreground hover:text-primary">
+              Analytics
+            </Link>
             <a
               href="https://iopn.io/"
               target="_blank"

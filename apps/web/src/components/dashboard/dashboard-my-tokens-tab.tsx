@@ -376,18 +376,34 @@ export function DashboardMyTokensTab({
                   </p>
                 </div>
 
-                {row.contractAddress && !row.isNative && (
+                {(row.isNative || row.symbol === "OPN") && href ? (
                   <Button
-                    type="button"
+                    asChild
                     variant="ghost"
                     size="icon"
                     className="h-8 w-8 shrink-0"
-                    title="Add to wallet"
-                    aria-label={`Add ${symbol} to your wallet`}
-                    onClick={() => void handleAddToWallet(row)}
+                    title="View OPN asset"
+                    aria-label="View OPN asset"
                   >
-                    <Wallet2 className="h-4 w-4" />
+                    <Link href={href}>
+                      <Wallet2 className="h-4 w-4" />
+                    </Link>
                   </Button>
+                ) : (
+                  row.contractAddress &&
+                  !row.isNative && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 shrink-0"
+                      title="Add to wallet"
+                      aria-label={`Add ${symbol} to your wallet`}
+                      onClick={() => void handleAddToWallet(row)}
+                    >
+                      <Wallet2 className="h-4 w-4" />
+                    </Button>
+                  )
                 )}
               </div>
             );
