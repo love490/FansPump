@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Youtube } from "lucide-react";
 import { FooterCta } from "@/components/layout/footer-cta";
+import { AppLink } from "@/components/layout/app-link";
 
 const socialLinks = [
   {
@@ -48,9 +49,9 @@ export function Footer() {
             <Link href="/docs" className="text-muted-foreground hover:text-primary">
               Documentation
             </Link>
-            <Link href="/analytics" className="text-muted-foreground hover:text-primary">
+            <AppLink href="/analytics" className="text-muted-foreground hover:text-primary">
               Analytics
-            </Link>
+            </AppLink>
             <a
               href="https://iopn.io/"
               target="_blank"

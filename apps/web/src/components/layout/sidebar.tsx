@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { ChevronDown } from "lucide-react";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
@@ -19,6 +19,7 @@ import {
   type SidebarNavItem,
 } from "@/components/layout/sidebar-nav";
 import { isDexPath } from "@/lib/navigation/swap-nav";
+import { handleAppNavigation } from "@/lib/navigation/app-navigate";
 
 function NavLink({
   link,
@@ -33,13 +34,15 @@ function NavLink({
   collapsed?: boolean;
   nested?: boolean;
 }) {
+  const router = useRouter();
   const { id, href, label, icon: Icon } = link;
   const active = isSidebarNavActive(id, pathname);
 
   return (
     <Link
       href={href}
-      onClick={onNavigate}
+      prefetch
+      onClick={(e) => handleAppNavigation(e, href, router, onNavigate)}
       title={collapsed ? label : undefined}
       className={cn(
         "flex items-center rounded-lg py-2 text-sm font-medium transition-colors",
@@ -67,6 +70,7 @@ function NavItemWithChildren({
   onNavigate?: () => void;
   collapsed?: boolean;
 }) {
+  const router = useRouter();
   const sectionOpenDefault = link.id === "dex" ? isDexPath(pathname) : false;
   const [open, setOpen] = useState(sectionOpenDefault);
   const parentActive = isSidebarNavActive(link.id, pathname);
@@ -102,7 +106,8 @@ function NavItemWithChildren({
       <div className="flex items-center gap-0.5">
         <Link
           href={link.href}
-          onClick={onNavigate}
+          prefetch
+          onClick={(e) => handleAppNavigation(e, link.href, router, onNavigate)}
           className={cn(
             "flex min-w-0 flex-1 items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
             parentActive
@@ -192,6 +197,7 @@ function SidebarContent({
   /** Omit nav items already shown elsewhere (e.g. mobile bottom bar). */
   excludeNavIds?: Set<string>;
 }) {
+  const router = useRouter();
   const settingsActive = isSidebarNavActive(settingsLink.id, pathname);
   const isExpanded = collapsed !== true;
   const platformNavLinks = excludeNavIds
@@ -246,7 +252,8 @@ function SidebarContent({
           )}
           <Link
             href={settingsLink.href}
-            onClick={onNavigate}
+            prefetch
+            onClick={(e) => handleAppNavigation(e, settingsLink.href, router, onNavigate)}
             title={collapsed ? settingsLink.label : undefined}
             className={cn(
               "flex items-center rounded-lg py-2 text-sm font-medium transition-colors",

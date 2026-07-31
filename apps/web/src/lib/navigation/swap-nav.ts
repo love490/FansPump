@@ -1,7 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 import {
   ArrowLeftRight,
-  BarChart3,
   Droplets,
   Layers,
   Wallet,
@@ -35,7 +34,6 @@ export const dexMenuNavLinks: DexNavLink[] = [
   { id: "liquidity", href: "/liquidity", label: "Liquidity", icon: Droplets },
   { id: "staking", href: "/staking", label: "Staking", icon: Layers },
   { id: "pool", href: "/pools", label: "Pool", icon: Layers },
-  { id: "analytics", href: "/analytics", label: "Analytics", icon: BarChart3 },
 ];
 
 export function isDexNavLinkActive(pathname: string, href: string): boolean {
@@ -53,9 +51,12 @@ export function isDexPath(pathname: string): boolean {
     pathname.startsWith("/liquidity/") ||
     pathname === "/pools" ||
     pathname.startsWith("/pools/") ||
-    pathname === "/staking" ||
-    pathname === "/analytics"
+    pathname === "/staking"
   );
+}
+
+export function isAnalyticsPath(pathname: string): boolean {
+  return pathname === "/analytics";
 }
 
 /** @deprecated Use isDexPath */

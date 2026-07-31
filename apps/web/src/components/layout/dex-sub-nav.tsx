@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { handleAppNavigation } from "@/lib/navigation/app-navigate";
 import {
   dexMenuNavLinks,
   isDexNavLinkActive,
@@ -17,6 +18,7 @@ type DexSubNavProps = {
 
 export function DexSubNav({ className, onNavigate, compact }: DexSubNavProps) {
   const pathname = usePathname();
+  const router = useRouter();
 
   return (
     <nav
@@ -33,7 +35,8 @@ export function DexSubNav({ className, onNavigate, compact }: DexSubNavProps) {
           <Link
             key={link.id}
             href={link.href}
-            onClick={onNavigate}
+            prefetch
+            onClick={(e) => handleAppNavigation(e, link.href, router, onNavigate)}
             className={cn(
               "shrink-0 whitespace-nowrap text-xs font-bold transition-colors sm:text-sm",
               compact && "text-xs sm:text-sm",

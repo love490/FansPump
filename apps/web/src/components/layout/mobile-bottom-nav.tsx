@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   ArrowLeftRight,
   Compass,
@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AppNavMenuContent } from "@/components/layout/sidebar";
+import { handleAppNavigation } from "@/lib/navigation/app-navigate";
 import { DEX_HOME, isDexPath } from "@/lib/navigation/swap-nav";
 
 const MOBILE_MENU_EXCLUDE = new Set(["home", "discover", "create", "dex"]);
@@ -42,6 +43,7 @@ function isTabActive(tab: BottomTab, pathname: string): boolean {
 
 function MobileBottomNavInner() {
   const pathname = usePathname();
+  const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
@@ -143,6 +145,8 @@ function MobileBottomNavInner() {
               <Link
                 key={tab.id}
                 href={tab.href}
+                prefetch
+                onClick={(e) => handleAppNavigation(e, tab.href, router)}
                 className={cn(
                   "flex flex-col items-center justify-center gap-0.5 px-1 text-[10px] font-medium transition-colors",
                   active ? "text-primary" : "text-muted-foreground"
