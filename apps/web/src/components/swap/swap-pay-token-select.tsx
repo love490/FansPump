@@ -3,6 +3,7 @@
 import { apiUrl } from "@/lib/api";
 
 import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
+import { usePathname } from "next/navigation";
 import { ChevronDown, Loader2, Search } from "lucide-react";
 import { useAccount, useBalance, usePublicClient } from "wagmi";
 import { formatUnits, type Address } from "viem";
@@ -103,6 +104,7 @@ export function SwapPayTokenSelect({
   variant = "default",
   rowAnchorRef,
 }: SwapPayTokenSelectProps) {
+  const pathname = usePathname();
   const { address } = useAccount();
   const client = usePublicClient({ chainId: opnChain.id });
   const [open, setOpen] = useState(false);
@@ -115,6 +117,10 @@ export function SwapPayTokenSelect({
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setOpen(false);
+  }, [pathname]);
 
   const { data: nativeBalance } = useBalance({ address, chainId: opnChain.id });
 

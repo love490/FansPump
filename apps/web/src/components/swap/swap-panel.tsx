@@ -87,6 +87,12 @@ export function SwapPanel({ initialToken = "", initialMode = "buy" }: SwapPanelP
   const settingsRef = useRef<HTMLDivElement>(null);
   const swapCardRef = useRef<HTMLDivElement>(null);
 
+  useEffect(() => {
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, []);
+
   const validToken = isValidTokenAddress(tokenAddress);
 
   const isAutoWrap = mode === "buy" && payToken.isNative && validToken && isWopnToken(tokenAddress);

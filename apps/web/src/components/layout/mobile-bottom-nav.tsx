@@ -73,7 +73,7 @@ function MobileBottomNavInner() {
       {menuOpen && (
         <button
           type="button"
-          className="fixed inset-0 z-[90] bg-black/40 max-md:block hidden"
+          className="fixed inset-0 z-[240] bg-black/40 max-md:block hidden"
           aria-label="Close navigation"
           onClick={() => setMenuOpen(false)}
         />
@@ -81,7 +81,7 @@ function MobileBottomNavInner() {
 
       {menuOpen && (
         <aside
-          className="fixed inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-[95] flex max-h-[min(70vh,32rem)] flex-col rounded-t-2xl border border-border bg-background shadow-2xl max-md:flex hidden"
+          className="fixed inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-[245] flex max-h-[min(70vh,32rem)] flex-col rounded-t-2xl border border-border bg-background shadow-2xl max-md:flex hidden"
           role="dialog"
           aria-modal="true"
           aria-label="Navigation menu"
@@ -110,7 +110,7 @@ function MobileBottomNavInner() {
       )}
 
       <nav
-        className="fixed inset-x-0 bottom-0 z-[100] border-t border-border bg-background/95 backdrop-blur-md max-md:block hidden"
+        className="fixed inset-x-0 bottom-0 z-[250] border-t border-border bg-background/95 backdrop-blur-md max-md:block hidden"
         style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
         aria-label="Mobile navigation"
       >

@@ -3,6 +3,7 @@
 import { apiUrl } from "@/lib/api";
 
 import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
+import { usePathname } from "next/navigation";
 import { ChevronDown, Loader2, Search } from "lucide-react";
 import { useAccount, usePublicClient } from "wagmi";
 import { formatUnits, type Address } from "viem";
@@ -98,6 +99,7 @@ export function SwapTokenPicker({
   fallbackSymbol,
   rowAnchorRef,
 }: SwapTokenPickerProps) {
+  const pathname = usePathname();
   const { address } = useAccount();
   const client = usePublicClient();
   const [open, setOpen] = useState(false);
@@ -112,6 +114,10 @@ export function SwapTokenPicker({
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setOpen(false);
+  }, [pathname]);
 
   const validAddress = isValidTokenAddress(value);
   const activeAddress = value?.toLowerCase();

@@ -309,7 +309,7 @@ export function Sidebar() {
   return (
     <aside
       className={cn(
-        "hidden shrink-0 border-r border-border bg-card/50 md:block",
+        "relative z-[250] hidden shrink-0 border-r border-border bg-card/50 md:block",
         "transition-[width] duration-150 ease-out motion-reduce:transition-none",
         collapsed ? "w-[4.5rem]" : "w-72 overflow-visible"
       )}

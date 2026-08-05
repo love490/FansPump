@@ -14,7 +14,7 @@ export function TopBar() {
   const showBack = Boolean(pathname && !HIDE_BACK_PATHS.has(pathname));
 
   return (
-    <header className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur-md">
+    <header className="sticky top-0 z-[250] border-b border-border bg-background/95 backdrop-blur-md">
       <div className="flex h-14 items-center gap-2 px-4 lg:px-6">
         <div className="flex min-w-0 items-center md:gap-1.5">
           <BackNavButton className="hidden md:inline-flex" />

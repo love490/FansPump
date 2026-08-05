@@ -33,6 +33,7 @@ export function NavigationProgress() {
       const currentPath = pathname ?? "";
       if (nextPath === currentPath) return;
 
+      document.dispatchEvent(new CustomEvent("app:navigate-intent"));
       setPending(true);
     }
 
